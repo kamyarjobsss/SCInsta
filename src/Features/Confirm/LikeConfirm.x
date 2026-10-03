@@ -172,6 +172,10 @@ static BOOL ix_likeArmed = NO;
 }
 %end
 
+@interface UIControl (IXStoryLike)
+- (BOOL)ix_isStoryLikeControl;
+@end
+
 %hook UIControl
 - (void)sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event {
     if (!ix_likeArmed && [SCIUtils getBoolPref:@"like_confirm"] && [self ix_isStoryLikeControl]) {
