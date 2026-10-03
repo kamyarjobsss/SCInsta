@@ -14,11 +14,13 @@ on:
             - cursor/instagram-x-v2-8ca9
         paths:
             - .github/workflows/buildapp.yml
-            - scripts/strip_previous_tweak.py
-            - scripts/check_sideload_ipa.py
-            - scripts/ipa_macho.py
-            - scripts/build_ixray.sh
+            - Makefile
             - build.sh
+            - control
+            - scripts/**
+            - src/**
+            - vendor/ixray/**
+            - resources/AppIcon/**
     workflow_dispatch:
         inputs:
             decrypted_instagram_url:
