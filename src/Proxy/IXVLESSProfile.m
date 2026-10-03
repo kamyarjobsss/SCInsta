@@ -94,7 +94,11 @@ static NSError *IXURIError(NSString *message) {
     }
 
     NSDictionary *params = IXQuery(query);
-    NSString *encryption = params[@"encryption"];
+    NSString * (^param)(NSString *) = ^NSString *(NSString *key) {
+        id value = params[key];
+        return [value isKindOfClass:[NSString class]] ? value : @"";
+    };
+    NSString *encryption = param(@"encryption");
     if (encryption.length && ![encryption isEqualToString:@"none"]) {
         if (error) *error = IXURIError(@"VLESS encryption must be \"none\".");
         return nil;
@@ -105,23 +109,21 @@ static NSError *IXURIError(NSString *message) {
     profile.uuid = uuid.lowercaseString;
     profile.host = host;
     profile.port = (uint16_t)port;
-    profile.network = params[@"type"].length ? params[@"type"].lowercaseString : @"tcp";
+    profile.network = param(@"type").length ? param(@"type").lowercaseString : @"tcp";
     if ([profile.network isEqualToString:@"raw"]) profile.network = @"tcp";
-    profile.security = params[@"security"].length ? params[@"security"].lowercaseString : @"none";
-    profile.flow = params[@"flow"];
-    profile.sni = params[@"sni"].length ? params[@"sni"] : host;
-    profile.fingerprint = params[@"fp"].length ? params[@"fp"] : @"chrome";
-    profile.publicKey = params[@"pbk"];
-    profile.shortId = params[@"sid"];
-    profile.spiderX = params[@"spx"].length ? params[@"spx"] : @"/";
-    profile.path = params[@"path"].length ? params[@"path"] : @"/";
-    profile.wsHost = params[@"host"];
-    profile.serviceName = params[@"serviceName"] ?: params[@"serviceName"];
-    if (!profile.serviceName.length) profile.serviceName = params[@"serviceName"];
-    profile.serviceName = params[@"serviceName"].length ? params[@"serviceName"] : params[@"authority"];
-    profile.alpn = params[@"alpn"];
-    profile.mode = params[@"mode"].length ? params[@"mode"] : @"auto";
-    profile.allowInsecure = [params[@"allowInsecure"] isEqualToString:@"1"] || [params[@"allowInsecure"] isEqualToString:@"true"] || [params[@"insecure"] isEqualToString:@"1"];
+    profile.security = param(@"security").length ? param(@"security").lowercaseString : @"none";
+    profile.flow = param(@"flow");
+    profile.sni = param(@"sni").length ? param(@"sni") : host;
+    profile.fingerprint = param(@"fp").length ? param(@"fp") : @"chrome";
+    profile.publicKey = param(@"pbk");
+    profile.shortId = param(@"sid");
+    profile.spiderX = param(@"spx").length ? param(@"spx") : @"/";
+    profile.path = param(@"path").length ? param(@"path") : @"/";
+    profile.wsHost = param(@"host");
+    profile.serviceName = param(@"serviceName").length ? param(@"serviceName") : param(@"authority");
+    profile.alpn = param(@"alpn");
+    profile.mode = param(@"mode").length ? param(@"mode") : @"auto";
+    profile.allowInsecure = [param(@"allowInsecure") isEqualToString:@"1"] || [param(@"allowInsecure") isEqualToString:@"true"] || [param(@"insecure") isEqualToString:@"1"];
     if (!name.length) name = [NSString stringWithFormat:@"%@:%d", host, port];
     profile.name = name;
 
