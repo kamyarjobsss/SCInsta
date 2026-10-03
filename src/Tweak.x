@@ -1,7 +1,15 @@
 #import <substrate.h>
 #import "InstagramHeaders.h"
 #import "Tweak.h"
+#import "Launch/IXLaunchGuard.h"
+#import "Features/General/IXSettingsEntry.h"
+#import "Proxy/IXProxyManager.h"
 #import "Utils.h"
+#import "Features/General/SCICacheManager.h"
+#import "Features/General/SCIChangelog.h"
+#include "../modules/fishhook/fishhook.h"
+
+extern void SCIFakeLocationInstall(void);
 
 ///////////////////////////////////////////////////////////
 
@@ -13,7 +21,7 @@
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v1.1.1";
+NSString *SCIVersionString = @"v2.0.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -25,25 +33,154 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
     NSDictionary *sciDefaults = @{
         @"hide_ads": @(YES),
         @"copy_description": @(YES),
+        @"profile_copy_button": @(YES),
         @"detailed_color_picker": @(YES),
         @"remove_screenshot_alert": @(YES),
-        @"call_confirm": @(YES),
-        @"keep_deleted_message": @(YES),
-        @"dw_feed_posts": @(YES),
-        @"dw_reels": @(YES),
-        @"dw_story": @(YES),
+        @"voice_call_confirm": @(NO),
+        @"video_call_confirm": @(NO),
+        @"keep_deleted_message": @(NO),
+        @"hide_suggested_stories": @(NO),
+        @"profile_analyzer_accumulate": @(NO),
+        @"story_tray_actions": @(NO),
+        @"zoom_profile_photo": @(NO),
+        @"follow_indicator": @(NO),
+        @"profile_note_copy": @(NO),
+        @"disable_disappearing_mode_swipe": @(NO),
+        @"hide_voice_call_button": @(NO),
+        @"hide_video_call_button": @(NO),
+        @"fake_location_enabled": @(NO),
+        @"show_fake_location_map_button": @(NO),
+        @"fake_location_lat": @(48.8584),
+        @"fake_location_lon": @(2.2945),
+        @"fake_location_name": @"Eiffel Tower",
+        @"fake_location_presets": @[],
+        @"messages_only": @(NO),
+        @"messages_only_hide_tabbar": @(NO),
+        @"fake_follower_count": @(NO),
+        @"fake_following_count": @(NO),
+        @"fake_post_count": @(NO),
+        @"fake_verified": @(NO),
+        @"launch_tab": @"default",
         @"save_profile": @(YES),
+        // Per-context action buttons (new in 1.1.6)
+        @"feed_media_zoom": @(NO),
+        @"disable_bg_refresh": @(NO),
+        @"disable_home_refresh": @(NO),
+        @"disable_home_scroll": @(NO),
+        @"disable_reels_tab_refresh": @(NO),
+        @"dm_full_last_active": @(NO),
+        @"send_file": @(NO),
+        @"note_actions": @(NO),
+        @"note_copy_on_hold": @(NO),
+        @"feed_date_format": @"default",
+        // Per-surface date format toggles (see SCIDateFormatEntries.h)
+        @"date_fmt_mixed": @(YES),
+        @"date_fmt_notes_comments_stories": @(NO),
+        @"date_fmt_dms": @(NO),
+        @"feed_action_button": @(YES),
+        @"feed_action_default": @"menu",
+        @"reels_action_button": @(YES),
+        @"reels_action_default": @"menu",
+        @"stories_action_button": @(YES),
+        @"stories_action_default": @"menu",
+        @"dm_visual_action_button": @(YES),
+        @"dm_visual_action_default": @"menu",
+        @"dm_visual_seen_button": @(YES),
+        @"dm_visual_audio_toggle": @(NO),
+        // Legacy long-press gesture (off by default — kept for users who prefer it)
+        @"dw_legacy_gesture": @(NO),
+        @"dw_confirm": @(NO),
+        @"enhance_download_quality": @(YES),
+        @"default_video_quality": @"always_ask",
+        @"default_photo_quality": @"high",
+        @"ffmpeg_encoding_speed": @"ultrafast",
+        @"unfollow_confirm": @(NO),
+        @"sticker_interact_confirm": @(NO),
+        @"sticker_interact_confirm_highlights": @(NO),
+        @"dw_save_action": @"share",
         @"dw_finger_count": @(3),
         @"dw_finger_duration": @(0.5),
         @"reels_tap_control": @"default",
+        @"reels_photo_tap_mute": @(NO),
         @"nav_icon_ordering": @"default",
         @"swipe_nav_tabs": @"default",
         @"enable_notes_customization": @(YES),
         @"custom_note_themes": @(YES),
-        @"disable_auto_unmuting_reels": @(YES),
-        @"doom_scrolling_reel_count": @(1)
+        @"disable_auto_unmuting_reels": @(NO),
+        @"auto_scroll_reels_mode": @"off",
+        @"settings_shortcut": @(YES),
+        @"doom_scrolling_reel_count": @(1),
+        @"keep_seen_visual_local": @(NO),
+        @"send_audio_as_file": @(YES),
+        @"download_audio_message": @(NO),
+        @"save_to_ryukgram_album": @(NO),
+        @"unlock_password_reels": @(YES),
+        @"seen_mode": @"button",
+        @"seen_auto_on_interact": @(NO),
+        @"seen_auto_on_typing": @(NO),
+        @"seen_on_story_like": @(NO),
+        @"seen_on_story_reply": @(NO),
+        @"advance_on_story_reply": @(NO),
+        @"advance_on_mark_seen": @(NO),
+        @"advance_on_story_like": @(NO),
+        @"indicate_unsent_messages": @(NO),
+        @"unsent_message_toast": @(NO),
+        @"warn_refresh_clears_preserved": @(NO),
+        @"enable_chat_exclusions": @(YES),
+        @"chat_blocking_mode": @"block_all",
+        @"exclusions_default_keep_deleted": @(NO),
+        @"chat_quick_list_button": @(YES),
+        @"enable_story_user_exclusions": @(YES),
+        @"story_blocking_mode": @"block_all",
+        @"story_excluded_show_unexclude_eye": @(YES),
+        @"story_seen_mode": @"button",
+        @"story_audio_toggle": @(NO),
+        @"view_story_mentions": @(YES),
+        @"stories_show_quiz_answer": @(NO),
+        @"stories_show_poll_votes_count": @(NO),
+        @"reels_show_quiz_answer": @(NO),
+        @"reels_show_poll_votes_count": @(NO),
+        @"force_enable_quiz_sticker": @(NO),
+        @"settings_pause_playback": @(YES),
+        @"embed_links": @(NO),
+        @"embed_link_domain": @"kkinstagram.com",
+        @"strip_tracking_params": @(NO),
+        @"download_highlight_cover": @(YES),
+        @"open_links_external": @(NO),
+        @"strip_browser_tracking": @(NO),
+        @"hide_feed_repost": @(NO),
+        @"copy_comment": @(YES),
+        @"download_gif_comment": @(YES),
+        @"cache_auto_clear_mode": @"off",
+        @"cache_auto_check_size": @(YES),
+        @"sci_changelog_force_show": @(NO),
+        @"live_anonymous_view": @(NO),
+        @"live_hide_comments": @(NO),
+        @"hide_ui_on_capture": @(NO),
+        @"paste_link_from_search": @(NO),
+        @"sci_language": @"system",
+        @"theme_force_dark": @(NO),
+        @"theme_full_oled": @(NO),
+        @"theme_oled_chat": @(NO),
+        @"theme_keyboard": @"off",
+        // Experimental IG features (credits: Radan). See SCIExperimentalGuard.
+        @"igt_homecoming": @(NO),
+        @"igt_quicksnap": @(NO),
+        @"igt_prism": @(NO),
+        @"igt_directnotes_friendmap": @(NO),
+        @"igt_directnotes_audio_reply": @(NO),
+        @"igt_directnotes_avatar_reply": @(NO),
+        @"igt_directnotes_gifs_reply": @(NO),
+        @"igt_directnotes_photo_reply": @(NO),
+        @"sci_exp_warning_seen": @(NO),
+        @"ix_killswitch": @(YES),
+        @"ix_block_udp": @(YES),
+        @"ix_vless_enabled": @(NO),
+        @"fake_location_spoof_tz": @(NO),
+        @"fake_location_spoof_locale": @(NO)
     };
     [[NSUserDefaults standardUserDefaults] registerDefaults:sciDefaults];
+    [SCIUtils setSciRegisteredDefaults:sciDefaults];
     
     // Override instagram defaults
     if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) {
@@ -58,38 +195,71 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
     %orig;
 
-    // Open settings for first-time users
-    double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (
-            ![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]
-            || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
-        ) {
-            NSLog(@"[SCInsta] First run, initializing");
-
-            // Display settings modal on screen
-            NSLog(@"[SCInsta] Displaying SCInsta first-time settings modal");
-            [SCIUtils showSettingsVC:[self window]];
+    BOOL safeMode = IXLaunchGuardIsSafeMode();
+    if (!safeMode) {
+        double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (
+                ![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]
+                || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
+            ) {
+                NSLog(@"[InstagramX] First run — showing settings modal");
+                [SCIUtils showSettingsVC:[self window]];
+            }
+        });
+        IXSettingsEntryInstall();
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"fake_location_enabled"]) {
+            SCIFakeLocationInstall();
         }
-    });
-
-    NSLog(@"[SCInsta] Cleaning cache...");
-    [SCIUtils cleanCache];
-
-    if ([SCIUtils getBoolPref:@"flex_app_launch"]) {
-        [[objc_getClass("FLEXManager") sharedManager] showExplorer];
+        [IXProxyManager.shared restoreOnLaunch];
+        if ([SCIUtils getBoolPref:@"flex_app_launch"]) {
+            [[objc_getClass("FLEXManager") sharedManager] showExplorer];
+        }
+    } else {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            UIViewController *presenter = [self window].rootViewController;
+            if (!presenter) return;
+            while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
+                                                                           message:@"The last launch closed before Instagram X was ready, so the VPN, fake location, and the settings row stayed off. You can turn them on from settings."
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [presenter presentViewController:alert animated:YES completion:nil];
+        });
     }
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXLaunchGuardMarkReady();
+    });
 
     return true;
 }
 
 - (void)applicationDidBecomeActive:(id)arg1 {
     %orig;
-    
-    if ([SCIUtils getBoolPref:@"flex_app_start"]) {
+
+    if (!IXLaunchGuardIsSafeMode() && [SCIUtils getBoolPref:@"flex_app_start"]) {
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
     }
+
+}
+
+- (void)applicationDidEnterBackground:(id)arg1 {
+    %orig;
+    // Cache housekeeping while backgrounded — never competes with IG's foreground I/O.
+    [SCICacheManager runAutoClearIfDue];
+}
+%end
+
+// Tab bar only exists in the logged-in state — fire the changelog popup here
+// rather than at app launch (which runs pre-login).
+%hook IGTabBarController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        [SCIChangelog presentIfNewFromWindow:self.view.window];
+    });
 }
 %end
 
@@ -97,7 +267,7 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 - (_Bool)isLiquidGlassInAppNotificationEnabled {
     return [SCIUtils liquidGlassEnabledBool:%orig];
 }
-- (_Bool)isLiquidGlassContextMenuEnabled{
+- (_Bool)isLiquidGlassContextMenuEnabled {
     return [SCIUtils liquidGlassEnabledBool:%orig];
 }
 - (_Bool)isLiquidGlassToastEnabled {
@@ -109,7 +279,11 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 - (_Bool)isLiquidGlassAlertDialogEnabled {
     return [SCIUtils liquidGlassEnabledBool:%orig];
 }
+- (_Bool)isLiquidGlassIconBarButtonEnabled {
+    return [SCIUtils liquidGlassEnabledBool:%orig];
+}
 %end
+
 
 // Disable sending modded insta bug reports
 %hook IGWindow
@@ -186,6 +360,7 @@ shouldPersistLastBugReportId:(id)arg6
 %hook IGDirectVisualMessageViewerController
 - (void)screenshotObserverDidSeeScreenshotTaken:(id)arg1 { VOID_HANDLESCREENSHOT(%orig); }
 - (void)screenshotObserverDidSeeActiveScreenCapture:(id)arg1 event:(NSInteger)arg2 { VOID_HANDLESCREENSHOT(%orig); }
+
 %end
 
 /////////////////////////////////////////////////////////////////////////////
@@ -564,28 +739,28 @@ shouldPersistLastBugReportId:(id)arg6
     for (id obj in originalObjs) {
         BOOL shouldHide = NO;
 
-        // Meta AI
-        if (
-            [[obj valueForKey:@"title"] isEqualToString:@"AI images"]
-            || [[obj valueForKey:@"title"] isEqualToString:@"Meta AI"]
-        ) {
-            
-            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
-                NSLog(@"[SCInsta] Hiding meta ai from IGDS menu");
+        NSString *itemTitle = nil;
+        @try { itemTitle = [obj valueForKey:@"title"]; } @catch (__unused id e) {}
 
+        // Meta AI
+        if ([itemTitle isEqualToString:@"AI images"] || [itemTitle isEqualToString:@"Meta AI"]) {
+            if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
                 shouldHide = YES;
             }
-
         }
 
-        // Populate new objs array
         if (!shouldHide) {
             [filteredObjs addObject:obj];
         }
-
     }
 
-    return %orig([filteredObjs copy], edr, headerLabelText);
+    extern NSArray *sciMaybeAppendStoryExcludeMenuItem(NSArray *);
+    extern NSArray *sciMaybeAppendStoryAudioMenuItem(NSArray *);
+    extern NSArray *sciMaybeAppendStoryMentionsMenuItem(NSArray *);
+    NSArray *finalObjs = sciMaybeAppendStoryExcludeMenuItem([filteredObjs copy]);
+    finalObjs = sciMaybeAppendStoryAudioMenuItem(finalObjs);
+    finalObjs = sciMaybeAppendStoryMentionsMenuItem(finalObjs);
+    return %orig(finalObjs, edr, headerLabelText);
 }
 %end
 
@@ -634,6 +809,19 @@ shouldPersistLastBugReportId:(id)arg6
 }
 %end
 
+// Hide repost button in feed (requires restart)
+%hook IGUFIInteractionCountsView
+- (void)updateUFIWithButtonsConfig:(id)config interactionCountProvider:(id)provider {
+    %orig;
+    if (![SCIUtils getBoolPref:@"hide_feed_repost"]) return;
+    Ivar rv = class_getInstanceVariable(object_getClass(self), "_repostView");
+    if (rv) [object_getIvar((id)self, rv) setHidden:YES];
+    Ivar uv = class_getInstanceVariable(object_getClass(self), "_undoRepostButton");
+    if (uv) [object_getIvar((id)self, uv) setHidden:YES];
+}
+%end
+
+
 %hook IGSundialViewerVerticalUFI
 - (void)_didTapLikeButton:(id)arg1 {
     if ([SCIUtils getBoolPref:@"like_confirm_reels"]) {
@@ -655,24 +843,28 @@ shouldPersistLastBugReportId:(id)arg6
     }
 }
 
-- (void)_didTapRepostButton:(id)arg1 {
+- (void)_didTapRepostButton {
+    if ([SCIUtils getBoolPref:@"hide_reels_repost"]) return;
     if ([SCIUtils getBoolPref:@"repost_confirm"]) {
-        NSLog(@"[SCInsta] Confirm repost triggered");
-
         [SCIUtils showConfirmation:^(void) { %orig; }];
     }
     else {
-        return %orig;
+        %orig;
     }
 }
 
 - (void)_didLongPressRepostButton:(id)arg1 {
-    if ([SCIUtils getBoolPref:@"repost_confirm"]) {
-        NSLog(@"[SCInsta] Confirm repost triggered (long press ignored)");
-    }
-    else {
-        return %orig;
-    }
+    if ([SCIUtils getBoolPref:@"hide_reels_repost"]) return;
+    if ([SCIUtils getBoolPref:@"repost_confirm"]) return;
+    %orig;
+}
+%end
+
+// Hide repost button at the view model level so IG's layout handles the gap
+%hook IGSundialViewerUFIViewModel
+- (BOOL)shouldShowRepostButton {
+    if ([SCIUtils getBoolPref:@"hide_reels_repost"]) return NO;
+    return %orig;
 }
 %end
 
@@ -713,3 +905,89 @@ shouldPersistLastBugReportId:(id)arg6
     return %orig;
 }
 %end
+
+// liquid glass Swift class hooks
+static BOOL (*orig_swizzleToggle_isEnabled)(id, SEL) = NULL;
+static BOOL new_swizzleToggle_isEnabled(id self, SEL _cmd) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) return YES;
+    return orig_swizzleToggle_isEnabled(self, _cmd);
+}
+
+static BOOL (*orig_expHelper_isEnabled)(id, SEL) = NULL;
+static BOOL new_expHelper_isEnabled(id self, SEL _cmd) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) return YES;
+    return orig_expHelper_isEnabled(self, _cmd);
+}
+
+static BOOL (*orig_expHelper_isHomeFeed)(id, SEL) = NULL;
+static BOOL new_expHelper_isHomeFeed(id self, SEL _cmd) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) return YES;
+    return orig_expHelper_isHomeFeed(self, _cmd);
+}
+
+// Liquid glass tab bar — C function hooks via fishhook
+// Credits: @euoradan (Radan) for discovering these flags
+static BOOL (*orig_IGFloatingTabBarEnabled)(void) = NULL;
+static BOOL (*orig_IGTabBarDynamicSizingEnabled)(void) = NULL;
+static BOOL (*orig_IGTabBarEnhancedDynamicSizingEnabled)(void) = NULL;
+static BOOL (*orig_IGTabBarHomecomingWithFloatingTabEnabled)(void) = NULL;
+static BOOL (*orig_IGTabBarViewPointFixEnabled)(void) = NULL;
+static NSInteger (*orig_IGTabBarStyleForLauncherSet)(NSInteger) = NULL;
+
+static BOOL hook_IGFloatingTabBarEnabled(void) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return YES;
+    return orig_IGFloatingTabBarEnabled ? orig_IGFloatingTabBarEnabled() : NO;
+}
+static BOOL hook_IGTabBarDynamicSizingEnabled(void) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return YES;
+    return orig_IGTabBarDynamicSizingEnabled ? orig_IGTabBarDynamicSizingEnabled() : NO;
+}
+static BOOL hook_IGTabBarEnhancedDynamicSizingEnabled(void) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return YES;
+    return orig_IGTabBarEnhancedDynamicSizingEnabled ? orig_IGTabBarEnhancedDynamicSizingEnabled() : NO;
+}
+static BOOL hook_IGTabBarHomecomingWithFloatingTabEnabled(void) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return YES;
+    return orig_IGTabBarHomecomingWithFloatingTabEnabled ? orig_IGTabBarHomecomingWithFloatingTabEnabled() : NO;
+}
+static BOOL hook_IGTabBarViewPointFixEnabled(void) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return YES;
+    return orig_IGTabBarViewPointFixEnabled ? orig_IGTabBarViewPointFixEnabled() : NO;
+}
+static NSInteger hook_IGTabBarStyleForLauncherSet(NSInteger set) {
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) return 1;
+    return orig_IGTabBarStyleForLauncherSet ? orig_IGTabBarStyleForLauncherSet(set) : set;
+}
+
+%ctor {
+    // ObjC hooks for liquid glass buttons
+    Class swizzleToggle = objc_getClass("IGLiquidGlassSwizzle.IGLiquidGlassSwizzleToggle");
+    if (swizzleToggle) {
+        MSHookMessageEx(swizzleToggle, @selector(isEnabled),
+                        (IMP)new_swizzleToggle_isEnabled, (IMP *)&orig_swizzleToggle_isEnabled);
+    }
+
+    Class expHelper = objc_getClass("IGLiquidGlassExperimentHelper.IGLiquidGlassNavigationExperimentHelper");
+    if (expHelper) {
+        MSHookMessageEx(expHelper, @selector(isEnabled),
+                        (IMP)new_expHelper_isEnabled, (IMP *)&orig_expHelper_isEnabled);
+        MSHookMessageEx(expHelper, @selector(isHomeFeedHeaderEnabled),
+                        (IMP)new_expHelper_isHomeFeed, (IMP *)&orig_expHelper_isHomeFeed);
+    }
+
+    // C function hooks for liquid glass tab bar / surfaces (fishhook)
+    if ([SCIUtils getBoolPref:@"liquid_glass_surfaces"]) {
+        int result = rebind_symbols((struct rebinding[]){
+            {"IGFloatingTabBarEnabled", (void *)hook_IGFloatingTabBarEnabled, (void **)&orig_IGFloatingTabBarEnabled},
+            {"IGTabBarDynamicSizingEnabled", (void *)hook_IGTabBarDynamicSizingEnabled, (void **)&orig_IGTabBarDynamicSizingEnabled},
+            {"IGTabBarEnhancedDynamicSizingEnabled", (void *)hook_IGTabBarEnhancedDynamicSizingEnabled, (void **)&orig_IGTabBarEnhancedDynamicSizingEnabled},
+            {"IGTabBarHomecomingWithFloatingTabEnabled", (void *)hook_IGTabBarHomecomingWithFloatingTabEnabled, (void **)&orig_IGTabBarHomecomingWithFloatingTabEnabled},
+            {"IGTabBarViewPointFixEnabled", (void *)hook_IGTabBarViewPointFixEnabled, (void **)&orig_IGTabBarViewPointFixEnabled},
+            {"IGTabBarStyleForLauncherSet", (void *)hook_IGTabBarStyleForLauncherSet, (void **)&orig_IGTabBarStyleForLauncherSet},
+        }, 6);
+        NSLog(@"[SCInsta] Liquid glass fishhook result=%d floating=%p dynamic=%p enhanced=%p homecoming=%p viewpoint=%p style=%p",
+              result, orig_IGFloatingTabBarEnabled, orig_IGTabBarDynamicSizingEnabled,
+              orig_IGTabBarEnhancedDynamicSizingEnabled, orig_IGTabBarHomecomingWithFloatingTabEnabled,
+              orig_IGTabBarViewPointFixEnabled, orig_IGTabBarStyleForLauncherSet);
+    }
+}

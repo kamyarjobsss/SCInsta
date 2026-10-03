@@ -1,16 +1,21 @@
 #import "SCISettingsViewController.h"
+#import "SCISearchBarStyler.h"
+#import "../Features/General/SCICacheManager.h"
+#import "../SCIImageCache.h"
 
 static char rowStaticRef[] = "row";
 
-@interface SCISettingsViewController () <UITableViewDataSource, UITableViewDelegate>
+@interface SCISettingsViewController () <UITableViewDataSource, UITableViewDelegate, UISearchResultsUpdating, UISearchControllerDelegate>
 
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, copy) NSArray *sections;
 @property (nonatomic) BOOL reduceMargin;
 
-@end
+@property (nonatomic, strong) UISearchController *searchController;
+@property (nonatomic, copy) NSArray<NSDictionary *> *searchResults;
+@property (nonatomic) BOOL isRoot;
 
-///
+@end
 
 @implementation SCISettingsViewController
 
@@ -20,8 +25,9 @@ static char rowStaticRef[] = "row";
     if (self) {
         self.title = title;
         self.reduceMargin = reduceMargin;
-        
-        // Exclude development cells from release builds
+        self.isRoot = reduceMargin;
+
+        // Hide dev-only sections in non-dev builds.
         NSMutableArray *mutableSections = [sections mutableCopy];
         
         [mutableSections enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(NSDictionary *section, NSUInteger index, BOOL *stop) {
@@ -64,17 +70,215 @@ static char rowStaticRef[] = "row";
     self.tableView.delegate = self;
 
     [self.view addSubview:self.tableView];
+
+    if (self.isRoot) {
+        UISearchController *sc = [[UISearchController alloc] initWithSearchResultsController:nil];
+        sc.searchResultsUpdater = self;
+        sc.delegate = self;
+        sc.obscuresBackgroundDuringPresentation = NO;
+        sc.searchBar.placeholder = SCILocalized(@"settings.search.placeholder");
+        self.navigationItem.searchController = sc;
+        self.navigationItem.hidesSearchBarWhenScrolling = NO;
+        if (![SCIUtils getBoolPref:@"liquid_glass_buttons"]) {
+            self.definesPresentationContext = YES;
+        }
+        self.searchController = sc;
+
+        self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc]
+            initWithBarButtonSystemItem:UIBarButtonSystemItemClose
+                                 target:self action:@selector(sciDismissSettings)];
+
+        UIImage *globe = [UIImage systemImageNamed:@"globe"];
+        UIBarButtonItem *langItem = [[UIBarButtonItem alloc] initWithImage:globe
+                                                                     style:UIBarButtonItemStylePlain
+                                                                    target:nil
+                                                                    action:nil];
+        langItem.menu = [self sciBuildLanguageMenu];
+        self.navigationItem.rightBarButtonItem = langItem;
+    }
+
+    // Pushed Advanced VC reloads the Clear cache row when size lands.
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(sciCacheSizeDidUpdate)
+                                                 name:SCICacheSizeDidUpdateNotification
+                                               object:nil];
+}
+
+- (void)sciCacheSizeDidUpdate {
+    [self.tableView reloadData];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)sciShowLanguageInfo {
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:SCILocalized(@"settings.language.title")
+                         message:SCILocalized(@"settings.language.english_only")
+                  preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.language.ok") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.language.help_translate") style:UIAlertActionStyleDefault
+                                            handler:^(__unused UIAlertAction *a) {
+        NSURL *url = [NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram#translating-ryukgram"];
+        if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    }]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (UIMenu *)sciBuildLanguageMenu {
+    NSString *current = [[NSUserDefaults standardUserDefaults] stringForKey:SCILanguagePrefKey] ?: @"system";
+    NSMutableArray<UIAction *> *actions = [NSMutableArray array];
+
+    for (NSDictionary<NSString *, NSString *> *lang in SCIAvailableLanguages()) {
+        NSString *code = lang[@"code"];
+        NSString *title = [code isEqualToString:@"system"]
+            ? SCILocalized(@"settings.language.system")
+            : lang[@"native"];
+
+        UIAction *action = [UIAction actionWithTitle:title
+                                                image:nil
+                                           identifier:nil
+                                              handler:^(UIAction * _Nonnull a) {
+            NSString *prev = [[NSUserDefaults standardUserDefaults] stringForKey:SCILanguagePrefKey] ?: @"system";
+            if ([prev isEqualToString:code]) return;
+            [[NSUserDefaults standardUserDefaults] setObject:code forKey:SCILanguagePrefKey];
+            SCILocalizationReset();
+            [self sciApplyLanguageChange];
+            // Most IG-side hooks cache their labels at load time, so a full
+            // restart is the only way to flip every menu/button cleanly.
+            [SCIUtils showRestartConfirmation];
+        }];
+        action.state = [code isEqualToString:current] ? UIMenuElementStateOn : UIMenuElementStateOff;
+        [actions addObject:action];
+    }
+
+    UIAction *help = [UIAction actionWithTitle:[NSString stringWithFormat:@"❤️ %@", SCILocalized(@"settings.language.help_translate")]
+                                          image:nil
+                                     identifier:nil
+                                        handler:^(__unused UIAction *a) {
+        NSURL *url = [NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram#translating-ryukgram"];
+        if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    }];
+
+    return [UIMenu menuWithTitle:SCILocalized(@"settings.language.title")
+                        children:[actions arrayByAddingObject:help]];
+}
+
+- (void)sciApplyLanguageChange {
+    // Root title + search placeholder reflect the new language immediately.
+    self.title = SCILocalized(@"settings.title");
+    self.searchController.searchBar.placeholder = SCILocalized(@"settings.search.placeholder");
+    if (self.navigationItem.rightBarButtonItem.menu) {
+        self.navigationItem.rightBarButtonItem.menu = [self sciBuildLanguageMenu];
+    }
+    [self.tableView reloadData];
+
+    // Features watching for runtime label refreshes (IG menu items, overlay
+    // buttons, toasts) can subscribe to this to re-read their strings.
+    [[NSNotificationCenter defaultCenter] postNotificationName:@"SCILanguageDidChange" object:nil];
+}
+
+- (void)sciDismissSettings {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self.tableView reloadData];
+    [self sciStyleSearchBar];
+}
+
+- (void)sciStyleSearchBar { [SCISearchBarStyler styleSearchBar:self.searchController.searchBar]; }
+
+- (void)willPresentSearchController:(UISearchController *)searchController { [self sciStyleSearchBar]; }
+- (void)didPresentSearchController:(UISearchController *)searchController {
+    [self sciStyleSearchBar];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.05 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self sciStyleSearchBar];
+    });
+}
+
+#pragma mark - Search
+
+- (BOOL)isSearching {
+    return self.searchController.isActive && self.searchController.searchBar.text.length > 0;
+}
+
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController {
+    NSString *q = searchController.searchBar.text ?: @"";
+    if (q.length == 0) {
+        self.searchResults = @[];
+    } else {
+        NSMutableArray *out = [NSMutableArray array];
+        [self collectMatchingFromSections:self.sections breadcrumb:@"" query:q into:out];
+        self.searchResults = out;
+    }
+    [self.tableView reloadData];
+}
+
+- (void)collectMatchingFromSections:(NSArray *)sections
+                         breadcrumb:(NSString *)breadcrumb
+                              query:(NSString *)q
+                               into:(NSMutableArray *)out
+{
+    for (id sectionObj in sections) {
+        if (![sectionObj isKindOfClass:[NSDictionary class]]) continue;
+        NSDictionary *section = sectionObj;
+        NSString *header = section[@"header"] ?: @"";
+        NSArray *rows = section[@"rows"];
+        for (id rowObj in rows) {
+            if (![rowObj isKindOfClass:[SCISetting class]]) continue;
+            SCISetting *row = rowObj;
+
+            NSString *titleHay = row.title ?: @"";
+            NSString *subHay   = row.subtitle ?: @"";
+            BOOL matches = [titleHay rangeOfString:q options:NSCaseInsensitiveSearch].location != NSNotFound
+                        || [subHay   rangeOfString:q options:NSCaseInsensitiveSearch].location != NSNotFound;
+
+            if (matches) {
+                NSMutableString *crumb = [NSMutableString string];
+                if (breadcrumb.length) [crumb appendString:breadcrumb];
+                if (header.length) {
+                    if (crumb.length) [crumb appendString:@" › "];
+                    [crumb appendString:header];
+                }
+                [out addObject:@{ @"setting": row, @"breadcrumb": crumb ?: @"" }];
+            }
+
+            if (row.navSections) {
+                NSString *child = breadcrumb.length
+                    ? [NSString stringWithFormat:@"%@ › %@", breadcrumb, row.title ?: @""]
+                    : (row.title ?: @"");
+                [self collectMatchingFromSections:row.navSections breadcrumb:child query:q into:out];
+            }
+        }
+    }
+}
+
+- (SCISetting *)settingForIndexPath:(NSIndexPath *)indexPath breadcrumbOut:(NSString **)outCrumb {
+    if ([self isSearching]) {
+        if (indexPath.row >= (NSInteger)self.searchResults.count) return nil;
+        NSDictionary *entry = self.searchResults[indexPath.row];
+        if (outCrumb) *outCrumb = entry[@"breadcrumb"];
+        return entry[@"setting"];
+    }
+    return self.sections[indexPath.section][@"rows"][indexPath.row];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
-    
+    // Without this the search bar strands itself as a floating bar on return.
+    if (![SCIUtils getBoolPref:@"liquid_glass_buttons"] && self.searchController.isActive) {
+        self.searchController.active = NO;
+    }
+
     if (![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"SCInsta Settings Info"
-                                                                       message:@"In the future: Hold down on the three lines at the top right of your profile page, to re-open SCInsta settings."
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:SCILocalized(@"settings.firstrun.title")
+                                                                       message:SCILocalized(@"settings.firstrun.message")
                                                                 preferredStyle:UIAlertControllerStyleAlert];
-        
-        [alert addAction:[UIAlertAction actionWithTitle:@"I understand!"
+
+        [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.firstrun.ok")
                                                   style:UIAlertActionStyleDefault
                                                 handler:nil]];
         
@@ -89,17 +293,28 @@ static char rowStaticRef[] = "row";
 // MARK: - UITableViewDataSource
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    SCISetting *row = self.sections[indexPath.section][@"rows"][indexPath.row];
+    NSString *searchBreadcrumb = nil;
+    SCISetting *row = [self settingForIndexPath:indexPath breadcrumbOut:&searchBreadcrumb];
     if (!row) return nil;
     
     UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:nil];
     UIListContentConfiguration *cellContentConfig = cell.defaultContentConfiguration;
     
-    cellContentConfig.text = row.title;
-    
-    // Subtitle
-    if (row.subtitle.length) {
-        cellContentConfig.secondaryText = row.subtitle;
+    cellContentConfig.text = row.dynamicTitle ? row.dynamicTitle() : row.title;
+
+    // Value1-style static row: trailing label on the right. Subtitle still
+    // renders below the title when both are set.
+    if (row.valueText.length && ![self isSearching]) {
+        UILabel *value = [UILabel new];
+        value.text = row.valueText;
+        value.font = [UIFont systemFontOfSize:16];
+        value.textColor = [UIColor secondaryLabelColor];
+        [value sizeToFit];
+        cell.accessoryView = value;
+    }
+    NSString *displaySubtitle = [self isSearching] && searchBreadcrumb.length ? searchBreadcrumb : row.subtitle;
+    if (displaySubtitle.length) {
+        cellContentConfig.secondaryText = displaySubtitle;
         cellContentConfig.textToSecondaryTextVerticalPadding = 4.5;
     }
     
@@ -112,8 +327,20 @@ static char rowStaticRef[] = "row";
     // Image url
     if (row.imageUrl != nil) {
         [self loadImageFromURL:row.imageUrl atIndexPath:indexPath forTableView:tableView];
-        
+
         cellContentConfig.imageToTextPadding = 14;
+    }
+
+    if (row.bundleImageName) {
+        UIImage *img = [UIImage imageNamed:row.bundleImageName
+                                  inBundle:SCILocalizationBundle()
+             compatibleWithTraitCollection:nil];
+        if (img) {
+            cellContentConfig.image = img;
+            cellContentConfig.imageProperties.maximumSize = CGSizeMake(45, 45);
+            cellContentConfig.imageProperties.cornerRadius = 10;
+            cellContentConfig.imageToTextPadding = 14;
+        }
     }
     
     switch (row.type) {
@@ -138,15 +365,19 @@ static char rowStaticRef[] = "row";
             
         case SCITableCellSwitch: {
             UISwitch *toggle = [UISwitch new];
-            toggle.on = [[NSUserDefaults standardUserDefaults] boolForKey:row.defaultsKey];
+            toggle.on = row.disabled ? NO : [[NSUserDefaults standardUserDefaults] boolForKey:row.defaultsKey];
             toggle.onTintColor = [SCIUtils SCIColor_Primary];
-            
+            toggle.enabled = !row.disabled;
+
             objc_setAssociatedObject(toggle, rowStaticRef, row, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            
+
             [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
-            
+
             cell.accessoryView = toggle;
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            if (row.disabled) {
+                cell.contentView.alpha = 0.4;
+            }
             break;
         }
             
@@ -191,9 +422,13 @@ static char rowStaticRef[] = "row";
             menuButton.configuration = config;
 
             [menuButton sizeToFit];
-            
+
             cell.accessoryView = menuButton;
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
+            if (row.disabled) {
+                menuButton.enabled = NO;
+                cell.contentView.alpha = 0.4;
+            }
             break;
         }
             
@@ -202,32 +437,45 @@ static char rowStaticRef[] = "row";
             break;
         }
     }
-    
+
+    if (row.titleColor) {
+        cellContentConfig.textProperties.color = row.titleColor;
+    }
+
     cell.contentConfiguration = cellContentConfig;
 
     return cell;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if ([self isSearching]) return self.searchResults.count;
     return [self.sections[section][@"rows"] count];
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    if ([self isSearching]) {
+        NSUInteger n = self.searchResults.count;
+        if (n == 0) return SCILocalized(@"settings.results.none");
+        NSString *fmt = n == 1 ? SCILocalized(@"settings.results.one") : SCILocalized(@"settings.results.many");
+        return [NSString stringWithFormat:fmt, (unsigned long)n];
+    }
     return self.sections[section][@"header"];
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if ([self isSearching]) return nil;
     return self.sections[section][@"footer"];
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    if ([self isSearching]) return 1;
     return self.sections.count;
 }
 
 // MARK: - UITableViewDelegate
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    SCISetting *row = self.sections[indexPath.section][@"rows"][indexPath.row];
+    SCISetting *row = [self settingForIndexPath:indexPath breadcrumbOut:NULL];
     if (!row) return;
 
     if (row.type == SCITableCellLink) {
@@ -263,6 +511,10 @@ static char rowStaticRef[] = "row";
     if (row.requiresRestart) {
         [SCIUtils showRestartConfirmation];
     }
+
+    if ([row.defaultsKey isEqualToString:@"hide_suggested_stories"]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"SCISuggestedStoriesReload" object:nil];
+    }
 }
 
 - (void)stepperChanged:(UIStepper *)sender {
@@ -282,7 +534,8 @@ static char rowStaticRef[] = "row";
     NSLog(@"Menu changed: %@", command.propertyList[@"value"]);
     
     [self reloadCellForView:command.sender animated:YES];
-    
+    [self.tableView reloadData];
+
     if (properties[@"requiresRestart"]) {
         [SCIUtils showRestartConfirmation];
     }
@@ -330,27 +583,16 @@ static char rowStaticRef[] = "row";
 - (void)loadImageFromURL:(NSURL *)url atIndexPath:(NSIndexPath *)indexPath forTableView:(UITableView *)tableView
 {
     if (!url) return;
-
-    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url
-                                                             completionHandler:^(NSData *data, NSURLResponse *response, NSError *error)
-    {
-        if (!data || error) return;
-
-        UIImage *image = [UIImage imageWithData:data];
+    [SCIImageCache loadImageFromURL:url completion:^(UIImage *image) {
         if (!image) return;
-
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
-            if (!cell) return;
-
-            UIListContentConfiguration *config = (UIListContentConfiguration *)cell.contentConfiguration;
-            config.image = image;
-            config.imageProperties.maximumSize = CGSizeMake(45, 45);
-            cell.contentConfiguration = config;
-        });
+        UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
+        if (!cell) return;
+        UIListContentConfiguration *config = (UIListContentConfiguration *)cell.contentConfiguration;
+        config.image = image;
+        config.imageProperties.maximumSize = CGSizeMake(45, 45);
+        config.imageProperties.cornerRadius = 22.5;
+        cell.contentConfiguration = config;
     }];
-
-    [task resume];
 }
 
 @end
