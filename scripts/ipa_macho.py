@@ -271,6 +271,87 @@ def _blob_signature_status(blob: bytes) -> str:
     return "adhoc"
 
 
+def strip_trailing_code_signature(path: Path) -> bool:
+    """Remove a code signature that is a suffix of a thin Mach-O.
+
+    Instagram's main executable keeps dyld metadata between the string table
+    and the signature, which ldid refuses to rewrite. Dropping the signature
+    leaves the metadata in place and the binary unsigned for Sideloadly.
+    """
+    data = bytearray(path.read_bytes())
+    starts = _slice_starts(data)
+    if starts != [0]:
+        raise MachOError("refusing to strip a code signature from a fat binary")
+    signature = None
+    for cmd, blob in _walk_commands(data, 0):
+        if cmd == LC_CODE_SIGNATURE and len(blob) >= 16:
+            signature = struct.unpack_from("<II", blob, 8)
+    if signature is None:
+        return False
+    dataoff, datasize = signature
+    if dataoff == 0 or dataoff + datasize != len(data):
+        raise MachOError("code signature is not a suffix of the file")
+
+    ncmds, sizeofcmds, cmds_off = header(data, 0)
+    kept = bytearray()
+    new_ncmds = 0
+    off = 0
+    seen = 0
+    while off < sizeofcmds and seen < ncmds:
+        cmd, cmdsize = struct.unpack_from("<II", data, cmds_off + off)
+        if cmdsize < 8 or off + cmdsize > sizeofcmds:
+            raise MachOError("bad cmdsize while stripping a code signature")
+        blob = bytes(data[cmds_off + off : cmds_off + off + cmdsize])
+        if cmd != LC_CODE_SIGNATURE:
+            kept += blob
+            new_ncmds += 1
+        off += cmdsize
+        seen += 1
+    if len(kept) > sizeofcmds:
+        raise MachOError("compacted load commands grew")
+    data[cmds_off : cmds_off + sizeofcmds] = kept + b"\x00" * (sizeofcmds - len(kept))
+    struct.pack_into("<II", data, 16, new_ncmds, len(kept))
+
+    updated = False
+    for cmd, blob in _walk_commands(data, 0):
+        if cmd != 0x19:
+            continue
+        name = blob[8:24].split(b"\x00", 1)[0]
+        if name != b"__LINKEDIT":
+            continue
+        fileoff, filesize = struct.unpack_from("<QQ", blob, 40)
+        new_filesize = dataoff - fileoff
+        if new_filesize <= 0 or new_filesize > filesize:
+            raise MachOError("code signature is outside __LINKEDIT")
+        # Patch filesize in place. The command bytes above are a copy.
+        # Find the segment again by scanning command offsets.
+        updated = True
+        break
+    if not updated:
+        raise MachOError("no __LINKEDIT segment")
+    off = 0
+    seen = 0
+    ncmds, sizeofcmds, cmds_off = header(data, 0)
+    while off < sizeofcmds and seen < ncmds:
+        cmd, cmdsize = struct.unpack_from("<II", data, cmds_off + off)
+        if cmd == 0x19:
+            name = data[cmds_off + off + 8 : cmds_off + off + 24].split(b"\x00", 1)[0]
+            if name == b"__LINKEDIT":
+                fileoff, filesize = struct.unpack_from("<QQ", data, cmds_off + off + 40)
+                new_filesize = dataoff - fileoff
+                struct.pack_into("<Q", data, cmds_off + off + 48, new_filesize)
+                break
+        off += cmdsize
+        seen += 1
+    else:
+        raise MachOError("no __LINKEDIT segment")
+
+    del data[dataoff:]
+    list(_walk_commands(data, 0))
+    path.write_bytes(data)
+    return True
+
+
 def signature_status(data: bytes) -> str:
     """`unsigned` or `adhoc` when Sideloadly can re-sign the binary.
 

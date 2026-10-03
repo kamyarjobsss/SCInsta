@@ -26,6 +26,7 @@ from ipa_macho import (  # noqa: E402
     header,
     iter_commands,
     iter_slices,
+    strip_trailing_code_signature,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -186,10 +187,13 @@ def main() -> int:
             shutil.copy2(icon, app / icon.name)
 
         if not shutil.which("ldid"):
-            print("ldid is required so Sideloadly receives an ad-hoc signature", file=sys.stderr)
+            print("ldid is required so the injected dylibs get an ad-hoc signature", file=sys.stderr)
             return 1
-        print("[*] ad-hoc signing the changed binaries with ldid -S")
-        _run(["ldid", "-S", str(exe)])
+        # Instagram's linkedit is not a layout ldid can rewrite. The main
+        # executable is left unsigned so Sideloadly can sign the new header.
+        print("[*] removing the main executable code signature")
+        strip_trailing_code_signature(exe)
+        print("[*] ad-hoc signing the injected dylibs with ldid -S")
         _run(["ldid", "-S", str(dest)])
         if xray and xray.is_file():
             _run(["ldid", "-S", str(app / "Frameworks" / "IXRayCore.dylib")])

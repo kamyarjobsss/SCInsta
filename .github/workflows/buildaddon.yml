@@ -173,7 +173,7 @@ jobs:
                   - `InstagramX_addon_436_v1.0.0.ipa` adds the settings row, the VLESS proxy, fake location, and launch safe mode. IXRayCore.dylib is copied with no load command.
                   - `InstagramX_addon_436_lite_v1.0.0.ipa` is the crash-isolation fallback. It has the settings row and launch safe mode only. The proxy and Xray are not included.
 
-                  RyukGram.dylib, RyukGram.bundle, and the rest of that IPA are unchanged. Each build adds InstagramXAddon.dylib, one weak load command, and the Instagram X icon and display name. The changed binaries are ad-hoc signed with `ldid -S`. Every Mach-O in the IPA has cryptid 0.
+                  RyukGram.dylib, RyukGram.bundle, and the rest of that IPA are unchanged. Each build adds InstagramXAddon.dylib, one weak load command, and the Instagram X icon and display name. Injected dylibs are ad-hoc signed with `ldid -S`. The main executable is unsigned, because its linkedit is not a layout ldid can rewrite, so Sideloadly can sign the new header. Every Mach-O in the IPA has cryptid 0.
 
                   The add-on does not include SCInsta. Socket hooks are data-pointer rebinds and run only while the proxy is on. There is no MSHookFunction.
 
