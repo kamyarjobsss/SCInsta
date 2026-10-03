@@ -1,28 +1,18 @@
 #import "IXSettingsEntry.h"
 
 %group IXSettingsEntryHooks
-%hook UILabel
-- (void)setText:(NSString *)text {
-    %orig;
-    if (text.length >= 8 && text.length <= 80) [IXSettingsEntry noteLabel:self];
-}
-- (void)setAttributedText:(NSAttributedString *)attributedText {
-    %orig;
-    if (attributedText.length >= 8 && attributedText.length <= 80) [IXSettingsEntry noteLabel:self];
-}
-%end
-
 %hook UIViewController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     [IXSettingsEntry noteSettingsController:self];
 }
-%end
-
-%hook UIScrollView
-- (void)layoutSubviews {
+- (void)viewDidDisappear:(BOOL)animated {
     %orig;
-    [IXSettingsEntry relayoutIfNeeded:self];
+    [IXSettingsEntry removeSettingsRowForController:self];
+}
+- (void)viewDidLayoutSubviews {
+    %orig;
+    [IXSettingsEntry relayoutSettingsRowForController:self];
 }
 %end
 %end

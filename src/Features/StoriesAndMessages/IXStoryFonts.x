@@ -33,10 +33,14 @@
 // The chip strip is IGScrollingSelectorView (collection view + custom layout),
 // data source IGStoryTextEntryControlsOverlayView. numberOfItems and
 // itemAtIndexPath read the overlay ivar _textFormats (offset 264) directly.
-// Prepending put the four fonts at index 0, the leading edge. On a Persian
-// phone that edge is to the right, and the selector never scrolls back there
-// (its targetContentOffset path rejects a negative proposed offset). Append
-// them so the data-source count includes them, then center that range once.
+//
+// Tapping a chip builds a model from that format, then
+// setRichTextEntryModel:animated: does indexOfObjectPassingTest: and keeps the
+// first format whose -type matches. -type is the q ivar at offset 24
+// (ldr [self, #0x18]). Copies of one template share that type, so the selector
+// jumps back to the first stock font and setTextFormat: applies that font.
+// Each Persian format gets its own type, is inserted first, and index 0 is
+// selected through the real delegate so the chip stays and the UIFont is used.
 
 static NSString *const IXPreviewText = @"وکسپید";
 
@@ -97,6 +101,39 @@ static NSUInteger IXReadUIntIvar(id obj, const char *name) {
     return *(NSUInteger *)((uint8_t *)(__bridge void *)obj + ivar_getOffset(ivar));
 }
 
+static int64_t IXReadType(id obj) {
+    Ivar ivar = class_getInstanceVariable([obj class], "_type");
+    if (!ivar) return 0;
+    return *(int64_t *)((uint8_t *)(__bridge void *)obj + ivar_getOffset(ivar));
+}
+
+static void IXWriteType(id obj, int64_t value) {
+    Ivar ivar = class_getInstanceVariable([obj class], "_type");
+    if (!ivar) return;
+    *(int64_t *)((uint8_t *)(__bridge void *)obj + ivar_getOffset(ivar)) = value;
+}
+
+static int64_t IXFreshType(NSArray *original, NSUInteger slot) {
+    int64_t candidate = (int64_t)0x49580001 + (int64_t)slot;
+    Class formatClass = IXFormatClass();
+    BOOL clash = YES;
+    while (clash) {
+        clash = NO;
+        for (id item in original) {
+            if (!formatClass || ![item isKindOfClass:formatClass]) continue;
+            if ([item respondsToSelector:@selector(loggingName)]) {
+                id logging = ((IXIdFn)objc_msgSend)(item, @selector(loggingName));
+                if ([logging isKindOfClass:[NSString class]] && IXIsOurLoggingName(logging)) continue;
+            }
+            if (IXReadType(item) != candidate) continue;
+            clash = YES;
+            candidate += 4;
+            break;
+        }
+    }
+    return candidate;
+}
+
 static void IXRegisterFonts(void) {
     NSBundle *bundle = SCILocalizationBundle();
     NSString *dir = [bundle.bundlePath stringByAppendingPathComponent:@"Fonts"];
@@ -117,7 +154,7 @@ static UIFont *IXFont(NSString *postScript, CGFloat size) {
     return [UIFont fontWithName:postScript size:size];
 }
 
-static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSArray *scripts) {
+static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSArray *scripts, int64_t type) {
     if (!font) return nil;
     Class formatClass = IXFormatClass();
     id made = nil;
@@ -133,15 +170,17 @@ static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSArray
         id allocated = ((IXIdFn)objc_msgSend)(formatClass, @selector(alloc));
         IXInitFn initFn = (IXInitFn)objc_msgSend;
         made = initFn(allocated, sel_registerName(kIXInitSel),
-                      0, 0, IXPreviewText, font,
+                      (NSInteger)type, 0, IXPreviewText, font,
                       12.0, 64.0, 1.0, 0, 1.0,
                       loggingName, NO, 0.0, 0, 0.0, NO,
                       nil, nil, IXPreviewText, nil, scripts, nil);
     }
     if (!made) return nil;
+    IXSetIvarObject(made, "_font", font);
     IXSetIvarObject(made, "_loggingName", loggingName);
     IXSetIvarObject(made, "_displayName", IXPreviewText);
     IXSetIvarObject(made, "_accessibilityDescriptor", IXPreviewText);
+    IXWriteType(made, type);
     return made;
 }
 
@@ -175,11 +214,18 @@ static NSArray *IXMergeFormats(NSArray *original) {
             break;
         }
     }
+    NSMutableArray *templates = [NSMutableArray array];
+    for (id item in original) {
+        if (formatClass && [item isKindOfClass:formatClass]) [templates addObject:item];
+    }
     NSArray *scripts = IXScriptUnion(original, template);
     NSMutableArray *leading = [NSMutableArray array];
+    NSUInteger slot = 0;
     for (NSString *name in IXFontNames()) {
-        id made = IXMakeFormat(template, IXFont(name, pointSize), name, scripts);
+        id source = templates.count ? templates[slot % templates.count] : template;
+        id made = IXMakeFormat(source, IXFont(name, pointSize), name, scripts, IXFreshType(original, slot));
         if (made) [leading addObject:made];
+        slot++;
     }
     if (!leading.count) return original;
 
@@ -191,10 +237,9 @@ static NSArray *IXMergeFormats(NSArray *original) {
         }
         [rest addObject:item];
     }
-    // Append. Index 0 stays the font Instagram centers, and the strip's
-    // item count is this array's count, so the new chips are real items.
-    [rest addObjectsFromArray:leading];
-    return [rest copy];
+    NSMutableArray *merged = [leading mutableCopy];
+    [merged addObjectsFromArray:rest];
+    return [merged copy];
     } @catch (__unused NSException *exception) {
         return original;
     }
@@ -207,23 +252,23 @@ static NSArray *IXMergePresets(NSArray *original) {
     if (formatClass && [first isKindOfClass:formatClass]) return IXMergeFormats(original);
     if ([first isKindOfClass:[NSString class]]) {
         NSMutableArray *merged = [NSMutableArray array];
-        for (id item in original) {
-            if (![merged containsObject:item]) [merged addObject:item];
-        }
         for (NSString *name in IXFontNames()) {
             if (![merged containsObject:name]) [merged addObject:name];
+        }
+        for (id item in original) {
+            if (![merged containsObject:item]) [merged addObject:item];
         }
         return merged;
     }
     if ([first isKindOfClass:[UIFont class]]) {
         CGFloat size = ((UIFont *)first).pointSize > 0 ? ((UIFont *)first).pointSize : 18;
         NSMutableArray *merged = [NSMutableArray array];
-        for (UIFont *font in original) {
-            if (![font isKindOfClass:[UIFont class]] || !IXIsOurFont(font)) [merged addObject:font];
-        }
         for (NSString *name in IXFontNames()) {
             UIFont *font = IXFont(name, size);
             if (font) [merged addObject:font];
+        }
+        for (UIFont *font in original) {
+            if (![font isKindOfClass:[UIFont class]] || !IXIsOurFont(font)) [merged addObject:font];
         }
         return merged;
     }
@@ -314,57 +359,73 @@ static BOOL IXFormatsIncludeOurs(NSArray *formats) {
     return NO;
 }
 
-static void IXCenterFontIndex(UICollectionView *collection, NSInteger index) {
-    if (collection.numberOfSections < 1) return;
-    NSInteger count = [collection numberOfItemsInSection:0];
-    if (count <= 0) return;
-    if (index < 0) index = 0;
-    if (index >= count) index = count - 1;
-    NSIndexPath *path = [NSIndexPath indexPathForItem:index inSection:0];
-    UICollectionViewLayoutAttributes *attributes = [collection layoutAttributesForItemAtIndexPath:path];
-    if (!attributes || collection.bounds.size.width < 1) {
-        [collection scrollToItemAtIndexPath:path atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
-        return;
-    }
-    CGFloat width = collection.bounds.size.width;
-    CGFloat x = CGRectGetMidX(attributes.frame) - width * 0.5;
-    CGFloat minX = -collection.adjustedContentInset.left;
-    CGFloat maxX = collection.contentSize.width - width + collection.adjustedContentInset.right;
-    if (maxX < minX) maxX = minX;
-    if (x < minX) x = minX;
-    if (x > maxX) x = maxX;
-    [collection setContentOffset:CGPointMake(x, collection.contentOffset.y) animated:NO];
+static char IXFontMergedKey;
+static char IXFontSelectedKey;
+static char IXFontSelectAttempts;
+
+static void IXSelectLeadingFont(id selector, id dataSource, UICollectionView *collection) {
+    NSIndexPath *path = [NSIndexPath indexPathForItem:0 inSection:0];
+    __weak id weakSelector = selector;
+    __weak id weakData = dataSource;
+    __weak UICollectionView *weakCollection = collection;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        id owner = weakData;
+        id strip = weakSelector;
+        SEL modelSel = @selector(richTextEntryModel);
+        id model = (owner && [owner respondsToSelector:modelSel]) ? ((id (*)(id, SEL))objc_msgSend)(owner, modelSel) : nil;
+        UICollectionView *view = weakCollection;
+        if (!model) {
+            NSInteger attempts = [objc_getAssociatedObject(strip, &IXFontSelectAttempts) integerValue] + 1;
+            objc_setAssociatedObject(strip, &IXFontSelectAttempts, @(attempts), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            if (attempts < 8) objc_setAssociatedObject(strip, &IXFontSelectedKey, nil, OBJC_ASSOCIATION_ASSIGN);
+            if ([view isKindOfClass:[UICollectionView class]]) {
+                [view reloadData];
+                [view layoutIfNeeded];
+                @try {
+                    if ([view numberOfSections] > 0 && [view numberOfItemsInSection:0] > 0) {
+                        [view scrollToItemAtIndexPath:path atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
+                    }
+                } @catch (__unused NSException *exception) {}
+            }
+            return;
+        }
+        if ([view isKindOfClass:[UICollectionView class]]) {
+            [view reloadData];
+            [view layoutIfNeeded];
+            @try {
+                if ([view numberOfSections] > 0 && [view numberOfItemsInSection:0] > 0) {
+                    [view scrollToItemAtIndexPath:path atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
+                }
+            } @catch (__unused NSException *exception) {}
+        }
+        SEL changed = @selector(scrollingSelectorView:didChangeSelectedIndexPath:fromUserAction:);
+        if (strip && [owner respondsToSelector:changed]) {
+            @try {
+                ((void (*)(id, SEL, id, id, BOOL))objc_msgSend)(owner, changed, strip, path, YES);
+            } @catch (__unused NSException *exception) {}
+        }
+    });
 }
 
-static char IXFontRevealKey;
-
 static void IXRevealFontsOnSelector(id selector) {
-    if (objc_getAssociatedObject(selector, &IXFontRevealKey)) return;
     Class overlayClass = objc_getClass("IGStoryTextEntryControlsOverlayView");
     id dataSource = IXIvarObject(selector, "_dataSource");
     if (!overlayClass || ![dataSource isKindOfClass:overlayClass]) return;
-    NSArray *formats = IXIvarObject(dataSource, "_textFormats");
-    if (![formats isKindOfClass:[NSArray class]] || formats.count == 0) return;
-    NSArray *merged = IXMergeFormats(formats);
-    if (![merged isKindOfClass:[NSArray class]] || !IXFormatsIncludeOurs(merged)) return;
+    if (!objc_getAssociatedObject(selector, &IXFontMergedKey)) {
+        NSArray *formats = IXIvarObject(dataSource, "_textFormats");
+        if (![formats isKindOfClass:[NSArray class]] || formats.count == 0) return;
+        NSArray *merged = IXMergeFormats(formats);
+        if (![merged isKindOfClass:[NSArray class]] || !IXFormatsIncludeOurs(merged)) return;
+        UICollectionView *collection = IXIvarObject(selector, "_collectionView");
+        if (![collection isKindOfClass:[UICollectionView class]]) return;
+        if (merged != formats) IXSetIvarObject(dataSource, "_textFormats", merged);
+        objc_setAssociatedObject(selector, &IXFontMergedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    if (objc_getAssociatedObject(selector, &IXFontSelectedKey)) return;
     UICollectionView *collection = IXIvarObject(selector, "_collectionView");
     if (![collection isKindOfClass:[UICollectionView class]]) return;
-    objc_setAssociatedObject(selector, &IXFontRevealKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    if (merged != formats) IXSetIvarObject(dataSource, "_textFormats", merged);
-    // Four fonts sit at the end. Center the second so the row is on screen.
-    NSInteger index = (NSInteger)merged.count - 3;
-    __weak UICollectionView *weakCollection = collection;
-    __weak UIView *weakSelector = [selector isKindOfClass:[UIView class]] ? selector : nil;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UICollectionView *view = weakCollection;
-        if (!view) return;
-        view.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
-        weakSelector.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
-        [view reloadData];
-        [view layoutIfNeeded];
-        @try { IXCenterFontIndex(view, index); }
-        @catch (__unused NSException *exception) {}
-    });
+    objc_setAssociatedObject(selector, &IXFontSelectedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    IXSelectLeadingFont(selector, dataSource, collection);
 }
 
 %hook IGScrollingSelectorView

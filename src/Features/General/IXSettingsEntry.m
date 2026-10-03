@@ -1,153 +1,125 @@
 #import "IXSettingsEntry.h"
 #import "../../Brand/IXBrand.h"
-#import "../../Proxy/IXProxyManager.h"
 #import "../../Utils.h"
 #import <objc/runtime.h>
 
-static char kIXAnchorKey;
-static char kIXBaseInsetKey;
+// A normal row inside Instagram's settings list only.
+// It is an arranged subview of that list's stack, a tableHeaderView of that
+// list's table, or a content subview of that list's scroll view. It is never
+// added to a window, and it is removed when the settings screen disappears.
 
-@interface IXSettingsAnchor : NSObject
-@property (nonatomic, weak) UIView *anchor;
+static char kIXRowKey;
+static NSString *const kIXRowID = @"ix-settings-row";
+static CGFloat const kIXRowHeight = 52.0;
+
+@interface IXSettingsRowOwner : NSObject
+@property (nonatomic, weak) UIViewController *owner;
+@property (nonatomic, weak) UIScrollView *list;
 @property (nonatomic, strong) UIControl *row;
-@property (nonatomic) BOOL placeAbove;
+@property (nonatomic) UIEdgeInsets baseInset;
+@property (nonatomic) BOOL adjustsInset;
+@property (nonatomic) BOOL didShiftOffset;
 @end
 
-@implementation IXSettingsAnchor
+@implementation IXSettingsRowOwner
 @end
 
-@interface IXHoloRow : UIControl
-@property (nonatomic) UIImageView *iconView;
+@interface IXSettingsRow : UIControl
 @property (nonatomic) UILabel *titleLabel;
-@property (nonatomic) UILabel *detailLabel;
-@property (nonatomic) CAGradientLayer *glow;
 @end
 
-@implementation IXHoloRow
+@implementation IXSettingsRow
 
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (!self) return nil;
-    self.backgroundColor = [UIColor colorWithWhite:0.04 alpha:0.94];
-    self.layer.cornerRadius = 14;
-    self.layer.masksToBounds = NO;
+    self.accessibilityIdentifier = kIXRowID;
+    self.backgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
+    self.translatesAutoresizingMaskIntoConstraints = NO;
 
-    self.glow = [CAGradientLayer layer];
-    self.glow.colors = @[
-        (id)[UIColor colorWithRed:0.25 green:0.85 blue:1 alpha:1].CGColor,
-        (id)[UIColor colorWithRed:0.55 green:0.35 blue:1 alpha:1].CGColor,
-        (id)[UIColor colorWithRed:1 green:0.35 blue:0.75 alpha:1].CGColor,
-        (id)[UIColor colorWithRed:1 green:0.85 blue:0.35 alpha:1].CGColor,
-        (id)[UIColor colorWithRed:0.25 green:0.85 blue:1 alpha:1].CGColor
-    ];
-    self.glow.startPoint = CGPointMake(0, 0.5);
-    self.glow.endPoint = CGPointMake(1, 0.5);
-    self.glow.cornerRadius = 14;
-    [self.layer addSublayer:self.glow];
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[IXBrand iconImage]];
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+    icon.layer.cornerRadius = 6;
+    icon.clipsToBounds = YES;
+    icon.contentMode = UIViewContentModeScaleAspectFill;
 
-    CABasicAnimation *slide = [CABasicAnimation animationWithKeyPath:@"locations"];
-    slide.fromValue = @[@(-0.4), @(-0.2), @(0.0), @(0.2), @(0.4)];
-    slide.toValue = @[@(0.6), @(0.8), @(1.0), @(1.2), @(1.4)];
-    slide.duration = 2.8;
-    slide.repeatCount = HUGE_VALF;
-    [self.glow addAnimation:slide forKey:@"ix-holo"];
-
-    self.iconView = [[UIImageView alloc] initWithImage:[IXBrand iconImage]];
-    self.iconView.translatesAutoresizingMaskIntoConstraints = NO;
-    self.iconView.layer.cornerRadius = 8;
-    self.iconView.clipsToBounds = YES;
-    self.iconView.contentMode = UIViewContentModeScaleAspectFill;
-
+    BOOL persian = [[NSLocale preferredLanguages].firstObject hasPrefix:@"fa"];
     self.titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     self.titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.titleLabel.text = @"Instagram X settings";
-    self.titleLabel.font = [UIFont systemFontOfSize:16 weight:UIFontWeightSemibold];
-    self.titleLabel.textColor = [UIColor whiteColor];
+    self.titleLabel.text = persian ? @"اینستاگرام ایکس" : @"Instagram X";
+    self.titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    self.titleLabel.textColor = [UIColor labelColor];
+    self.titleLabel.adjustsFontForContentSizeCategory = YES;
 
-    self.detailLabel = [[UILabel alloc] initWithFrame:CGRectZero];
-    self.detailLabel.translatesAutoresizingMaskIntoConstraints = NO;
-    self.detailLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-    self.detailLabel.textColor = [UIColor colorWithWhite:1 alpha:0.75];
-
-    UIImageView *chevron = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.right"]];
+    UIImageView *chevron = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.forward"]];
     chevron.translatesAutoresizingMaskIntoConstraints = NO;
-    chevron.tintColor = [UIColor colorWithWhite:1 alpha:0.8];
+    chevron.tintColor = [UIColor tertiaryLabelColor];
 
-    [self addSubview:self.iconView];
+    [self addSubview:icon];
     [self addSubview:self.titleLabel];
-    [self addSubview:self.detailLabel];
     [self addSubview:chevron];
     [NSLayoutConstraint activateConstraints:@[
-        [self.iconView.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:12],
-        [self.iconView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-        [self.iconView.widthAnchor constraintEqualToConstant:32],
-        [self.iconView.heightAnchor constraintEqualToConstant:32],
-        [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.iconView.trailingAnchor constant:10],
+        [self.heightAnchor constraintEqualToConstant:kIXRowHeight],
+        [icon.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+        [icon.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:28],
+        [icon.heightAnchor constraintEqualToConstant:28],
+        [self.titleLabel.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:12],
+        [self.titleLabel.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
         [self.titleLabel.trailingAnchor constraintLessThanOrEqualToAnchor:chevron.leadingAnchor constant:-8],
-        [self.titleLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:10],
-        [self.detailLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
-        [self.detailLabel.trailingAnchor constraintEqualToAnchor:self.titleLabel.trailingAnchor],
-        [self.detailLabel.topAnchor constraintEqualToAnchor:self.titleLabel.bottomAnchor constant:1],
-        [chevron.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-12],
+        [chevron.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
         [chevron.centerYAnchor constraintEqualToAnchor:self.centerYAnchor]
     ]];
-    [self addTarget:self action:@selector(open) forControlEvents:UIControlEventTouchUpInside];
-    self.accessibilityLabel = @"Instagram X settings";
+    [self addTarget:self action:@selector(ix_open) forControlEvents:UIControlEventTouchUpInside];
+    self.accessibilityLabel = self.titleLabel.text;
+    self.accessibilityTraits = UIAccessibilityTraitButton;
     return self;
 }
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    self.glow.frame = self.bounds;
-    CAShapeLayer *mask = [CAShapeLayer layer];
-    CGRect inset = CGRectInset(self.bounds, 1.5, 1.5);
-    UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:self.bounds cornerRadius:14];
-    [path appendPath:[UIBezierPath bezierPathWithRoundedRect:inset cornerRadius:12.5]];
-    mask.path = path.CGPath;
-    mask.fillRule = kCAFillRuleEvenOdd;
-    self.glow.mask = mask;
-    self.detailLabel.text = [IXProxyManager statusSubtitle];
-}
-
-- (void)open {
-    UIWindow *window = self.window;
-    if (!window) {
-        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
-            for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
-                if (candidate.isKeyWindow) window = candidate;
-            }
-        }
-    }
-    if (window) [SCIUtils showSettingsVC:window];
+- (void)ix_open {
+    UIView *view = self;
+    while (view && ![view isKindOfClass:[UIWindow class]]) view = view.superview;
+    if ([view isKindOfClass:[UIWindow class]]) [SCIUtils showSettingsVC:(UIWindow *)view];
 }
 
 @end
 
 @implementation IXSettingsEntry
 
-+ (BOOL)textIsAccountsCenter:(NSString *)text {
-    if (text.length < 8 || text.length > 80) return NO;
++ (BOOL)text:(NSString *)text containsAny:(NSArray<NSString *> *)needles {
+    if (text.length == 0) return NO;
     NSString *folded = text.lowercaseString;
-    if ([folded containsString:@"accounts center"] || [folded containsString:@"accounts centre"]) return YES;
-    if ([text containsString:@"مرکز حساب"]) return YES;
-    if ([folded containsString:@"centro de cuentas"] || [folded containsString:@"centre des comptes"] || [folded containsString:@"accountcenter"]) return YES;
+    for (NSString *needle in needles) {
+        if ([folded containsString:needle.lowercaseString] || [text containsString:needle]) return YES;
+    }
     return NO;
 }
 
-+ (BOOL)view:(UIView *)view containsAccountsCenter:(BOOL *)matched {
++ (BOOL)textIsSettingsHome:(NSString *)text {
+    return [self text:text containsAny:@[
+        @"settings and activity",
+        @"تنظیمات و فعالیت",
+        @"accounts center",
+        @"accounts centre",
+        @"مرکز حساب",
+        @"centro de cuentas",
+        @"centre des comptes"
+    ]];
+}
+
++ (BOOL)view:(UIView *)view containsSettingsHome:(BOOL *)matched {
     if (matched) *matched = NO;
-    if (!view) return NO;
+    if (!view || [view.accessibilityIdentifier isEqualToString:kIXRowID]) return NO;
     @try {
         if ([view isKindOfClass:[UILabel class]]) {
             UILabel *label = (UILabel *)view;
-            if ([self textIsAccountsCenter:label.text] || [self textIsAccountsCenter:label.attributedText.string]) {
+            if ([self textIsSettingsHome:label.text] || [self textIsSettingsHome:label.attributedText.string]) {
                 if (matched) *matched = YES;
                 return YES;
             }
         }
         for (UIView *sub in view.subviews) {
-            if ([self view:sub containsAccountsCenter:matched]) return YES;
+            if ([self view:sub containsSettingsHome:matched]) return YES;
         }
     } @catch (NSException *exception) {
         return NO;
@@ -155,168 +127,191 @@ static char kIXBaseInsetKey;
     return NO;
 }
 
-+ (UIView *)rowContainerFor:(UIView *)view {
-    UIView *current = view;
-    UIView *fallback = view.superview;
-    for (int i = 0; current && i < 12; i++) {
-        if ([current isKindOfClass:[UITableViewCell class]] || [current isKindOfClass:[UICollectionViewCell class]]) return current;
-        current = current.superview;
++ (BOOL)view:(UIView *)view containsRow:(BOOL *)found {
+    if (found) *found = NO;
+    if (!view) return NO;
+    if ([view.accessibilityIdentifier isEqualToString:kIXRowID]) {
+        if (found) *found = YES;
+        return YES;
     }
-    return fallback;
-}
-
-+ (UIScrollView *)scrollViewFor:(UIView *)view {
-    UIScrollView *table = nil;
-    UIView *current = view;
-    for (int i = 0; current && i < 16; i++) {
-        if ([current isKindOfClass:[UITableView class]] || [current isKindOfClass:[UICollectionView class]]) return (UIScrollView *)current;
-        if (!table && [current isKindOfClass:[UIScrollView class]]) table = (UIScrollView *)current;
-        current = current.superview;
+    for (UIView *sub in view.subviews) {
+        if ([self view:sub containsRow:found]) return YES;
     }
-    return table;
+    return NO;
 }
 
-+ (void)attachToScroll:(UIScrollView *)scroll anchor:(UIView *)anchor placeAbove:(BOOL)placeAbove {
-    if (!scroll || !anchor || scroll.bounds.size.width < 200 || scroll.bounds.size.height < 160) return;
-    if ([NSStringFromClass(anchor.class) containsString:@"IXHolo"]) return;
-    IXSettingsAnchor *existing = objc_getAssociatedObject(scroll, &kIXAnchorKey);
-    if (!existing) {
-        existing = [IXSettingsAnchor new];
-        existing.row = [[IXHoloRow alloc] initWithFrame:CGRectMake(0, 0, 10, 58)];
-        objc_setAssociatedObject(scroll, &kIXAnchorKey, existing, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [scroll addSubview:existing.row];
-        NSLog(@"[InstagramX] settings row inserted in %@", NSStringFromClass(scroll.class));
-    }
-    existing.anchor = anchor;
-    existing.placeAbove = placeAbove;
-    [self relayout:scroll];
-}
-
-+ (void)noteLabel:(UILabel *)label {
-    if (![self textIsAccountsCenter:label.text] && ![self textIsAccountsCenter:label.attributedText.string]) return;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @try {
-            UIView *row = [self rowContainerFor:label];
-            UIScrollView *scroll = [self scrollViewFor:row];
-            [self attachToScroll:scroll anchor:row placeAbove:NO];
-        } @catch (NSException *exception) {
-            NSLog(@"[InstagramX] settings row skipped: %@", exception.reason);
-        }
-    });
-}
-
-+ (BOOL)controllerLooksLikeSettings:(UIViewController *)controller {
-    // The profile header button is the entry point. This row is only placed
-    // under Accounts Center, never as a floating overlay on other screens.
-    if (!controller) return NO;
++ (BOOL)controllerIsSettingsList:(UIViewController *)controller {
+    if (!controller || !controller.isViewLoaded) return NO;
     NSString *cls = NSStringFromClass(controller.class);
     if ([cls containsString:@"SCISettings"] || [cls containsString:@"IXProxy"] || [cls containsString:@"IXLocation"]) return NO;
-    NSString *title = controller.title.lowercaseString ?: @"";
-    return [title containsString:@"setting"] || [title containsString:@"تنظیمات"];
+    NSString *title = controller.navigationItem.title ?: controller.title ?: @"";
+    BOOL classMatch = [cls containsString:@"Settings2"] || [cls containsString:@"SettingScreen"] ||
+                      [cls containsString:@"SettingsHosting"] || [cls containsString:@"IGSettings"];
+    BOOL titleMatch = [self textIsSettingsHome:title] || [title.lowercaseString containsString:@"setting"] || [title containsString:@"تنظیمات"];
+    BOOL homeLabel = NO;
+    [self view:controller.view containsSettingsHome:&homeLabel];
+    if (!(classMatch || titleMatch || homeLabel)) return NO;
+    // Subpages are pushed. The accounts-center list is the root of that navigation.
+    UINavigationController *nav = controller.navigationController;
+    if (nav && nav.viewControllers.firstObject != controller && !homeLabel && ![self textIsSettingsHome:title]) return NO;
+    return YES;
 }
 
-+ (void)noteSettingsController:(UIViewController *)controller {
-    if (![self controllerLooksLikeSettings:controller]) return;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        @try {
-            UIScrollView *scroll = [self firstScrollIn:controller.view];
-            if (!scroll) return;
-            if (objc_getAssociatedObject(scroll, &kIXAnchorKey)) {
-                [self relayout:scroll];
-                return;
-            }
-            UIView *anchor = nil;
-            BOOL above = NO;
-            for (UIView *cell in [self candidateRows:scroll]) {
-                BOOL matched = NO;
-                if ([self view:cell containsAccountsCenter:&matched] && matched) {
-                    anchor = cell;
-                    above = NO;
-                    break;
-                }
-            }
-            if (!anchor) return;
-            [self attachToScroll:scroll anchor:anchor placeAbove:above];
-        } @catch (NSException *exception) {
-            NSLog(@"[InstagramX] settings scan skipped: %@", exception.reason);
-        }
-    });
-}
-
-+ (UIScrollView *)firstScrollIn:(UIView *)view {
-    if (!view) return nil;
-    if ([view isKindOfClass:[UITableView class]] || [view isKindOfClass:[UICollectionView class]]) return (UIScrollView *)view;
-    for (UIView *sub in view.subviews) {
-        UIScrollView *found = [self firstScrollIn:sub];
-        if (found) return found;
++ (UIView *)arrangedRowContainingHome:(UIStackView *)stack {
+    for (UIView *row in stack.arrangedSubviews) {
+        BOOL matched = NO;
+        if ([self view:row containsSettingsHome:&matched] && matched) return row;
     }
     return nil;
 }
 
-+ (NSArray<UIView *> *)candidateRows:(UIScrollView *)scroll {
-    if ([scroll isKindOfClass:[UITableView class]]) return ((UITableView *)scroll).visibleCells ?: @[];
-    if ([scroll isKindOfClass:[UICollectionView class]]) return ((UICollectionView *)scroll).visibleCells ?: @[];
-    return scroll.subviews ?: @[];
++ (BOOL)scrollIsList:(UIScrollView *)scroll {
+    if (!scroll || scroll.bounds.size.width < 200 || scroll.bounds.size.height < 160) return NO;
+    if (scroll.bounds.size.height < 100 && scroll.contentSize.width > scroll.bounds.size.width * 1.5) return NO;
+    return YES;
 }
 
-+ (void)relayoutIfNeeded:(UIScrollView *)scroll {
-    if (!scroll || !objc_getAssociatedObject(scroll, &kIXAnchorKey)) return;
-    static char kIXLayingOut;
-    if (objc_getAssociatedObject(scroll, &kIXLayingOut)) return;
-    objc_setAssociatedObject(scroll, &kIXLayingOut, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    [self relayout:scroll];
-    objc_setAssociatedObject(scroll, &kIXLayingOut, nil, OBJC_ASSOCIATION_ASSIGN);
-}
-
-+ (void)relayout:(UIScrollView *)scroll {
-    IXSettingsAnchor *anchor = objc_getAssociatedObject(scroll, &kIXAnchorKey);
-    if (!anchor.row) return;
-    BOOL stillThere = NO;
-    if (anchor.anchor.window) {
-        [self view:anchor.anchor containsAccountsCenter:&stillThere];
-    }
-    if (!anchor.placeAbove && !stillThere) {
-        for (UIView *cell in [self candidateRows:scroll]) {
-            BOOL matched = NO;
-            if ([self view:cell containsAccountsCenter:&matched] && matched) {
-                anchor.anchor = cell;
-                stillThere = YES;
-                break;
++ (void)findIn:(UIView *)view stack:(UIStackView *__strong *)stack anchor:(UIView *__strong *)anchor table:(UITableView *__strong *)table scroll:(UIScrollView *__strong *)scroll depth:(int)depth {
+    if (!view || depth > 14) return;
+    if ([view.accessibilityIdentifier isEqualToString:kIXRowID]) return;
+    if ([view isKindOfClass:[UIStackView class]]) {
+        UIStackView *candidate = (UIStackView *)view;
+        if (candidate.axis == UILayoutConstraintAxisVertical && candidate.bounds.size.width > 180 && candidate.arrangedSubviews.count > 0) {
+            UIView *row = [self arrangedRowContainingHome:candidate];
+            if (row) {
+                *stack = candidate;
+                *anchor = row;
+            } else if (!*anchor && (!*stack || candidate.arrangedSubviews.count > (*stack).arrangedSubviews.count)) {
+                *stack = candidate;
             }
         }
     }
-    UIView *rowView = anchor.anchor;
-    if (!rowView) {
-        anchor.row.hidden = YES;
+    if ([view isKindOfClass:[UITableView class]] && [self scrollIsList:(UIScrollView *)view]) {
+        BOOL matched = NO;
+        [self view:view containsSettingsHome:&matched];
+        if (matched || !*table) *table = (UITableView *)view;
+    } else if ([view isKindOfClass:[UIScrollView class]] && [self scrollIsList:(UIScrollView *)view]) {
+        BOOL matched = NO;
+        [self view:view containsSettingsHome:&matched];
+        if (matched || !*scroll) *scroll = (UIScrollView *)view;
+    }
+    for (UIView *sub in view.subviews) {
+        [self findIn:sub stack:stack anchor:anchor table:table scroll:scroll depth:depth + 1];
+    }
+}
+
++ (IXSettingsRow *)makeRow {
+    return [[IXSettingsRow alloc] initWithFrame:CGRectMake(0, 0, 10, kIXRowHeight)];
+}
+
++ (void)place:(IXSettingsRowOwner *)owner {
+    UIControl *row = owner.row;
+    if (!row) return;
+    if (owner.adjustsInset && [owner.list isKindOfClass:[UIScrollView class]]) {
+        UIScrollView *list = owner.list;
+        UIEdgeInsets inset = owner.baseInset;
+        inset.top += kIXRowHeight;
+        if (!UIEdgeInsetsEqualToEdgeInsets(list.contentInset, inset)) list.contentInset = inset;
+        row.translatesAutoresizingMaskIntoConstraints = YES;
+        row.frame = CGRectMake(0, -inset.top, MAX(list.bounds.size.width, 1), kIXRowHeight);
+        if (!owner.didShiftOffset && list.contentOffset.y <= -owner.baseInset.top + 1) {
+            list.contentOffset = CGPointMake(list.contentOffset.x, -inset.top);
+            owner.didShiftOffset = YES;
+        }
         return;
     }
-    anchor.row.hidden = NO;
-    CGRect frame = [rowView convertRect:rowView.bounds toView:scroll];
-    CGFloat height = 62.0;
-    CGFloat y = anchor.placeAbove ? CGRectGetMinY(frame) : CGRectGetMaxY(frame) + 6.0;
-    CGFloat x = CGRectGetMinX(frame) + 8.0;
-    CGFloat width = MAX(120.0, CGRectGetWidth(frame) - 16.0);
-    anchor.row.frame = CGRectMake(x, y, width, height);
-    [scroll bringSubviewToFront:anchor.row];
+    if ([owner.list isKindOfClass:[UITableView class]]) {
+        UITableView *table = (UITableView *)owner.list;
+        CGFloat width = MAX(table.bounds.size.width, 1);
+        if (table.tableHeaderView != row || fabs(row.bounds.size.width - width) > 1) {
+            row.translatesAutoresizingMaskIntoConstraints = YES;
+            row.frame = CGRectMake(0, 0, width, kIXRowHeight);
+            table.tableHeaderView = row;
+        }
+    }
+}
 
-    for (UIView *cell in [self candidateRows:scroll]) {
-        if (cell == anchor.row) continue;
-        CGRect cellFrame = [cell convertRect:cell.bounds toView:scroll];
-        BOOL shift = anchor.placeAbove ? CGRectGetMinY(cellFrame) >= y - 1 : CGRectGetMinY(cellFrame) >= CGRectGetMaxY(frame) - 1;
-        CGAffineTransform next = shift ? CGAffineTransformMakeTranslation(0, height + 8) : CGAffineTransformIdentity;
-        if (!CGAffineTransformEqualToTransform(cell.transform, next)) cell.transform = next;
++ (void)removeSettingsRowForController:(UIViewController *)controller {
+    IXSettingsRowOwner *owner = objc_getAssociatedObject(controller, &kIXRowKey);
+    if (!owner) return;
+    if (owner.adjustsInset && owner.list) owner.list.contentInset = owner.baseInset;
+    if ([owner.list isKindOfClass:[UITableView class]] && ((UITableView *)owner.list).tableHeaderView == owner.row) {
+        ((UITableView *)owner.list).tableHeaderView = nil;
     }
+    [owner.row removeFromSuperview];
+    objc_setAssociatedObject(controller, &kIXRowKey, nil, OBJC_ASSOCIATION_ASSIGN);
+}
 
-    NSValue *stored = objc_getAssociatedObject(scroll, &kIXBaseInsetKey);
-    UIEdgeInsets base = stored ? stored.UIEdgeInsetsValue : scroll.contentInset;
-    if (!stored) {
-        objc_setAssociatedObject(scroll, &kIXBaseInsetKey, [NSValue valueWithUIEdgeInsets:base], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
++ (void)relayoutSettingsRowForController:(UIViewController *)controller {
+    IXSettingsRowOwner *owner = objc_getAssociatedObject(controller, &kIXRowKey);
+    if (!owner.row || !owner.list) return;
+    if (owner.list.window == nil) return;
+    [self place:owner];
+}
+
++ (void)noteSettingsController:(UIViewController *)controller {
+    if (![self controllerIsSettingsList:controller]) return;
+    BOOL already = NO;
+    [self view:controller.view containsRow:&already];
+    IXSettingsRowOwner *existing = objc_getAssociatedObject(controller, &kIXRowKey);
+    if (already && existing.row.superview) {
+        [self relayoutSettingsRowForController:controller];
+        return;
     }
-    UIEdgeInsets inset = base;
-    inset.bottom += height + 12;
-    if (!UIEdgeInsetsEqualToEdgeInsets(scroll.contentInset, inset)) {
-        scroll.contentInset = inset;
+    if (existing.row.superview) return;
+
+    UIStackView *stack = nil;
+    UIView *anchor = nil;
+    UITableView *table = nil;
+    UIScrollView *scroll = nil;
+    [self findIn:controller.view stack:&stack anchor:&anchor table:&table scroll:&scroll depth:0];
+
+    IXSettingsRow *row = [self makeRow];
+    IXSettingsRowOwner *owner = [IXSettingsRowOwner new];
+    owner.owner = controller;
+    owner.row = row;
+
+    if (stack && [stack isDescendantOfView:controller.view]) {
+        NSUInteger index = 0;
+        if (anchor) {
+            NSUInteger found = [stack.arrangedSubviews indexOfObject:anchor];
+            if (found != NSNotFound) index = found + 1;
+        }
+        if (index > stack.arrangedSubviews.count) index = stack.arrangedSubviews.count;
+        [stack insertArrangedSubview:row atIndex:index];
+        owner.list = [self enclosingScroll:stack];
+        owner.adjustsInset = NO;
+        NSLog(@"[InstagramX] settings row inserted in stack %@", NSStringFromClass(stack.class));
+    } else if (table && [table isDescendantOfView:controller.view]) {
+        owner.list = table;
+        owner.adjustsInset = NO;
+        [self place:owner];
+        NSLog(@"[InstagramX] settings row inserted as table header");
+    } else if (scroll && [scroll isDescendantOfView:controller.view] && ![scroll isKindOfClass:[UIWindow class]]) {
+        owner.list = scroll;
+        owner.baseInset = scroll.contentInset;
+        owner.adjustsInset = YES;
+        [scroll addSubview:row];
+        [self place:owner];
+        NSLog(@"[InstagramX] settings row inserted in %@", NSStringFromClass(scroll.class));
+    } else {
+        return;
     }
+    if (row.superview == nil && !owner.adjustsInset && ![owner.list isKindOfClass:[UITableView class]]) return;
+    if ([row.superview isKindOfClass:[UIWindow class]]) {
+        [row removeFromSuperview];
+        return;
+    }
+    objc_setAssociatedObject(controller, &kIXRowKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
++ (UIScrollView *)enclosingScroll:(UIView *)view {
+    UIView *current = view;
+    for (int i = 0; current && i < 8; i++) {
+        if ([current isKindOfClass:[UIScrollView class]]) return (UIScrollView *)current;
+        current = current.superview;
+    }
+    return nil;
 }
 
 @end
