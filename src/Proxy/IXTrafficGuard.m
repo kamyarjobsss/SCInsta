@@ -195,6 +195,11 @@ static int IXSocketType(int fd) {
     return type;
 }
 
+// iPhoneOS 16.2 SDK headers used by CI omit SO_DOMAIN. The value is stable in xnu.
+#ifndef SO_DOMAIN
+#define SO_DOMAIN 0x1009
+#endif
+
 static int IXSocketDomain(int fd) {
     int domain = 0;
     socklen_t len = sizeof(domain);

@@ -474,7 +474,8 @@ static OSStatus IXSSLWriteFunc(SSLConnectionRef connection, const void *data, si
     uint8_t addonLen = resp[1];
     if (addonLen) {
         uint8_t sink[256];
-        if (addonLen > sizeof(sink) || ![self readExact:sink length:addonLen error:error]) {
+        // addonLen is a single byte, so it always fits in sink.
+        if (![self readExact:sink length:addonLen error:error]) {
             if (error && !*error) *error = IXNetError(@"Unexpected VLESS addon.");
             return NO;
         }
