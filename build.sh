@@ -78,6 +78,12 @@ then
         SCINSTAPATH=""
     fi
 
+    # A previous sideload already has SCInsta/FLEX load commands. cyan adds
+    # another one instead of replacing it, so strip those first. Substrate
+    # and cyan's zxPluginsInject helper are left in place.
+    echo -e '\033[1m\033[32mStripping any previous SCInsta injection...\033[0m'
+    python3 scripts/strip_previous_tweak.py "packages/${ipaFile}"
+
     # Create IPA File
     echo -e '\033[1m\033[32mCreating the IPA file...\033[0m'
     rm -f packages/InstagramX-sideloaded.ipa packages/SCInsta-sideloaded.ipa
@@ -88,6 +94,8 @@ then
 
     # Patch IPA for sideloading
     ipapatch --input "packages/InstagramX-sideloaded.ipa" --inplace --noconfirm
+
+    python3 scripts/check_sideload_ipa.py packages/InstagramX-sideloaded.ipa
 
     echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/packages/InstagramX-sideloaded.ipa"
     if [[ -n "${IX_BUNDLE_ID:-}" ]]; then

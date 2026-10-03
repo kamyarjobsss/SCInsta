@@ -27,7 +27,9 @@ A free Apple ID sideload lasts about **7 days**. After that the app will not ope
 2. Run the workflow.
 3. Paste a direct URL to your decrypted IPA.
 4. Optional: set **bundle id** to something like `com.yourname.instagramx` if you want Instagram X installed beside the App Store app. Leave it empty to keep `com.burbn.instagram` (the sideload then replaces a copy with that id; it does not replace the App Store app itself, because the signature is different, but iOS may refuse two apps that share an id).
-5. Download the artifact `InstagramX_sideloaded_v1.2.0.ipa`.
+5. Download the artifact `InstagramX_sideloaded_v1.2.0.ipa`. The workflow also publishes it as a prerelease tagged `instagram-x-v1.2.0`.
+
+The default URL is the owner's already-injected SCInsta 1.1.1 IPA. The build removes that old `SCInsta.dylib`, `FLEXing.dylib`, and `libflex.dylib` (and their load commands) before injecting Instagram X. It keeps `CydiaSubstrate.framework` and `zxPluginsInject.dylib`. A clean decrypted IPA works the same way: there is nothing to remove, and cyan injects the new dylibs.
 
 The same workflow links an iOS arm64 Xray-core static library into the tweak when the build runs on the macOS runner.
 
@@ -144,7 +146,9 @@ Fake location is the next row. Search or long-press the map, then turn **Use thi
 2. آن را اجرا کنید.
 3. لینک مستقیم IPA رمزگشایی‌شدهٔ خودتان را بگذارید.
 4. اختیاری: اگر می‌خواهید اینستاگرام ایکس کنار برنامهٔ اپ‌استور نصب شود، bundle id را چیزی مثل `com.yourname.instagramx` بگذارید. خالی بماند یعنی همان `com.burbn.instagram`. iOS معمولاً دو برنامه با یک شناسه را هم‌زمان قبول نمی‌کند.
-5. فایل `InstagramX_sideloaded_v1.2.0.ipa` را دانلود کنید.
+5. فایل `InstagramX_sideloaded_v1.2.0.ipa` را دانلود کنید. همین workflow آن را به‌صورت prerelease با برچسب `instagram-x-v1.2.0` هم منتشر می‌کند.
+
+لینک پیش‌فرض، IPA خود صاحب مخزن است که از قبل SCInsta 1.1.1 در آن تزریق شده. بیلد، `SCInsta.dylib` و `FLEXing.dylib` و `libflex.dylib` قدیمی و load command آن‌ها را برمی‌دارد و اینستاگرام ایکس را تزریق می‌کند. `CydiaSubstrate.framework` و `zxPluginsInject.dylib` می‌مانند. IPA تمیز هم همین مسیر را می‌رود؛ چیزی برای حذف نیست و cyan کتابخانه‌های جدید را اضافه می‌کند.
 
 همین workflow روی رانر مک، کتابخانهٔ ایستای Xray-core برای arm64 را به توییک لینک می‌کند.
 

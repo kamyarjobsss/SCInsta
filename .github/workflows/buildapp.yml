@@ -6,15 +6,37 @@
 name: Build and Package Instagram X
 
 on:
+    # Pushing the sideload scripts rebuilds the owner's pre-tweaked base IPA.
+    # Other commits on this branch do not match these paths, so they do not
+    # start another 289 MB packaging run.
+    push:
+        branches:
+            - cursor/instagram-x-8ca9
+        paths:
+            - .github/workflows/buildapp.yml
+            - scripts/strip_previous_tweak.py
+            - scripts/check_sideload_ipa.py
+            - scripts/ipa_macho.py
+            - build.sh
     workflow_dispatch:
         inputs:
             decrypted_instagram_url:
-                description: "Direct URL to a decrypted Instagram IPA you already have the right to use"
-                default: ""
+                description: "Direct URL to a decrypted Instagram IPA you already have the right to use. The default is the owner's SCInsta 1.1.1 sideload, which this workflow strips before injecting Instagram X."
+                default: "https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/SCInsta_sideloaded_v1.1.1.ipa"
                 required: true
+                type: string
+            expected_sha256:
+                description: "sha256 of the input IPA. Use skip to disable the check. Empty falls back to the known base IPA hash."
+                default: "0edfafd97f4d36212f1831acc64b9cb4c37b461e2bb1b9bc9361267993d890de"
+                required: false
                 type: string
             upload_artifact:
                 description: "Upload Artifact"
+                default: true
+                required: false
+                type: boolean
+            publish_release:
+                description: "Publish a prerelease tagged instagram-x-v1.2.0"
                 default: true
                 required: false
                 type: boolean
@@ -100,10 +122,14 @@ jobs:
                 cd main
                 mkdir -p packages
                 wget "$Instagram_URL" --no-verbose -O packages/com.burbn.instagram.ipa
+                if [ -n "$EXPECTED_SHA256" ] && [ "$EXPECTED_SHA256" != "skip" ]; then
+                  echo "${EXPECTED_SHA256}  packages/com.burbn.instagram.ipa" | shasum -a 256 -c -
+                fi
                 ls -la packages
               env:
                 THEOS: ${{ github.workspace }}/theos
-                Instagram_URL: ${{ inputs.decrypted_instagram_url }}
+                Instagram_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.decrypted_instagram_url || 'https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/SCInsta_sideloaded_v1.1.1.ipa' }}
+                EXPECTED_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha256 || '0edfafd97f4d36212f1831acc64b9cb4c37b461e2bb1b9bc9361267993d890de' }}
 
             - name: Get Instagram X Version
               id: tweak_version
@@ -132,21 +158,49 @@ jobs:
                 cd main/packages
                 mv InstagramX-sideloaded.ipa "InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
 
+            - name: Sanity check the IPA
+              run: |
+                cd main
+                IPA="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                python3 scripts/check_sideload_ipa.py "$IPA"
+                # otool is the check the owner asked for. The Python check above
+                # is what fails the job; this prints the same load list.
+                TMP=$(mktemp -d)
+                unzip -q "$IPA" "Payload/Instagram.app/Instagram" "Payload/Instagram.app/Frameworks/SCInsta.dylib" "Payload/Instagram.app/Info.plist" -d "$TMP"
+                echo "---- otool -L Instagram ----"
+                otool -L "$TMP/Payload/Instagram.app/Instagram" | awk 'NR==1 || $1 !~ /^\/(usr|System)/'
+                echo "---- otool -L SCInsta.dylib (hooking runtime) ----"
+                otool -L "$TMP/Payload/Instagram.app/Frameworks/SCInsta.dylib" | awk 'NR<=2 || /substrate|ellekit|ixray|@rpath/'
+                plutil -lint "$TMP/Payload/Instagram.app/Info.plist"
+                rm -rf "$TMP"
+
             - name: Upload Artifact
-              if: ${{ inputs.upload_artifact }}
+              if: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_artifact }}
               uses: actions/upload-artifact@v4
               with:
                 name: InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}
                 path: ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
-            - name: Create Release
+            - name: Publish prerelease
+              if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
               uses: softprops/action-gh-release@v2.0.6
               with:
-                name: Instagram X sideload v${{ steps.tweak_version.outputs.version }}
+                tag_name: instagram-x-v1.2.0
+                target_commitish: ${{ github.sha }}
+                name: Instagram X 1.2.0
+                draft: false
+                prerelease: true
+                make_latest: false
+                generate_release_notes: false
+                body: |
+                  Sideload build of Instagram X ${{ steps.tweak_version.outputs.version }}.
+
+                  Built from the owner's SCInsta 1.1.1 IPA (Instagram 418.2.0). The old SCInsta, FLEXing, and libflex binaries were removed and replaced. CydiaSubstrate and zxPluginsInject were kept.
+
+                  Not tested on a device. In-app VLESS is limited to traffic that uses the hooked socket calls. Do not install over an account you cannot recover.
                 files: ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
-                draft: true
 
             - name: Output Release URL
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v1.2.0"
