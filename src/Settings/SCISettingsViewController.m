@@ -66,7 +66,7 @@ static char rowStaticRef[] = "row";
     self.tableView = [[UITableView alloc] initWithFrame:self.view.bounds style:UITableViewStyleInsetGrouped];
     self.tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.tableView.dataSource = self;
-    self.tableView.contentInset = UIEdgeInsetsMake(self.reduceMargin ? -30 : -10, 0, 0, 0);
+    self.tableView.contentInset = UIEdgeInsetsMake(self.reduceMargin ? 0 : -10, 0, 0, 0);
     self.tableView.delegate = self;
 
     [self.view addSubview:self.tableView];
@@ -107,6 +107,46 @@ static char rowStaticRef[] = "row";
 
 - (void)sciCacheSizeDidUpdate {
     [self.tableView reloadData];
+}
+
+- (void)sciInstallBrandHeader {
+    if (!self.isRoot || self.isSearching) {
+        self.tableView.tableHeaderView = nil;
+        return;
+    }
+    CGFloat width = self.tableView.bounds.size.width;
+    if (width < 1) width = self.view.bounds.size.width;
+    if (width < 1) return;
+    NSBundle *bundle = SCILocalizationBundle();
+    UIImage *logo = [UIImage imageNamed:@"wexpid-logo" inBundle:bundle compatibleWithTraitCollection:nil];
+    if (!logo) {
+        NSString *path = [bundle pathForResource:@"wexpid-logo" ofType:@"png"];
+        if (path) logo = [UIImage imageWithContentsOfFile:path];
+    }
+    UIView *header = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, 128)];
+    header.backgroundColor = UIColor.clearColor;
+    UIImageView *mark = [[UIImageView alloc] initWithFrame:CGRectMake((width - 96) / 2.0, 12, 96, 96)];
+    mark.image = logo;
+    mark.contentMode = UIViewContentModeScaleAspectFit;
+    mark.backgroundColor = UIColor.whiteColor;
+    mark.layer.cornerRadius = 22;
+    mark.clipsToBounds = YES;
+    mark.layer.borderWidth = 1.0 / UIScreen.mainScreen.scale;
+    mark.layer.borderColor = UIColor.separatorColor.CGColor;
+    [header addSubview:mark];
+    self.tableView.tableHeaderView = header;
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    if (!self.isRoot) return;
+    UIView *header = self.tableView.tableHeaderView;
+    CGFloat width = self.tableView.bounds.size.width;
+    if (self.isSearching) {
+        if (header) self.tableView.tableHeaderView = nil;
+        return;
+    }
+    if (!header || fabs(header.bounds.size.width - width) > 0.5) [self sciInstallBrandHeader];
 }
 
 - (void)dealloc {

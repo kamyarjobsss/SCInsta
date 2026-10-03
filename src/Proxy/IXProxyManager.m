@@ -396,8 +396,9 @@ static NSError *IXProxyError(NSString *message) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;
     }
-    NSString *dial = [self resolveHost:profile.host];
-    profile.dialAddress = dial.length ? dial : nil;
+    // Dial the link's address. Xray resolves it through DoH. A pre-resolved
+    // Fastly IP can land on a different service than the websocket host / SNI.
+    profile.dialAddress = nil;
     IXTrafficGuardSetPorts(kSocksPort, kHTTPPort);
     IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
     // Fail closed while the listener is coming up.
@@ -415,6 +416,10 @@ static NSError *IXProxyError(NSString *message) {
         NSLog(@"[InstagramX] Xray dylib unavailable (%@), trying the built-in engine", loadError.localizedDescription);
     } else {
         NSString *json = [profile xrayJSONWithSocksPort:kSocksPort httpPort:kHTTPPort];
+        NSString *redacted = profile.uuid.length
+            ? [json stringByReplacingOccurrencesOfString:profile.uuid withString:@"<UUID>" options:NSCaseInsensitiveSearch range:NSMakeRange(0, json.length)]
+            : json;
+        [self note:redacted];
         char *err = IXRayStart((char *)json.UTF8String);
         if (!err) {
             _usingXray = YES;

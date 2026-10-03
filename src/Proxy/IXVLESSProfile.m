@@ -112,8 +112,10 @@ static NSError *IXURIError(NSString *message) {
     profile.network = param(@"type").length ? param(@"type").lowercaseString : @"tcp";
     if ([profile.network isEqualToString:@"raw"]) profile.network = @"tcp";
     profile.security = param(@"security").length ? param(@"security").lowercaseString : @"none";
-    profile.flow = param(@"flow");
-    profile.sni = param(@"sni").length ? param(@"sni") : host;
+    // WebSocket + VLESS rejects a non-empty flow. Keep every other field as written.
+    profile.flow = [profile.network isEqualToString:@"ws"] ? @"" : param(@"flow");
+    // host and sni are independent of the address. Never substitute the address.
+    profile.sni = param(@"sni");
     profile.fingerprint = param(@"fp").length ? param(@"fp") : @"chrome";
     profile.publicKey = param(@"pbk");
     profile.shortId = param(@"sid");
@@ -136,11 +138,16 @@ static NSError *IXURIError(NSString *message) {
     if (![path hasPrefix:@"/"]) path = [@"/" stringByAppendingString:path];
     profile.path = path;
     profile.earlyData = earlyData > 0 ? earlyData : 0;
+    // Keep a trailing dot. v2Box sends this header verbatim.
     profile.wsHost = param(@"host");
     profile.serviceName = param(@"serviceName").length ? param(@"serviceName") : param(@"authority");
     profile.alpn = param(@"alpn");
     profile.mode = param(@"mode").length ? param(@"mode") : @"auto";
-    profile.allowInsecure = [param(@"allowInsecure") isEqualToString:@"1"] || [param(@"allowInsecure") isEqualToString:@"true"] || [param(@"insecure") isEqualToString:@"1"];
+    BOOL (^flag)(NSString *) = ^BOOL(NSString *value) {
+        return [value isEqualToString:@"1"] || [value isEqualToString:@"true"];
+    };
+    // `insecure` is an alias some clients emit beside `allowInsecure`.
+    profile.allowInsecure = flag(param(@"allowInsecure")) || flag(param(@"insecure"));
     if (!name.length) name = [NSString stringWithFormat:@"%@:%d", host, port];
     profile.name = name;
 
@@ -202,26 +209,23 @@ static NSError *IXURIError(NSString *message) {
         @"id": self.uuid ?: @"",
         @"encryption": @"none"
     } mutableCopy];
-    if (self.flow.length) user[@"flow"] = self.flow;
+    if (self.flow.length && ![self.network isEqualToString:@"ws"]) user[@"flow"] = self.flow;
 
     NSMutableDictionary *stream = [@{@"network": self.network ?: @"tcp"} mutableCopy];
     NSString *security = self.security.length ? self.security : @"none";
     stream[@"security"] = security;
 
     if ([self.network isEqualToString:@"ws"]) {
-        NSString *hostHeader = self.wsHost.length ? self.wsHost : (self.sni.length ? self.sni : self.host);
         NSString *wsPath = self.path.length ? self.path : @"/";
         if (self.earlyData > 0 && [wsPath rangeOfString:@"ed="].location == NSNotFound) {
-            // Xray 26.3.27 reads early data only from the path query, then
-            // strips it and sends those bytes in Sec-WebSocket-Protocol.
+            // Xray 26.3.27 reads early data only from the path query.
             wsPath = [NSString stringWithFormat:@"%@%@ed=%ld", wsPath, [wsPath containsString:@"?"] ? @"&" : @"?", (long)self.earlyData];
         }
         NSMutableDictionary *ws = [@{
             @"path": wsPath,
-            @"host": hostHeader ?: @"",
             @"heartbeatPeriod": @15
         } mutableCopy];
-        if (hostHeader.length) ws[@"headers"] = @{@"Host": hostHeader};
+        if (self.wsHost.length) ws[@"host"] = self.wsHost;
         stream[@"wsSettings"] = ws;
     } else if ([self.network isEqualToString:@"grpc"]) {
         stream[@"grpcSettings"] = @{@"serviceName": self.serviceName ?: @""};
@@ -242,27 +246,28 @@ static NSError *IXURIError(NSString *message) {
 
     if ([security isEqualToString:@"tls"]) {
         NSMutableDictionary *tls = [@{
-            @"serverName": self.sni.length ? self.sni : self.host,
-            @"allowInsecure": @(self.allowInsecure),
-            @"fingerprint": self.fingerprint.length ? self.fingerprint : @"chrome"
+            @"allowInsecure": @(self.allowInsecure)
         } mutableCopy];
+        if (self.sni.length) tls[@"serverName"] = self.sni;
+        if (self.fingerprint.length) tls[@"fingerprint"] = self.fingerprint;
         if (self.alpn.length) {
             tls[@"alpn"] = [self.alpn componentsSeparatedByString:@","];
-        } else if ([self.network isEqualToString:@"ws"]) {
-            tls[@"alpn"] = @[@"http/1.1"];
         }
         stream[@"tlsSettings"] = tls;
     } else if ([security isEqualToString:@"reality"]) {
-        stream[@"realitySettings"] = @{
-            @"serverName": self.sni.length ? self.sni : self.host,
+        NSMutableDictionary *reality = [@{
+            @"serverName": self.sni.length ? self.sni : @"",
             @"fingerprint": self.fingerprint.length ? self.fingerprint : @"chrome",
             @"publicKey": self.publicKey ?: @"",
             @"shortId": self.shortId ?: @"",
             @"spiderX": self.spiderX.length ? self.spiderX : @"/"
-        };
+        } mutableCopy];
+        if (!self.sni.length) [reality removeObjectForKey:@"serverName"];
+        stream[@"realitySettings"] = reality;
     }
 
     stream[@"sockopt"] = @{
+        @"domainStrategy": @"UseIPv4",
         @"tcpKeepAliveIdle": @30,
         @"tcpKeepAliveInterval": @15
     };
@@ -272,7 +277,7 @@ static NSError *IXURIError(NSString *message) {
         @"protocol": @"vless",
         @"settings": @{
             @"vnext": @[@{
-                @"address": self.dialAddress.length ? self.dialAddress : (self.host ?: @""),
+                @"address": self.host ?: @"",
                 @"port": @(self.port),
                 @"users": @[user]
             }]
@@ -288,6 +293,13 @@ static NSError *IXURIError(NSString *message) {
 - (NSString *)xrayJSONWithSocksPort:(uint16_t)socksPort httpPort:(uint16_t)httpPort {
     NSDictionary *config = @{
         @"log": @{@"loglevel": @"warning"},
+        @"dns": @{
+            @"queryStrategy": @"UseIPv4",
+            @"servers": @[
+                @"https://1.1.1.1/dns-query",
+                @"https://8.8.8.8/dns-query"
+            ]
+        },
         @"inbounds": @[
             @{
                 @"listen": @"127.0.0.1",

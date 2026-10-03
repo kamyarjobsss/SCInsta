@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.4"
+                description: "Publish a prerelease tagged instagram-x-v2.1.5"
                 default: true
                 required: false
                 type: boolean
@@ -148,6 +148,15 @@ jobs:
                 echo "SCINSTA_VERSION=${SCINSTA_VERSION}" >> "$GITHUB_ENV"
                 echo "version=${SCINSTA_VERSION}" >> "$GITHUB_OUTPUT"
 
+            - name: Test VLESS stream settings
+              run: |
+                cd main
+                clang -fobjc-arc -framework Foundation \
+                  -I src/Proxy \
+                  tests/IXVLESSStreamTest.m src/Proxy/IXVLESSProfile.m \
+                  -o /tmp/ix-vless-test
+                /tmp/ix-vless-test
+
             - name: Build Instagram X for sideloading (as IPA)
               run: |
                 pip install --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
@@ -212,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.4
+                tag_name: instagram-x-v2.1.5
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.4
+                name: Instagram X 2.1.5
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -226,7 +235,13 @@ jobs:
 
                   Socket hooks are data-pointer rebinds and run only while the VPN is on. There is no MSHookFunction. Xray is IXRayCore.dylib with no load command.
 
-                  This release is the full build only. The profile button is inserted beside the live profile-add-button and removed with it. Settings open from that button, a long-press on the profile tab, a long-press or three-finger tap on the home tab, or a long-press on the hamburger. Story fonts keep a real format type, so typing in the story editor no longer traps. The VLESS websocket sends early data from ?ed=, keeps the CDN host on the Host header and SNI, and stores the link in the sandbox. The session keychain group is the sideload's real access group.
+                  This release is the full build only.
+
+                  v2.1.4 closed the VLESS socket with websocket close 1000 because the outbound overwrote the link's websocket host and TLS SNI with the address, and dialed a DoH-resolved Fastly IP. Fastly then routed the request to the wrong service. v2.1.5 copies host, sni, fingerprint, alpn, path, and ed verbatim, puts the host on wsSettings.host, and dials the address domain so Xray resolves it. `insecure` is accepted as an alias of `allowInsecure`.
+
+                  Story font chips snapped after a few scrolls because the four Persian copies share a real format type with later stock fonts, and the editor keeps the first type match. The chip the user scrolled to stays selected, and reused cells show وکسپید in our font or the stock preview on Instagram's chips.
+
+                  The profile header mark uses the same frame and tint as the + button. The settings screen shows the Wexpid logo and an Instagram @K8myar row. A METAAppGroup that already has an identifier, defaults, and container is left as Instagram created it. Only a nil identifier is filled, and the container path stays Library/Application Support/IXAppGroup.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -235,4 +250,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.4"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.5"

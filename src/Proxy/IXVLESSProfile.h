@@ -28,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *mode;
 @property (nonatomic) BOOL allowInsecure;
 @property (nonatomic) BOOL needsXray;
-/// Runtime dial address. Set to a DoH-resolved IP so a poisoned resolver cannot steer the tunnel.
+/// Unused by the Xray outbound. The dial target is `host` so Fastly can route on SNI.
 @property (nonatomic, copy, nullable) NSString *dialAddress;
 
 + (nullable instancetype)profileFromURI:(NSString *)uri error:(NSError * _Nullable * _Nullable)error;

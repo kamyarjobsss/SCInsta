@@ -52,9 +52,11 @@ static UIView *IXMarkButton(void) {
         [button setImage:[UIImage systemImageNamed:@"circle.hexagongrid"] forState:UIControlStateNormal];
     }
     button.tintColor = [UIColor labelColor];
-    button.frame = CGRectMake(0, 0, 32, 32);
+    button.frame = CGRectMake(0, 0, 28, 28);
     button.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    button.contentEdgeInsets = UIEdgeInsetsMake(5, 5, 5, 5);
+    button.contentEdgeInsets = UIEdgeInsetsZero;
+    button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+    button.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
     button.accessibilityIdentifier = kIXMenuID;
     button.accessibilityLabel = [SCIResolvedLanguageCode() hasPrefix:@"fa"] ? @"اینستاگرام ایکس" : @"Instagram X";
     return button;
@@ -287,13 +289,21 @@ static void IXPlaceMenuBesideAddButton(UIView *addButton) {
         [host insertSubview:button aboveSubview:addButton];
     }
     CGRect addFrame = addButton.frame;
-    CGFloat size = addFrame.size.height >= 24 ? addFrame.size.height : 32;
+    CGFloat glyph = 28;
+    CGFloat side = MIN(addFrame.size.width, addFrame.size.height);
+    if (side >= 24 && side <= 36) glyph = side;
+    if ([addButton isKindOfClass:[UIButton class]]) {
+        button.tintColor = ((UIButton *)addButton).tintColor ?: [UIColor labelColor];
+    } else if ([addButton respondsToSelector:@selector(tintColor)] && addButton.tintColor) {
+        button.tintColor = addButton.tintColor;
+    }
     CGFloat x = CGRectGetMidX(addFrame) <= CGRectGetMidX(host.bounds)
         ? CGRectGetMaxX(addFrame) + 4
-        : CGRectGetMinX(addFrame) - 4 - size;
-    CGFloat y = CGRectGetMidY(addFrame) - size / 2.0;
+        : CGRectGetMinX(addFrame) - 4 - glyph;
+    CGFloat y = CGRectGetMidY(addFrame) - glyph / 2.0;
     button.translatesAutoresizingMaskIntoConstraints = YES;
-    button.frame = CGRectMake(x, y, size, size);
+    button.contentEdgeInsets = UIEdgeInsetsZero;
+    button.frame = CGRectMake(x, y, glyph, glyph);
     placing = 0;
 }
 

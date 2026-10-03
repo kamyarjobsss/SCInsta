@@ -40,8 +40,10 @@
 // (ldr [self, #0x18]). A made-up type is not a Swift enum case: reading it
 // while the story text tool opens traps (swift_unknownEnum / fatalError) and
 // the process dies with no crash report. Copies keep the template's real
-// type and are inserted first, so the first match is ours. Nothing here
-// writes _type or applies a format from layoutSubviews.
+// type. The first match would be our copy, so a later stock font of that
+// type would snap back. Selection hooks keep the chip the user actually
+// landed on, and cell configuration resets reused previews.
+// Nothing here writes _type or applies a format from layoutSubviews.
 
 static NSString *const IXPreviewText = @"وکسپید";
 
@@ -272,16 +274,6 @@ static void IXWrapGetTextFormats(void) {
 }
 %end
 
-%hook IGStoryTextEntryControlsOverlayView
-- (void)setFontPresets:(NSArray *)presets {
-    %orig(IXMergePresets(presets));
-}
-- (NSArray *)fontPresets {
-    id presets = %orig;
-    return [presets isKindOfClass:[NSArray class]] ? IXMergePresets(presets) : presets;
-}
-%end
-
 static BOOL IXFormatsIncludeOurs(NSArray *formats) {
     Class formatClass = IXFormatClass();
     for (id item in formats) {
@@ -293,22 +285,199 @@ static BOOL IXFormatsIncludeOurs(NSArray *formats) {
 }
 
 static char IXFontMergedKey;
-static char IXFontScrolledKey;
+static char IXFontReloadedKey;
 
-static void IXScrollLeadingFont(UICollectionView *collection) {
+static NSString *IXLoggingName(id format) {
+    if (![format respondsToSelector:@selector(loggingName)]) return nil;
+    id logging = ((IXIdFn)objc_msgSend)(format, @selector(loggingName));
+    return [logging isKindOfClass:[NSString class]] ? logging : nil;
+}
+
+static NSInteger IXFormatType(id format) {
+    if (![format respondsToSelector:@selector(type)]) return NSNotFound;
+    return ((IXIntFn)objc_msgSend)(format, @selector(type));
+}
+
+static NSString *IXDisplayName(id format) {
+    if (![format respondsToSelector:@selector(displayName)]) return nil;
+    id name = ((IXIdFn)objc_msgSend)(format, @selector(displayName));
+    return [name isKindOfClass:[NSString class]] ? name : nil;
+}
+
+static UIFont *IXFormatFont(id format) {
+    if (![format respondsToSelector:@selector(font)]) return nil;
+    id font = ((IXIdFn)objc_msgSend)(format, @selector(font));
+    return [font isKindOfClass:[UIFont class]] ? font : nil;
+}
+
+static id IXFormatAt(id overlay, NSIndexPath *path) {
+    if (![path isKindOfClass:[NSIndexPath class]]) return nil;
+    NSArray *formats = IXIvarObject(overlay, "_textFormats");
+    if (![formats isKindOfClass:[NSArray class]]) return nil;
+    NSUInteger idx = path.item;
+    if (idx >= formats.count) return nil;
+    return formats[idx];
+}
+
+// The story editor is main-thread only. These remember the chip the user
+// scrolled to, so a nested type-equality scan cannot replace it.
+static int ixFontDepth;
+static int ixRestoring;
+static NSInteger ixFontItem = NSNotFound;
+static NSInteger ixFontSection;
+static NSInteger ixFontType = NSNotFound;
+static NSString *ixFontName;
+
+static void IXRememberFont(NSIndexPath *path, id format) {
+    ixFontItem = path.item;
+    ixFontSection = path.section;
+    ixFontType = IXFormatType(format);
+    NSString *name = IXLoggingName(format);
+    ixFontName = name.length ? [name copy] : nil;
+}
+
+static void IXRestoreChip(id selector, NSIndexPath *path) {
+    if (ixRestoring || !selector || ![path isKindOfClass:[NSIndexPath class]]) return;
+    ixRestoring = 1;
+    @try {
+        Ivar ivar = class_getInstanceVariable(object_getClass(selector), "_selectedIndexPath");
+        if (ivar) {
+            const char *type = ivar_getTypeEncoding(ivar);
+            if (type && type[0] == '@') object_setIvar(selector, ivar, path);
+        }
+        UICollectionView *collection = IXIvarObject(selector, "_collectionView");
+        if (![collection isKindOfClass:[UICollectionView class]]) return;
+        if (path.section >= [collection numberOfSections]) return;
+        if (path.item >= [collection numberOfItemsInSection:path.section]) return;
+        [collection selectItemAtIndexPath:path animated:NO scrollPosition:UICollectionViewScrollPositionNone];
+    } @catch (__unused NSException *exception) {}
+    ixRestoring = 0;
+}
+
+static BOOL IXIsTypeSnap(id overlay, NSIndexPath *path, id format) {
+    if (ixFontItem == NSNotFound || !ixFontName.length || !format || ![path isKindOfClass:[NSIndexPath class]]) return NO;
+    NSString *name = IXLoggingName(format);
+    if (!name.length || [name isEqualToString:ixFontName]) return NO;
+    if (IXFormatType(format) != ixFontType) return NO;
+    NSArray *formats = IXIvarObject(overlay, "_textFormats");
+    if (![formats isKindOfClass:[NSArray class]]) return NO;
+    NSUInteger first = NSNotFound;
+    for (NSUInteger i = 0; i < formats.count; i++) {
+        if (IXFormatType(formats[i]) == ixFontType) {
+            first = i;
+            break;
+        }
+    }
+    return first == path.item && ixFontItem != (NSInteger)first;
+}
+
+// YES means the caller should run %orig. A nested change onto a different
+// logging name is the type-collision snap and is dropped.
+static BOOL IXBeginSelection(id overlay, id selector, NSIndexPath *path, BOOL userDriven) {
+    if (ixRestoring) return NO;
+    id format = IXFormatAt(overlay, path);
+    BOOL nestedClash = NO;
+    if (ixFontDepth > 0 && format) {
+        NSString *name = IXLoggingName(format);
+        if (ixFontName.length && name.length && ![name isEqualToString:ixFontName]) nestedClash = YES;
+    }
+    if (nestedClash || (!userDriven && IXIsTypeSnap(overlay, path, format))) {
+        if (ixFontItem != NSNotFound) {
+            IXRestoreChip(selector, [NSIndexPath indexPathForItem:ixFontItem inSection:ixFontSection]);
+        }
+        return NO;
+    }
+    if (ixFontDepth == 0 && format && [path isKindOfClass:[NSIndexPath class]]) IXRememberFont(path, format);
+    ixFontDepth++;
+    return YES;
+}
+
+static void IXEndSelection(id selector) {
+    if (ixFontDepth > 0) ixFontDepth--;
+    if (ixFontDepth == 0 && ixFontItem != NSNotFound) {
+        IXRestoreChip(selector, [NSIndexPath indexPathForItem:ixFontItem inSection:ixFontSection]);
+    }
+}
+
+static id IXModelFormat(id model) {
+    if (!model) return nil;
+    Class formatClass = IXFormatClass();
+    for (NSString *key in @[@"textFormat", @"format", @"richTextFormat"]) {
+        id value = nil;
+        @try { value = [model valueForKey:key]; }
+        @catch (__unused NSException *exception) { value = nil; }
+        if (formatClass && [value isKindOfClass:formatClass]) return value;
+    }
+    return nil;
+}
+
+static id IXFindSelector(UIView *view, int depth) {
+    Class cls = objc_getClass("IGScrollingSelectorView");
+    if (!cls || ![view isKindOfClass:[UIView class]] || depth > 6) return nil;
+    if ([view isKindOfClass:cls]) return view;
+    for (UIView *sub in view.subviews) {
+        id found = IXFindSelector(sub, depth + 1);
+        if (found) return found;
+    }
+    return nil;
+}
+
+static id IXSelectorFromOverlay(id overlay) {
+    Class cls = objc_getClass("IGScrollingSelectorView");
+    unsigned int count = 0;
+    Ivar *ivars = class_copyIvarList([overlay class], &count);
+    id found = nil;
+    for (unsigned int i = 0; ivars && i < count; i++) {
+        const char *type = ivar_getTypeEncoding(ivars[i]);
+        if (!type || type[0] != '@') continue;
+        id value = object_getIvar(overlay, ivars[i]);
+        if (cls && [value isKindOfClass:cls]) {
+            found = value;
+            break;
+        }
+    }
+    free(ivars);
+    if (!found && [overlay isKindOfClass:[UIView class]]) found = IXFindSelector(overlay, 0);
+    return found;
+}
+
+static void IXApplyChipLabel(UILabel *label, id format) {
+    NSString *logging = IXLoggingName(format);
+    CGFloat size = label.font.pointSize > 0 ? label.font.pointSize : 18;
+    if (IXIsOurLoggingName(logging)) {
+        label.text = IXPreviewText;
+        UIFont *font = IXFont(logging, size);
+        if (font) label.font = font;
+        return;
+    }
+    NSString *display = IXDisplayName(format);
+    if (display.length) label.text = display;
+    UIFont *font = IXFormatFont(format);
+    if (font) label.font = [font fontWithSize:size];
+}
+
+static void IXStyleChipTree(UIView *view, id format) {
+    if ([view isKindOfClass:[UILabel class]]) IXApplyChipLabel((UILabel *)view, format);
+    for (UIView *sub in view.subviews) IXStyleChipTree(sub, format);
+}
+
+static id IXFormatForSelector(id selector, NSIndexPath *path) {
+    Class overlayClass = objc_getClass("IGStoryTextEntryControlsOverlayView");
+    id dataSource = IXIvarObject(selector, "_dataSource");
+    if (!overlayClass || ![dataSource isKindOfClass:overlayClass]) return nil;
+    return IXFormatAt(dataSource, path);
+}
+
+static void IXReloadFormatsOnce(UICollectionView *collection) {
     if (![collection isKindOfClass:[UICollectionView class]]) return;
-    if (objc_getAssociatedObject(collection, &IXFontScrolledKey)) return;
-    objc_setAssociatedObject(collection, &IXFontScrolledKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (objc_getAssociatedObject(collection, &IXFontReloadedKey)) return;
+    objc_setAssociatedObject(collection, &IXFontReloadedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     __weak UICollectionView *weakCollection = collection;
     dispatch_async(dispatch_get_main_queue(), ^{
         UICollectionView *view = weakCollection;
         if (![view isKindOfClass:[UICollectionView class]]) return;
-        @try {
-            [view reloadData];
-            if ([view numberOfSections] > 0 && [view numberOfItemsInSection:0] > 0) {
-                [view scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:0 inSection:0] atScrollPosition:UICollectionViewScrollPositionLeft animated:NO];
-            }
-        } @catch (__unused NSException *exception) {}
+        @try { [view reloadData]; }
+        @catch (__unused NSException *exception) {}
     });
 }
 
@@ -321,18 +490,102 @@ static void IXRevealFontsOnSelector(id selector) {
         if (![formats isKindOfClass:[NSArray class]] || formats.count == 0) return;
         NSArray *merged = IXMergeFormats(formats);
         if (![merged isKindOfClass:[NSArray class]] || !IXFormatsIncludeOurs(merged)) return;
+        ixFontItem = NSNotFound;
+        ixFontSection = 0;
+        ixFontType = NSNotFound;
+        ixFontName = nil;
+        ixFontDepth = 0;
         UICollectionView *collection = IXIvarObject(selector, "_collectionView");
         if (![collection isKindOfClass:[UICollectionView class]]) return;
         if (merged != formats) IXSetIvarObject(dataSource, "_textFormats", merged);
         objc_setAssociatedObject(selector, &IXFontMergedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        IXScrollLeadingFont(collection);
+        IXReloadFormatsOnce(collection);
     }
 }
+
+%hook IGStoryTextEntryControlsOverlayView
+- (void)setFontPresets:(NSArray *)presets {
+    %orig(IXMergePresets(presets));
+}
+- (NSArray *)fontPresets {
+    id presets = %orig;
+    return [presets isKindOfClass:[NSArray class]] ? IXMergePresets(presets) : presets;
+}
+- (void)scrollingSelectorView:(id)selector didChangeSelectedIndexPath:(NSIndexPath *)indexPath fromUserAction:(BOOL)fromUser {
+    if (![indexPath isKindOfClass:[NSIndexPath class]]) {
+        %orig;
+        return;
+    }
+    if (!IXBeginSelection(self, selector, indexPath, fromUser)) return;
+    %orig;
+    IXEndSelection(selector);
+}
+- (void)scrollingSelectorView:(id)selector didEndScrollingAtIndexPath:(NSIndexPath *)indexPath {
+    if (![indexPath isKindOfClass:[NSIndexPath class]]) {
+        %orig;
+        return;
+    }
+    if (!IXBeginSelection(self, selector, indexPath, YES)) return;
+    %orig;
+    IXEndSelection(selector);
+}
+- (void)scrollingSelectorView:(id)selector didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
+    if (![indexPath isKindOfClass:[NSIndexPath class]]) {
+        %orig;
+        return;
+    }
+    if (!IXBeginSelection(self, selector, indexPath, YES)) return;
+    %orig;
+    IXEndSelection(selector);
+}
+- (void)setRichTextEntryModel:(id)model animated:(BOOL)animated {
+    if (ixRestoring) return;
+    id format = IXModelFormat(model);
+    NSString *name = IXLoggingName(format);
+    if (ixFontDepth > 0 && ixFontName.length && name.length && ![name isEqualToString:ixFontName]) return;
+    BOOL outer = ixFontDepth == 0;
+    if (outer && format) {
+        NSArray *formats = IXIvarObject(self, "_textFormats");
+        NSUInteger idx = [formats isKindOfClass:[NSArray class]] ? [formats indexOfObjectIdenticalTo:format] : NSNotFound;
+        if (idx == NSNotFound && [formats isKindOfClass:[NSArray class]] && name.length) {
+            for (NSUInteger i = 0; i < formats.count; i++) {
+                if ([IXLoggingName(formats[i]) isEqualToString:name]) {
+                    idx = i;
+                    break;
+                }
+            }
+        }
+        if (idx != NSNotFound) {
+            ixFontItem = (NSInteger)idx;
+            ixFontSection = 0;
+            ixFontType = IXFormatType(format);
+            ixFontName = [name copy];
+        }
+    }
+    ixFontDepth++;
+    %orig;
+    ixFontDepth--;
+    if (outer && ixFontItem != NSNotFound) {
+        IXRestoreChip(IXSelectorFromOverlay(self), [NSIndexPath indexPathForItem:ixFontItem inSection:ixFontSection]);
+    }
+}
+%end
 
 %hook IGScrollingSelectorView
 - (void)layoutSubviews {
     %orig;
     IXRevealFontsOnSelector(self);
+}
+- (id)collectionView:(id)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
+    id cell = %orig;
+    id format = IXFormatForSelector(self, indexPath);
+    if (format && [cell isKindOfClass:[UIView class]]) IXStyleChipTree(cell, format);
+    return cell;
+}
+- (void)collectionView:(id)collectionView willDisplayCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath {
+    %orig;
+    id format = IXFormatForSelector(self, indexPath);
+    if (format && [cell isKindOfClass:[UIView class]]) IXStyleChipTree(cell, format);
 }
 %end
 

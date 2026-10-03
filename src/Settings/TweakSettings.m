@@ -1,6 +1,5 @@
 #import "TweakSettings.h"
 #import <objc/message.h>
-#import "SCILinksSheet.h"
 #import "SCISettingsBackup.h"
 #import "SCIFakeLocationSettingsVC.h"
 #import "../Features/ProfileAnalyzer/SCIProfileAnalyzerViewController.h"
@@ -74,17 +73,17 @@
             @"header": @"",
             @"rows": @[
                 ({
-                    SCISetting *s = [SCISetting buttonCellWithTitle:SCILocalized(@"Instagram X")
-                                                           subtitle:[NSString stringWithFormat:SCILocalized(@"%@ — GitHub & Telegram"), SCIVersionString]
+                    SCISetting *s = [SCISetting buttonCellWithTitle:@"Instagram: @K8myar"
+                                                           subtitle:SCIVersionString
                                                                icon:nil
                                                              action:^{
-                        UIWindow *win = nil;
-                        for (UIWindow *w in [UIApplication sharedApplication].windows) if (w.isKeyWindow) { win = w; break; }
-                        UIViewController *top = win.rootViewController;
-                        while (top.presentedViewController) top = top.presentedViewController;
-                        [SCILinksSheet presentFrom:top];
+                        NSURL *appURL = [NSURL URLWithString:@"instagram://user?username=K8myar"];
+                        NSURL *webURL = [NSURL URLWithString:@"https://instagram.com/K8myar"];
+                        UIApplication *app = UIApplication.sharedApplication;
+                        NSURL *open = ([app canOpenURL:appURL]) ? appURL : webURL;
+                        [app openURL:open options:@{} completionHandler:nil];
                     }];
-                    s.bundleImageName = @"ryukgram";
+                    s.bundleImageName = @"wexpid-logo";
                     s.titleColor = [UIColor labelColor];
                     s;
                 })

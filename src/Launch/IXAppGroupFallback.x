@@ -18,11 +18,10 @@
 // direct-message loader aborts when identifier comes back nil.
 
 static NSURL *IXSandboxGroupURL(NSString *identifier) {
-    if (identifier.length == 0) identifier = @"group.com.burbn.instagram";
-    NSCharacterSet *unsafe = [NSCharacterSet characterSetWithCharactersInString:@"/:\\"];
-    NSString *leaf = [[identifier componentsSeparatedByCharactersInSet:unsafe] componentsJoinedByString:@"_"];
-    NSString *root = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/IXAppGroups"];
-    NSString *path = [root stringByAppendingPathComponent:leaf];
+    (void)identifier;
+    // One directory for every launch. A path that includes the access-group
+    // string changes when that string changes, and the session files move with it.
+    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/IXAppGroup"];
     static NSLock *lock;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ lock = [NSLock new]; });
@@ -115,26 +114,26 @@ static void IXWriteIvar(id object, const char *name, id value) {
 static BOOL IXGroupIsUsable(id object) {
     if (!object) return NO;
     id identifier = IXReadIvar(object, "_identifier");
+    // A non-nil identifier is Instagram's own. Replacing it makes the next
+    // launch miss the session and fall through to saved-login one-tap.
     if (![identifier isKindOfClass:[NSString class]] || [identifier length] == 0) return NO;
-    NSString *real = IXRealKeychainAccessGroup();
-    if (real.length && ![identifier isEqualToString:real]) return NO;
     if (![IXReadIvar(object, "_userDefaults") isKindOfClass:[NSUserDefaults class]]) return NO;
     if (![IXReadIvar(object, "_containerURL") isKindOfClass:[NSURL class]]) return NO;
     return YES;
 }
 
 static void IXFillAppGroup(id object, id name) {
-    NSString *real = IXRealKeychainAccessGroup();
-    NSString *identifier = real.length ? real : IXGroupIdentifier(name);
     id current = IXReadIvar(object, "_identifier");
-    if (![current isKindOfClass:[NSString class]] || ![current isEqualToString:identifier]) {
-        IXWriteIvar(object, "_identifier", [identifier copy]);
+    if (![current isKindOfClass:[NSString class]] || [current length] == 0) {
+        NSString *real = IXRealKeychainAccessGroup();
+        NSString *identifier = real.length ? real : IXGroupIdentifier(name);
+        IXWriteIvar(object, "_identifier", identifier);
     }
     if (![IXReadIvar(object, "_userDefaults") isKindOfClass:[NSUserDefaults class]]) {
         IXWriteIvar(object, "_userDefaults", [[NSUserDefaults alloc] initWithSuiteName:IXPersistentSuiteName()]);
     }
     if (![IXReadIvar(object, "_containerURL") isKindOfClass:[NSURL class]]) {
-        IXWriteIvar(object, "_containerURL", IXSandboxGroupURL(IXGroupIdentifier(name)));
+        IXWriteIvar(object, "_containerURL", IXSandboxGroupURL(nil));
     }
 }
 
@@ -148,8 +147,11 @@ static id IXMakeAppGroup(Class cls, id name) {
 }
 
 // `existing` is the original function's return value, already retained by ARC.
+// A non-nil identifier means Instagram already built the object. Leave it,
+// including its defaults and container. Only a nil identifier is filled.
 static id IXEnsureAppGroup(id cls, id name, id existing) {
-    if (IXGroupIsUsable(existing)) return existing;
+    id identifier = IXReadIvar(existing, "_identifier");
+    if ([identifier isKindOfClass:[NSString class]] && [identifier length] > 0) return existing;
     if (existing) {
         IXFillAppGroup(existing, name);
         if (IXGroupIsUsable(existing)) return existing;
@@ -197,11 +199,11 @@ static void IXInstallDirectAppGroup(void) {
     NSString *value = nil;
     @try { value = %orig; }
     @catch (__unused NSException *exception) { value = nil; }
-    NSString *real = IXRealKeychainAccessGroup();
-    if (real.length) return real;
     if ([value isKindOfClass:[NSString class]] && value.length) return value;
     id filled = IXReadIvar(self, "_identifier");
     if ([filled isKindOfClass:[NSString class]] && [filled length]) return filled;
+    NSString *real = IXRealKeychainAccessGroup();
+    if (real.length) return real;
     return @"group.com.burbn.instagram";
 }
 %end
