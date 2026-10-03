@@ -11,7 +11,11 @@ static volatile int ix_safe_mode = 0;
 static int IXGuardPath(char *out, size_t outLen) {
     const char *home = getenv("HOME");
     if (!home || !home[0]) return 0;
+#if IX_ADDON
+    int n = snprintf(out, outLen, "%s/Library/Caches/ix_addon_launch_guard", home);
+#else
     int n = snprintf(out, outLen, "%s/Library/Caches/ix_launch_guard", home);
+#endif
     return n > 0 && (size_t)n < outLen;
 }
 

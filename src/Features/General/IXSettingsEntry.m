@@ -1,7 +1,11 @@
 #import "IXSettingsEntry.h"
 #import "../../Brand/IXBrand.h"
 #import "../../Proxy/IXProxyManager.h"
+#if IX_ADDON
+#import "../../../addon/IXAddonSettings.h"
+#else
 #import "../../Utils.h"
+#endif
 #import <objc/runtime.h>
 
 static char kIXAnchorKey;
@@ -119,7 +123,12 @@ static char kIXBaseInsetKey;
             }
         }
     }
+#if IX_ADDON
+    (void)window;
+    IXAddonPresentSettings(self);
+#else
     if (window) [SCIUtils showSettingsVC:window];
+#endif
 }
 
 @end
