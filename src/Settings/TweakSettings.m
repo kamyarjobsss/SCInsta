@@ -32,9 +32,9 @@
 
     NSDictionary *test = [NSDictionary dictionaryWithContentsOfURL:src];
     if (!test.count) {
-        UIAlertController *a = [UIAlertController alertControllerWithTitle:@"Error"
-            message:@"File is empty or not a valid .strings file." preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+        UIAlertController *a = [UIAlertController alertControllerWithTitle:SCILocalized(@"Error")
+            message:SCILocalized(@"File is empty or not a valid .strings file.") preferredStyle:UIAlertControllerStyleAlert];
+        [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"OK") style:UIAlertActionStyleCancel handler:nil]];
         UIViewController *top = controller.presentingViewController ?: UIApplication.sharedApplication.keyWindow.rootViewController;
         [top presentViewController:a animated:YES completion:nil];
         return;
@@ -49,15 +49,15 @@
     BOOL ok = [fm copyItemAtPath:src.path toPath:dest error:nil];
 
     NSString *msg = ok
-        ? [NSString stringWithFormat:@"Updated %@ (%ld keys). Restart to apply.", code, (long)test.count]
-        : @"Could not write file.";
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:ok ? @"Done" : @"Error"
+        ? [NSString stringWithFormat:SCILocalized(@"Updated %@ (%ld keys). Restart to apply."), code, (long)test.count]
+        : SCILocalized(@"Could not write file.");
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:ok ? SCILocalized(@"Done") : SCILocalized(@"Error")
                                                                message:msg preferredStyle:UIAlertControllerStyleAlert];
     if (ok) {
-        [a addAction:[UIAlertAction actionWithTitle:@"Restart now" style:UIAlertActionStyleDefault
+        [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Restart now") style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *x) { [SCIUtils showRestartConfirmation]; }]];
     }
-    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"OK") style:UIAlertActionStyleCancel handler:nil]];
     UIViewController *top = UIApplication.sharedApplication.keyWindow.rootViewController;
     while (top.presentedViewController) top = top.presentedViewController;
     [top presentViewController:a animated:YES completion:nil];
@@ -74,7 +74,7 @@
             @"header": @"",
             @"rows": @[
                 ({
-                    SCISetting *s = [SCISetting buttonCellWithTitle:@"Instagram X"
+                    SCISetting *s = [SCISetting buttonCellWithTitle:SCILocalized(@"Instagram X")
                                                            subtitle:[NSString stringWithFormat:SCILocalized(@"%@ — GitHub & Telegram"), SCIVersionString]
                                                                icon:nil
                                                              action:^{
@@ -91,10 +91,10 @@
             ]
         },
         @{
-            @"header": @"Instagram X",
-            @"footer": @"VPN routes this app through a VLESS server. It stays off until you turn it on. Fake location, including saved places and the Friends Map button, is under General.",
+            @"header": SCILocalized(@"Instagram X"),
+            @"footer": SCILocalized(@"VPN routes this app through a VLESS server. It stays off until you turn it on. Fake location, including saved places and the Friends Map button, is under General."),
             @"rows": @[
-                [SCISetting navigationCellWithTitle:@"VPN"
+                [SCISetting navigationCellWithTitle:SCILocalized(@"VPN")
                                            subtitle:[IXProxyManager statusSubtitle]
                                                icon:[SCISymbol symbolWithName:@"lock.shield"]
                                      viewController:[IXProxyViewController new]]
@@ -1213,8 +1213,8 @@ static void sciPresentTeenIconPicker(void) {
 + (void)presentLocalizationImport {
     NSArray *langs = SCIAvailableLanguages();
 
-    UIAlertController *picker = [UIAlertController alertControllerWithTitle:@"Update localization"
-                                                                    message:@"Pick a language to update, or add a new one"
+    UIAlertController *picker = [UIAlertController alertControllerWithTitle:SCILocalized(@"Update localization")
+                                                                    message:SCILocalized(@"Pick a language to update, or add a new one")
                                                              preferredStyle:UIAlertControllerStyleActionSheet];
     for (NSDictionary *lang in langs) {
         NSString *code = lang[@"code"];
@@ -1227,7 +1227,7 @@ static void sciPresentTeenIconPicker(void) {
         }]];
     }
 
-    [picker addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [picker addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Cancel") style:UIAlertActionStyleCancel handler:nil]];
     [sciTopVC() presentViewController:picker animated:YES completion:nil];
 }
 
@@ -1248,7 +1248,7 @@ static void sciPresentTeenIconPicker(void) {
         UIAlertController *a = [UIAlertController alertControllerWithTitle:SCILocalized(@"No overrides")
                                                                    message:SCILocalized(@"No imported localization files to reset.")
                                                             preferredStyle:UIAlertControllerStyleAlert];
-        [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+        [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"OK") style:UIAlertActionStyleCancel handler:nil]];
         [sciTopVC() presentViewController:a animated:YES completion:nil];
         return;
     }
@@ -1268,7 +1268,7 @@ static void sciPresentTeenIconPicker(void) {
             [self resetLocalizationForCode:code];
         }]];
     }
-    [picker addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [picker addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Cancel") style:UIAlertActionStyleCancel handler:nil]];
     [sciTopVC() presentViewController:picker animated:YES completion:nil];
 }
 
@@ -1282,15 +1282,15 @@ static void sciPresentTeenIconPicker(void) {
     NSString *msg = err
         ? [NSString stringWithFormat:SCILocalized(@"Could not delete: %@"), err.localizedDescription]
         : [NSString stringWithFormat:SCILocalized(@"Deleted %@ override. Restart to apply."), code];
-    UIAlertController *a = [UIAlertController alertControllerWithTitle:err ? @"Error" : @"Done"
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:err ? SCILocalized(@"Error") : SCILocalized(@"Done")
                                                                message:msg
                                                         preferredStyle:UIAlertControllerStyleAlert];
     if (!err) {
         SCILocalizationReset();
-        [a addAction:[UIAlertAction actionWithTitle:@"Restart now" style:UIAlertActionStyleDefault
+        [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Restart now") style:UIAlertActionStyleDefault
                                             handler:^(__unused UIAlertAction *x) { [SCIUtils showRestartConfirmation]; }]];
     }
-    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"OK") style:UIAlertActionStyleCancel handler:nil]];
     [sciTopVC() presentViewController:a animated:YES completion:nil];
 }
 
@@ -1326,7 +1326,7 @@ static void sciPresentTeenIconPicker(void) {
                                                                    message:nil
                                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) {
-        tf.placeholder = @"e.g. 1000000";
+        tf.placeholder = SCILocalized(@"e.g. 1000000");
         tf.text = current ?: @"";
         tf.keyboardType = UIKeyboardTypeNumberPad;
     }];
@@ -1344,12 +1344,12 @@ static void sciPresentTeenIconPicker(void) {
 }
 
 + (void)promptNewLanguageCode {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add language"
-                                                                   message:@"Enter the language code (e.g. fr, de, ja)"
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:SCILocalized(@"Add language")
+                                                                   message:SCILocalized(@"Enter the language code (e.g. fr, de, ja)")
                                                             preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.placeholder = @"fr"; }];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Next" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Cancel") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Next") style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
         NSString *code = [alert.textFields.firstObject.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
         if (code.length < 2 || code.length > 5) return;
         [self importStringsForLanguage:code];

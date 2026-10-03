@@ -3,6 +3,7 @@
 #import "IXTrafficGuard.h"
 #import "IXRayLoader.h"
 #import "../Launch/IXLaunchGuard.h"
+#import "../Localization/SCILocalization.h"
 
 #import <QuartzCore/QuartzCore.h>
 #import <stdint.h>
@@ -91,7 +92,22 @@ static NSError *IXProxyError(NSString *message) {
 
 - (IXProxyStatus)status { return _status; }
 - (NSString *)lastError { return _lastError; }
-- (NSString *)engineName { return _engineName ?: @"Built-in VLESS"; }
+- (NSString *)engineName {
+    BOOL fa = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
+    NSString *raw = _engineName ?: @"";
+#if IX_LITE
+    return fa ? @"نسخهٔ سبک" : @"Lite build";
+#else
+    if ([raw hasPrefix:@"Xray "]) return raw;
+    if ([raw isEqualToString:@"Xray"]) return @"Xray";
+    if ([raw isEqualToString:@"Built-in VLESS"]) return fa ? @"VLESS داخلی" : raw;
+#if IX_HAS_XRAY
+    return fa ? @"Xray، با روشن شدن فیلترشکن بارگذاری می‌شود" : @"Xray (loads when the VPN is on)";
+#else
+    return fa ? @"VLESS داخلی" : @"Built-in VLESS";
+#endif
+#endif
+}
 - (BOOL)xrayLinked {
 #if IX_HAS_XRAY
     return YES;
@@ -101,11 +117,16 @@ static NSError *IXProxyError(NSString *message) {
 }
 
 - (NSString *)statusText {
+    BOOL fa = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
     switch (_status) {
-        case IXProxyStatusConnecting: return @"Connecting";
-        case IXProxyStatusConnected: return @"Connected";
-        case IXProxyStatusFailed: return _lastError.length ? [NSString stringWithFormat:@"Disconnected · %@", _lastError] : @"Disconnected";
-        default: return @"Off";
+        case IXProxyStatusConnecting: return fa ? @"در حال اتصال" : @"Connecting";
+        case IXProxyStatusConnected: return fa ? @"متصل" : @"Connected";
+        case IXProxyStatusFailed:
+            if (_lastError.length) {
+                return [NSString stringWithFormat:fa ? @"قطع · %@" : @"Disconnected · %@", _lastError];
+            }
+            return fa ? @"قطع" : @"Disconnected";
+        default: return fa ? @"خاموش" : @"Off";
     }
 }
 
@@ -297,7 +318,7 @@ static NSError *IXProxyError(NSString *message) {
 #if IX_LITE
     if (enabled) {
         _status = IXProxyStatusFailed;
-        _lastError = @"Instagram X Lite does not include the VPN.";
+        _lastError = [SCIResolvedLanguageCode() hasPrefix:@"fa"] ? @"نسخهٔ سبک اینستاگرام ایکس فیلترشکن ندارد." : @"Instagram X Lite does not include the VPN.";
         [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
         if (completion) completion(IXProxyError(_lastError));
         return;
