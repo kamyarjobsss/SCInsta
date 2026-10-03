@@ -288,10 +288,19 @@
 }
 %end
 
-// "Click to summarize" pill under DM navigation bar
+// "Click to summarize" pill under DM navigation bar.
+// Previously this returned nil even when Hide Meta AI was off.
 %hook IGDirectThreadViewMetaAISummaryFeatureController
 - (id)initWithUserSession:(id)arg1 mutableStateProvider:(id)arg2 threadViewControllerFeatureDelegate:(id)arg3 presentingViewController:(id)arg4 {
-    return nil;
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {
+        NSLog(@"[SCInsta] Hiding meta ai: click to summarize pill");
+        return nil;
+    }
+    return %orig;
+}
+- (BOOL)isEnabled {
+    if ([SCIUtils getBoolPref:@"hide_meta_ai"]) return NO;
+    return %orig;
 }
 %end
 

@@ -3,34 +3,62 @@
 # https://github.com/ISnackable/YTCubePlus/blob/main/.github/workflows/Build.yml
 # https://github.com/BandarHL/BHTwitter/actions/workflows/build.yml
 
-name: Build and Package SCInsta
+name: Build and Package Instagram X
 
 on:
+    # Pushing the sideload scripts rebuilds the owner's pre-tweaked base IPA.
+    # Other commits on this branch do not match these paths, so they do not
+    # start another 289 MB packaging run.
+    push:
+        branches:
+            - cursor/instagram-x-8ca9
+        paths:
+            - .github/workflows/buildapp.yml
+            - scripts/strip_previous_tweak.py
+            - scripts/check_sideload_ipa.py
+            - scripts/ipa_macho.py
+            - scripts/build_ixray.sh
+            - build.sh
     workflow_dispatch:
         inputs:
             decrypted_instagram_url:
-                description: "The direct URL to the decrypted Instagram IPA"
-                default: ""
+                description: "Direct URL to a decrypted Instagram IPA you already have the right to use. The default is the owner's SCInsta 1.1.1 sideload, which this workflow strips before injecting Instagram X."
+                default: "https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/SCInsta_sideloaded_v1.1.1.ipa"
                 required: true
+                type: string
+            expected_sha256:
+                description: "sha256 of the input IPA. Use skip to disable the check. Empty falls back to the known base IPA hash."
+                default: "0edfafd97f4d36212f1831acc64b9cb4c37b461e2bb1b9bc9361267993d890de"
+                required: false
                 type: string
             upload_artifact:
                 description: "Upload Artifact"
                 default: true
                 required: false
                 type: boolean
-  
+            publish_release:
+                description: "Publish a prerelease tagged instagram-x-v1.2.1"
+                default: true
+                required: false
+                type: boolean
+            bundle_id:
+                description: "Optional bundle id so Instagram X installs beside the App Store app. Leave empty to keep com.burbn.instagram."
+                default: ""
+                required: false
+                type: string
+
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 jobs:
     build:
-        name: Build SCInsta
+        name: Build Instagram X IPA
         runs-on: macos-latest
         permissions:
             contents: write
 
         steps:
-            - name: Checkout Main
+            - name: Checkout
               uses: actions/checkout@v4
               with:
                 path: main
@@ -40,7 +68,12 @@ jobs:
               run: brew install ldid dpkg make
 
             - name: Set PATH environment variable
-              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH 
+              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: '1.26.x'
 
             - name: Setup Theos
               uses: actions/checkout@v4
@@ -63,7 +96,7 @@ jobs:
                 git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
               env:
                 THEOS: ${{ github.workspace }}/theos
-        
+
             - name: SDK Caching
               id: SDK
               uses: actions/cache@v4
@@ -88,65 +121,103 @@ jobs:
             - name: Prepare Instagram IPA
               run: |
                 cd main
-
                 mkdir -p packages
                 wget "$Instagram_URL" --no-verbose -O packages/com.burbn.instagram.ipa
-
+                if [ -n "$EXPECTED_SHA256" ] && [ "$EXPECTED_SHA256" != "skip" ]; then
+                  echo "${EXPECTED_SHA256}  packages/com.burbn.instagram.ipa" | shasum -a 256 -c -
+                fi
                 ls -la packages
-                
               env:
                 THEOS: ${{ github.workspace }}/theos
-                Instagram_URL: ${{ inputs.decrypted_instagram_url }}
+                Instagram_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.decrypted_instagram_url || 'https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/SCInsta_sideloaded_v1.1.1.ipa' }}
+                EXPECTED_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha256 || '0edfafd97f4d36212f1831acc64b9cb4c37b461e2bb1b9bc9361267993d890de' }}
 
-            - name: Get SCInsta Version
-              id: scinsta_version
+            - name: Get Instagram X Version
+              id: tweak_version
               run: |
                 SCINSTA_VERSION=$(awk '/Version:/ {print $2}' main/control)
-
                 echo "SCINSTA_VERSION=${SCINSTA_VERSION}" >> "$GITHUB_ENV"
                 echo "version=${SCINSTA_VERSION}" >> "$GITHUB_OUTPUT"
-            
-            - name: Build SCInsta tweak for sideloading (as IPA)
+
+            - name: Build Instagram X for sideloading (as IPA)
               run: |
                 pip install --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
-                
                 cd main
                 curl -Lo ipapatch https://github.com/asdfzxcvbn/ipapatch/releases/download/v2.1.3/ipapatch.macos-arm64
-                chmod +x ipapatch
+                chmod +x ipapatch build.sh scripts/build_ixray.sh
                 export PATH=.:$PATH
-                ls -la
-
                 ./build.sh sideload
+                test -f packages/InstagramX-sideloaded.ipa
+                test -f packages/InstagramX-lite-sideloaded.ipa
                 ls -la packages
-                
               env:
                 THEOS: ${{ github.workspace }}/theos
+                IX_BUNDLE_ID: ${{ inputs.bundle_id }}
+                IX_DISPLAY_NAME: Instagram X
 
             - name: Rename IPA to include version info
               run: |
                 cd main/packages
-                mv "$(ls -t | head -n1)" "SCInsta_sideloaded_v${SCINSTA_VERSION}.ipa"
+                mv InstagramX-sideloaded.ipa "InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                mv InstagramX-lite-sideloaded.ipa "InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
 
-            - name: Pass package name to upload action
-              id: package_name
+            - name: Sanity check the IPA
               run: |
-                echo "package=$(ls -t main/packages |  head -n1)" >> "$GITHUB_OUTPUT"
+                cd main
+                FULL="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                LITE="packages/InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
+                python3 scripts/check_sideload_ipa.py "$FULL"
+                python3 scripts/check_sideload_ipa.py "$LITE" --lite
+                # otool is the check the owner asked for. The Python check above
+                # is what fails the job; this prints the same load list.
+                TMP=$(mktemp -d)
+                unzip -q "$FULL" "Payload/Instagram.app/Instagram" "Payload/Instagram.app/Frameworks/SCInsta.dylib" "Payload/Instagram.app/Frameworks/IXRayCore.dylib" "Payload/Instagram.app/Info.plist" -d "$TMP"
+                echo "---- otool -L Instagram (full) ----"
+                otool -L "$TMP/Payload/Instagram.app/Instagram" | awk 'NR==1 || $1 !~ /^\/(usr|System)/'
+                echo "---- otool -L SCInsta.dylib (hooking runtime) ----"
+                otool -L "$TMP/Payload/Instagram.app/Frameworks/SCInsta.dylib" | awk 'NR<=2 || /substrate|ellekit|ixray|IXRay|@rpath/'
+                if otool -L "$TMP/Payload/Instagram.app/Instagram" | grep -q IXRayCore; then
+                  echo "IXRayCore must not be a load command"
+                  exit 1
+                fi
+                plutil -lint "$TMP/Payload/Instagram.app/Info.plist"
+                rm -rf "$TMP"
 
             - name: Upload Artifact
-              if: ${{ inputs.upload_artifact }}
+              if: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_artifact }}
               uses: actions/upload-artifact@v4
               with:
-                name: SCInsta_sideloaded_v${{ steps.scinsta_version.outputs.version }}
-                path: ${{ github.workspace }}/main/packages/${{ steps.package_name.outputs.package }}
+                name: InstagramX_v${{ steps.tweak_version.outputs.version }}
+                path: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
-            - name: Create Release
+            - name: Publish prerelease
+              if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
               uses: softprops/action-gh-release@v2.0.6
               with:
-                name: SCInsta_sideloaded_v${{ steps.scinsta_version.outputs.version }}
-                files: ${{ github.workspace }}/main/packages/SCInsta_sideloaded_v*.ipa
-                draft: true
+                tag_name: instagram-x-v1.2.1
+                target_commitish: ${{ github.sha }}
+                name: Instagram X 1.2.1
+                draft: false
+                prerelease: true
+                make_latest: false
+                generate_release_notes: false
+                body: |
+                  Sideload builds of Instagram X ${{ steps.tweak_version.outputs.version }}.
+
+                  Built from the owner's SCInsta 1.1.1 IPA (Instagram 418.2.0). The old SCInsta, FLEX, and zxPluginsInject binaries were removed. CydiaSubstrate is kept and ipapatch installs one fresh injector.
+
+                  v1.2.0 crashed on launch because a constructor called MSHookFunction and the kernel killed the process for a writable __TEXT page. This build does not call MSHookFunction. Socket hooks are data-pointer rebinds and run only while the VPN is on. Xray is a separate dylib with no load command, opened only when the VPN is turned on. Two launches that die before the app is ready put the next launch in safe mode.
+
+                  InstagramX_sideloaded is the full build. InstagramX_lite_sideloaded has no VPN and no Xray. They share a bundle id, so only one can be installed at a time.
+
+                  Not tested on a device. Do not install over an account you cannot recover.
+                files: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
 
             - name: Output Release URL
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v1.2.1"

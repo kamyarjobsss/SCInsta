@@ -23,53 +23,50 @@
     return setting ? true : fallback;
 }
 
++ (void)ix_cleanFolder:(NSString *)folder olderThan:(NSTimeInterval)minAge fileManager:(NSFileManager *)fileManager errors:(NSMutableArray<NSError *> *)deletionErrors {
+    if (folder.length == 0) return;
+    BOOL isDir = NO;
+    if (![fileManager fileExistsAtPath:folder isDirectory:&isDir] || !isDir) return;
+
+    NSArray<NSURL *> *contents = [fileManager contentsOfDirectoryAtURL:[NSURL fileURLWithPath:folder]
+                                             includingPropertiesForKeys:@[NSURLContentModificationDateKey]
+                                                                options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                                  error:nil];
+    for (NSURL *fileURL in contents) {
+        @autoreleasepool {
+            NSDate *modified = nil;
+            [fileURL getResourceValue:&modified forKey:NSURLContentModificationDateKey error:nil];
+            // Skip files touched recently. Deleting live temp/cache files has crashed Instagram.
+            if (modified && [[NSDate date] timeIntervalSinceDate:modified] < minAge) continue;
+            NSError *cacheItemDeletionError = nil;
+            if (![fileManager removeItemAtURL:fileURL error:&cacheItemDeletionError] && cacheItemDeletionError) {
+                [deletionErrors addObject:cacheItemDeletionError];
+            }
+        }
+    }
+}
+
 + (void)cleanCache {
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSMutableArray<NSError *> *deletionErrors = [NSMutableArray array];
+    @try {
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        NSMutableArray<NSError *> *deletionErrors = [NSMutableArray array];
+        // NSTemporaryDirectory() is intentionally not touched. Instagram maps files in
+        // tmp while they are open, and deleting them has crashed the process.
 
-    // Temp folder
-    // * disabled bc app crashed trying to delete certain files inside it
-    // todo: remove the above disclaimer if this new code doesn't cause crashing
-    NSArray *tempFolderContents = [fileManager contentsOfDirectoryAtURL:[NSURL fileURLWithPath:NSTemporaryDirectory()] includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
-
-    for (NSURL *fileURL in tempFolderContents) {
-        NSError *cacheItemDeletionError;
-        [fileManager removeItemAtURL:fileURL error:&cacheItemDeletionError];
-
-        if (cacheItemDeletionError) [deletionErrors addObject:cacheItemDeletionError];
-    }
-
-    // Analytics folder
-    NSString *analyticsFolder = [[NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0] stringByAppendingPathComponent:@"Application Support/com.burbn.instagram/analytics"];
-    NSArray *analyticsFolderContents = [fileManager contentsOfDirectoryAtURL:[[NSURL alloc] initFileURLWithPath:analyticsFolder] includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
-
-    for (NSURL *fileURL in analyticsFolderContents) {
-        NSError *cacheItemDeletionError;
-        [fileManager removeItemAtURL:fileURL error:&cacheItemDeletionError];
-
-        if (cacheItemDeletionError) [deletionErrors addObject:cacheItemDeletionError];
-    }
-    
-    // Caches folder
-    NSString *cachesFolder = [[NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0] stringByAppendingPathComponent:@"Caches"];
-    NSArray *cachesFolderContents = [fileManager contentsOfDirectoryAtURL:[[NSURL alloc] initFileURLWithPath:cachesFolder] includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
-    
-    for (NSURL *fileURL in cachesFolderContents) {
-        NSError *cacheItemDeletionError;
-        [fileManager removeItemAtURL:fileURL error:&cacheItemDeletionError];
-
-        if (cacheItemDeletionError) [deletionErrors addObject:cacheItemDeletionError];
-    }
-
-    // Log errors
-    if (deletionErrors.count > 1) {
-
-        for (NSError *error in deletionErrors) {
-            NSLog(@"[SCInsta] File Deletion Error: %@", error);
+        NSString *library = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES).firstObject;
+        if (library.length) {
+            NSString *analyticsFolder = [library stringByAppendingPathComponent:@"Application Support/com.burbn.instagram/analytics"];
+            NSString *cachesFolder = [library stringByAppendingPathComponent:@"Caches"];
+            [self ix_cleanFolder:analyticsFolder olderThan:10 * 60 fileManager:fileManager errors:deletionErrors];
+            [self ix_cleanFolder:cachesFolder olderThan:10 * 60 fileManager:fileManager errors:deletionErrors];
         }
 
+        if (deletionErrors.count > 0) {
+            NSLog(@"[SCInsta] Cache cleanup skipped %lu busy item(s)", (unsigned long)deletionErrors.count);
+        }
+    } @catch (NSException *exception) {
+        NSLog(@"[SCInsta] Cache cleanup aborted: %@", exception.reason);
     }
-
 }
 
 // Displaying View Controllers

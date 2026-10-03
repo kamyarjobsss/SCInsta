@@ -7,10 +7,20 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = SCInsta
 
 $(TWEAK_NAME)_FILES = $(shell find src -type f \( -iname \*.x -o -iname \*.xm -o -iname \*.m \)) $(wildcard modules/JGProgressHUD/*.m)
-$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics Photos CoreServices SystemConfiguration SafariServices Security QuartzCore
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics Photos CoreServices SystemConfiguration SafariServices Security QuartzCore MapKit CoreLocation WebKit
 $(TWEAK_NAME)_PRIVATE_FRAMEWORKS = Preferences
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-unsupported-availability-guard -Wno-unused-value -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-incompatible-pointer-types
 $(TWEAK_NAME)_LOGOSFLAGS = --c warnings=none
+
+# Xray is a separate dylib (vendor/ixray/IXRayCore.dylib) dlopened when the VPN
+# turns on. Do not -force_load it into SCInsta: that runs the Go runtime at launch.
+ifeq ($(IX_LITE),1)
+  $(TWEAK_NAME)_CFLAGS += -DIX_LITE=1
+else
+  ifeq ($(IX_HAS_XRAY),1)
+    $(TWEAK_NAME)_CFLAGS += -DIX_HAS_XRAY=1
+  endif
+endif
 
 CCFLAGS += -std=c++11
 

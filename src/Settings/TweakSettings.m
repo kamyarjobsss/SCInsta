@@ -1,4 +1,9 @@
 #import "TweakSettings.h"
+#import "../Brand/IXBrand.h"
+#import "../Proxy/IXProxyViewController.h"
+#import "../Location/IXLocationPickerViewController.h"
+#import "../Location/IXLocationStore.h"
+#import "../Proxy/IXProxyManager.h"
 
 @implementation SCITweakSettings
 
@@ -16,9 +21,23 @@
 + (NSArray *)sections {
     return @[
         @{
+            @"header": @"Instagram X",
+            @"rows": @[
+                [SCISetting navigationCellWithTitle:@"VPN"
+                                           subtitle:[IXProxyManager statusSubtitle]
+                                               icon:[SCISymbol symbolWithName:@"lock.shield.fill" color:[UIColor colorWithRed:0.35 green:0.7 blue:1 alpha:1] size:22]
+                                     viewController:[IXProxyViewController new]],
+                [SCISetting navigationCellWithTitle:@"Fake location"
+                                               subtitle:([IXLocationStore isEnabled] ? [IXLocationStore placeName] : @"Off")
+                                               icon:[SCISymbol symbolWithName:@"location.fill" color:[UIColor systemTealColor] size:22]
+                                     viewController:[IXLocationPickerViewController new]]
+            ],
+            @"footer": @"VPN routes this app through a VLESS server. Fake location is what Instagram reads from Core Location while the switch is on."
+        },
+        @{
             @"header": @"",
             @"rows": @[
-                [SCISetting linkCellWithTitle:@"Donate" subtitle:@"Consider donating to support this tweak's development!" icon:[SCISymbol symbolWithName:@"heart.circle.fill" color:[UIColor systemPinkColor] size:20.0] url:@"https://ko-fi.com/SoCuul"]
+                [SCISetting linkCellWithTitle:@"Donate" subtitle:@"Instagram X is a fork of SCInsta. The original project is supported here." icon:[SCISymbol symbolWithName:@"heart.circle.fill" color:[UIColor systemPinkColor] size:20.0] url:@"https://ko-fi.com/SoCuul"]
             ]
         },
         @{
@@ -195,21 +214,8 @@
         @{
             @"header": @"",
             @"rows": @[
-                // [SCISetting navigationCellWithTitle:@"Experimental"
-                //                            subtitle:@""
-                //                                icon:[SCISymbol symbolWithName:@"testtube.2"]
-                //                         navSections:@[@{
-                //                             @"header": @"Warning",
-                //                             @"footer": @"These features are unstable and cause the Instagram app to crash unexpectedly.\n\nUse at your own risk!"
-                //                         },
-                //                         @{
-                //                             @"header": @"",
-                //                             @"rows": @[
-
-                //                             ]
-                //                         }
-                //                         ]
-                // ],
+                // Experimental hooks (EnableHomecomingUI, EnableAllTextEffects) stay uncompiled.
+                // Their source uses a trailing underscore so make does not build them.
                 [SCISetting navigationCellWithTitle:@"Debug"
                                            subtitle:@""
                                                icon:[SCISymbol symbolWithName:@"ladybug"]
@@ -222,10 +228,10 @@
                                             ]
                                         },
                                         @{
-                                            @"header": @"SCInsta",
+                                            @"header": @"Instagram X",
                                             @"rows": @[
-                                                [SCISetting switchCellWithTitle:@"Enable tweak settings quick-access" subtitle:@"Allows you to hold on the home tab to open the SCInsta settings" defaultsKey:@"settings_shortcut" requiresRestart:YES],
-                                                [SCISetting switchCellWithTitle:@"Show tweak settings on app launch" subtitle:@"Automatically opens the SCInsta settings when the app launches" defaultsKey:@"tweak_settings_app_launch"],
+                                                [SCISetting switchCellWithTitle:@"Enable tweak settings quick-access" subtitle:@"Hold the home tab to open Instagram X settings" defaultsKey:@"settings_shortcut" requiresRestart:YES],
+                                                [SCISetting switchCellWithTitle:@"Show tweak settings on app launch" subtitle:@"Automatically opens Instagram X settings when the app launches" defaultsKey:@"tweak_settings_app_launch"],
                                                 [SCISetting buttonCellWithTitle:@"Reset onboarding completion state"
                                                                            subtitle:@""
                                                                                icon:nil
@@ -272,10 +278,11 @@
         @{
             @"header": @"Credits",
             @"rows": @[
-                [SCISetting linkCellWithTitle:@"Developer" subtitle:@"SoCuul" imageUrl:@"https://i.imgur.com/c9CbytZ.png" url:@"https://socuul.dev"],
-                [SCISetting linkCellWithTitle:@"View Repo" subtitle:@"View the tweak's source code on GitHub" imageUrl:@"https://i.imgur.com/BBUNzeP.png" url:@"https://github.com/SoCuul/SCInsta"]
+                [SCISetting linkCellWithTitle:@"Instagram X" subtitle:@"Fork maintained by Kamyar" icon:[SCISymbol symbolWithName:@"sparkles" color:[UIColor systemPurpleColor] size:20.0] url:@"https://github.com/kamyarjobsss/SCInsta"],
+                [SCISetting linkCellWithTitle:@"Original developer" subtitle:@"SoCuul" imageUrl:@"https://i.imgur.com/c9CbytZ.png" url:@"https://socuul.dev"],
+                [SCISetting linkCellWithTitle:@"View repo" subtitle:@"Source for this fork" imageUrl:@"https://i.imgur.com/BBUNzeP.png" url:@"https://github.com/kamyarjobsss/SCInsta"]
             ],
-            @"footer": [NSString stringWithFormat:@"SCInsta %@\n\nInstagram v%@", SCIVersionString, [SCIUtils IGVersionString]]
+            @"footer": [NSString stringWithFormat:@"Instagram X %@\n\nInstagram v%@", SCIVersionString, [SCIUtils IGVersionString]]
         }
     ];
 }
@@ -288,7 +295,7 @@
 ///
 
 + (NSString *)title {
-    return @"SCInsta Settings";
+    return @"Instagram X";
 }
 
 

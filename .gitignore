@@ -55,3 +55,7 @@ livecontainer
 
 src/**/wip.x
 src/**/wip.xm
+
+vendor/ixray/libixray.a
+vendor/ixray/libixray.h
+vendor/ixray/go.sum

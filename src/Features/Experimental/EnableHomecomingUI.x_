@@ -1,3 +1,5 @@
+// DISABLED. The trailing underscore keeps this file out of the Theos build.
+// Homecoming forces an unfinished Instagram UI and is left unwired on purpose.
 %hook IGSundialFeedViewController
 - (_Bool)_isHomecomingEnabled {
     return true;

@@ -70,8 +70,8 @@ static char rowStaticRef[] = "row";
     [super viewWillDisappear:animated];
     
     if (![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"SCInsta Settings Info"
-                                                                       message:@"In the future: Hold down on the three lines at the top right of your profile page, to re-open SCInsta settings."
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X"
+                                                                       message:@"Open Instagram X again from Settings → Instagram X settings. You can also hold the menu button on your profile, or hold the home tab if that shortcut is enabled."
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         
         [alert addAction:[UIAlertAction actionWithTitle:@"I understand!"

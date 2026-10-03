@@ -1,10 +1,10 @@
-Package: com.socuul.scinsta
-Name: SCInsta
-Version: 1.1.1
+Package: com.kamyar.instagramx
+Name: Instagram X
+Version: 1.2.1
 Architecture: iphoneos-arm
-Description: A feature-rich tweak for Instagram on iOS!
-Homepage: https://github.com/SoCuul/SCInsta
-Maintainer: SoCuul
-Author: SoCuul
+Description: Instagram X, a stability-focused fork of SCInsta with in-app VLESS and fake location. Tested against Instagram 418.2.0.
+Homepage: https://github.com/kamyarjobsss/SCInsta
+Maintainer: Kamyar
+Author: Kamyar
 Section: Tweaks
 Depends: mobilesubstrate
