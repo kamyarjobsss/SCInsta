@@ -15,7 +15,7 @@
 
 %new - (void)addLongPressGestureRecognizer {
     for (UIGestureRecognizer *existing in self.gestureRecognizers) {
-        if ([existing isKindOfClass:[UILongPressGestureRecognizer class]] && existing.minimumPressDuration >= 0.4) return;
+        if ([existing isKindOfClass:[UILongPressGestureRecognizer class]] && ((UILongPressGestureRecognizer *)existing).minimumPressDuration >= 0.4) return;
     }
     NSLog(@"[SCInsta] Adding tweak settings long press gesture recognizer");
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
