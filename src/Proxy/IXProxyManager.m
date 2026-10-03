@@ -94,10 +94,10 @@ static NSError *IXProxyError(NSString *message) {
 - (NSString *)lastError { return _lastError; }
 - (NSString *)engineName {
     BOOL fa = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
-    NSString *raw = _engineName ?: @"";
 #if IX_LITE
     return fa ? @"نسخهٔ سبک" : @"Lite build";
 #else
+    NSString *raw = _engineName ?: @"";
     if ([raw hasPrefix:@"Xray "]) return raw;
     if ([raw isEqualToString:@"Xray"]) return @"Xray";
     if ([raw isEqualToString:@"Built-in VLESS"]) return fa ? @"VLESS داخلی" : raw;
