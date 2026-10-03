@@ -163,7 +163,7 @@ static id sciIGLocation(id self, SEL _cmd) {
     return sci_origIGLocation ? sci_origIGLocation(self, _cmd) : nil;
 }
 
-void SCIFakeLocationInstall(void) {
+extern "C" void SCIFakeLocationInstall(void) {
     static BOOL installed = NO;
     if (installed) return;
     installed = YES;
