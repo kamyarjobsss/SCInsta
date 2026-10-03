@@ -7,9 +7,13 @@ twice. This strips those load commands and deletes the old files, then updates
 only those entries in the zip so the rest of the archive is left alone.
 
 Kept on purpose:
-  CydiaSubstrate.framework  — the hooking runtime the tweak links
-  zxPluginsInject.dylib     — cyan's app-group/keychain helper already in the IPA
+  CydiaSubstrate.framework  — the hooking runtime the tweak links. cyan replaces
+                              the existing copy instead of adding a second one.
   Instagram's own frameworks (FBSharedFramework, Spotify, ffmpeg, GoogleCast)
+
+zxPluginsInject.dylib is removed, including from app extensions. ipapatch
+refuses to run when that load command is already present, and it installs a
+fresh copy itself.
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ STRIP_FILES = {
     "InstagramX.dylib",
     "FLEXing.dylib",
     "libflex.dylib",
+    "zxPluginsInject.dylib",
 }
 
 SKIP_SUFFIXES = {

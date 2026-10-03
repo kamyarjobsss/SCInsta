@@ -115,23 +115,22 @@ def main() -> int:
         ("SCInsta.dylib", 1),
         ("FLEXing.dylib", 1),
         ("libflex.dylib", 1),
+        ("zxPluginsInject.dylib", 1),
     ):
         got = counts.get(name, 0)
         if got != expect:
-            return fail(f"{name} is loaded {got} times, expected {expect}")
-    injector = f"Payload/{app_name}/Frameworks/zxPluginsInject.dylib"
-    injector_loads = counts.get("zxPluginsInject.dylib", 0)
-    try:
-        archive.getinfo(injector)
-        has_injector = True
-    except KeyError:
-        has_injector = False
-    if has_injector and injector_loads != 1:
-        return fail(f"zxPluginsInject.dylib is present but loaded {injector_loads} times")
-    if not has_injector and injector_loads != 0:
-        return fail("main binary loads zxPluginsInject.dylib but the file is missing")
+            return fail(f"main binary loads {name} {got} times, expected {expect}")
     if counts.get("CydiaSubstrate", 0) > 1:
         return fail("main binary loads CydiaSubstrate more than once")
+
+    for kind, path in loads:
+        if not path.startswith("@rpath/"):
+            continue
+        rel = f"Payload/{app_name}/Frameworks/{path[len('@rpath/'):]}"
+        try:
+            archive.getinfo(rel)
+        except KeyError:
+            return fail(f"main binary loads {path} but {rel} is missing")
 
     substrate = [path for _kind, path in tweak_loads if "substrate" in path.lower() or "ellekit" in path.lower()]
     print("[*] hooking runtime linked by SCInsta.dylib:")
@@ -145,6 +144,34 @@ def main() -> int:
     blob = archive.read(f"Payload/{app_name}/Frameworks/SCInsta.dylib")
     if b"ixray_start" not in blob and b"xray-core" not in blob:
         return fail("SCInsta.dylib has no Xray marker (ixray_start / xray-core)")
+
+    # Extensions must not keep the old tweak, and must not load the injector twice.
+    with tempfile.TemporaryDirectory(prefix="ix-check-extra-") as extra_tmp:
+        extra = Path(extra_tmp) / "macho"
+        for info_entry in archive.infolist():
+            name = info_entry.filename
+            if name == binary_name or info_entry.file_size < 64 or info_entry.file_size > 80_000_000:
+                continue
+            if name.endswith((".png", ".car", ".json", ".plist", ".ttf", ".otf", ".metallib", ".strings")):
+                continue
+            with archive.open(name) as handle:
+                magic = handle.read(4)
+            if magic not in (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca"):
+                continue
+            extra.write_bytes(archive.read(name))
+            try:
+                extra_loads = dylib_loads(extra)
+            except MachOError as exc:
+                return fail(f"{name}: {exc}")
+            extra_counts: dict[str, int] = {}
+            for _kind, path in extra_loads:
+                base = path.rsplit("/", 1)[-1]
+                extra_counts[base] = extra_counts.get(base, 0) + 1
+            for banned in ("SCInsta.dylib", "InstagramX.dylib", "FLEXing.dylib", "libflex.dylib"):
+                if extra_counts.get(banned, 0):
+                    return fail(f"{name} still loads {banned}")
+            if extra_counts.get("zxPluginsInject.dylib", 0) > 1:
+                return fail(f"{name} loads zxPluginsInject.dylib more than once")
 
     print("[*] IPA checks passed")
     return 0

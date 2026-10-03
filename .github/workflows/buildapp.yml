@@ -196,7 +196,7 @@ jobs:
                 body: |
                   Sideload build of Instagram X ${{ steps.tweak_version.outputs.version }}.
 
-                  Built from the owner's SCInsta 1.1.1 IPA (Instagram 418.2.0). The old SCInsta, FLEXing, and libflex binaries were removed and replaced. CydiaSubstrate and zxPluginsInject were kept.
+                  Built from the owner's SCInsta 1.1.1 IPA (Instagram 418.2.0). The old SCInsta, FLEX, and zxPluginsInject binaries were removed. CydiaSubstrate is kept and ipapatch installs one fresh injector.
 
                   Not tested on a device. In-app VLESS is limited to traffic that uses the hooked socket calls. Do not install over an account you cannot recover.
                 files: ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa

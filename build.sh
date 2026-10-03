@@ -78,9 +78,10 @@ then
         SCINSTAPATH=""
     fi
 
-    # A previous sideload already has SCInsta/FLEX load commands. cyan adds
-    # another one instead of replacing it, so strip those first. Substrate
-    # and cyan's zxPluginsInject helper are left in place.
+    # A previous sideload already has SCInsta/FLEX/zxPluginsInject load
+    # commands. cyan adds another tweak load instead of replacing it, and
+    # ipapatch exits if zxPluginsInject is already loaded. Strip those first.
+    # CydiaSubstrate stays; cyan replaces that one framework in place.
     echo -e '\033[1m\033[32mStripping any previous SCInsta injection...\033[0m'
     python3 scripts/strip_previous_tweak.py "packages/${ipaFile}"
 
