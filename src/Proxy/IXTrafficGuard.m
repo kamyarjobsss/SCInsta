@@ -113,6 +113,26 @@ static uint32_t IXTokenFromIPv4(uint32_t addrNetwork) {
     return host & 0x00FFFFFFu;
 }
 
+// fd00:9::/64, token in the last 32 bits. Not a public route, so a missed hook
+// cannot send the packet onto the real network as a valid destination.
+static void IXFillFakeV6(struct in6_addr *out, uint32_t token) {
+    memset(out, 0, sizeof(*out));
+    out->s6_addr[0] = 0xfd;
+    out->s6_addr[3] = 0x09;
+    uint32_t net = htonl(token);
+    memcpy(out->s6_addr + 12, &net, 4);
+}
+
+static uint32_t IXTokenFromV6(const struct in6_addr *addr) {
+    if (!addr || addr->s6_addr[0] != 0xfd || addr->s6_addr[3] != 0x09) return 0;
+    for (int i = 4; i < 12; i++) {
+        if (addr->s6_addr[i] != 0) return 0;
+    }
+    uint32_t net = 0;
+    memcpy(&net, addr->s6_addr + 12, 4);
+    return ntohl(net);
+}
+
 void IXTrafficGuardSetRuntime(BOOL vpnOn, BOOL proxyUp, BOOL killSwitch, BOOL blockUDP) {
     atomic_store(&ix_vpn_on, vpnOn ? 1 : 0);
     atomic_store(&ix_proxy_up, proxyUp ? 1 : 0);
@@ -219,6 +239,14 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
     if (addr->sa_family == AF_INET6) {
         const struct sockaddr_in6 *in6 = (const struct sockaddr_in6 *)addr;
         *port = ntohs(in6->sin6_port);
+        uint32_t token = IXTokenFromV6(&in6->sin6_addr);
+        if (token && IXLookupToken(token, host, hostLen)) return YES;
+        if (IN6_IS_ADDR_V4MAPPED(&in6->sin6_addr)) {
+            struct in_addr v4;
+            memcpy(&v4, in6->sin6_addr.s6_addr + 12, 4);
+            uint32_t mapped = IXTokenFromIPv4(v4.s_addr);
+            if (mapped && IXLookupToken(mapped, host, hostLen)) return YES;
+        }
         return inet_ntop(AF_INET6, &in6->sin6_addr, host, (socklen_t)hostLen) != NULL;
     }
     return NO;
@@ -433,39 +461,65 @@ static int IXGetAddrInfo(const char *node, const char *service, const struct add
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     int family = hints ? hints->ai_family : AF_UNSPEC;
-    if (family == AF_INET6) {
-        // No public IPv6 fake range that freeaddrinfo can safely own without also
-        // teaching connect() about it. Fail the v6 lookup so clients retry v4,
-        // which we can rewrite. Kill-switch: do not fall through to the real resolver.
-        return EAI_NONAME;
-    }
-
     uint32_t token = IXRememberHost(node);
     if (!token) return EAI_FAIL;
-    struct addrinfo *ai = calloc(1, sizeof(struct addrinfo));
-    struct sockaddr_in *sa = calloc(1, sizeof(struct sockaddr_in));
-    if (!ai || !sa) {
-        free(ai);
-        free(sa);
-        return EAI_MEMORY;
-    }
-    sa->sin_family = AF_INET;
-    sa->sin_len = sizeof(struct sockaddr_in);
-    sa->sin_addr.s_addr = IXFakeIPv4(token);
+
+    uint16_t port = 0;
     if (service && service[0]) {
-        int port = atoi(service);
-        if (port <= 0 || port > 65535) {
+        int parsed = atoi(service);
+        if (parsed <= 0 || parsed > 65535) {
             struct servent *se = getservbyname(service, "tcp");
-            if (se) port = ntohs(se->s_port);
+            if (se) parsed = ntohs(se->s_port);
         }
-        if (port > 0 && port < 65536) sa->sin_port = htons((uint16_t)port);
+        if (parsed > 0 && parsed < 65536) port = (uint16_t)parsed;
     }
-    ai->ai_family = AF_INET;
-    ai->ai_socktype = hints && hints->ai_socktype ? hints->ai_socktype : SOCK_STREAM;
-    ai->ai_protocol = hints ? hints->ai_protocol : 0;
-    ai->ai_addrlen = sizeof(struct sockaddr_in);
-    ai->ai_addr = (struct sockaddr *)sa;
-    *res = ai;
+    int socktype = hints && hints->ai_socktype ? hints->ai_socktype : SOCK_STREAM;
+    int protocol = hints ? hints->ai_protocol : 0;
+
+    struct addrinfo *v4 = NULL;
+    struct addrinfo *v6 = NULL;
+    if (family != AF_INET6) {
+        v4 = calloc(1, sizeof(struct addrinfo));
+        struct sockaddr_in *sa = calloc(1, sizeof(struct sockaddr_in));
+        if (!v4 || !sa) {
+            free(v4);
+            free(sa);
+            return EAI_MEMORY;
+        }
+        sa->sin_family = AF_INET;
+        sa->sin_len = sizeof(*sa);
+        sa->sin_port = htons(port);
+        sa->sin_addr.s_addr = IXFakeIPv4(token);
+        v4->ai_family = AF_INET;
+        v4->ai_socktype = socktype;
+        v4->ai_protocol = protocol;
+        v4->ai_addrlen = sizeof(*sa);
+        v4->ai_addr = (struct sockaddr *)sa;
+    }
+    if (family != AF_INET) {
+        v6 = calloc(1, sizeof(struct addrinfo));
+        struct sockaddr_in6 *sa6 = calloc(1, sizeof(struct sockaddr_in6));
+        if (!v6 || !sa6) {
+            free(v6);
+            free(sa6);
+            if (v4) {
+                free(v4->ai_addr);
+                free(v4);
+            }
+            return EAI_MEMORY;
+        }
+        sa6->sin6_family = AF_INET6;
+        sa6->sin6_len = sizeof(*sa6);
+        sa6->sin6_port = htons(port);
+        IXFillFakeV6(&sa6->sin6_addr, token);
+        v6->ai_family = AF_INET6;
+        v6->ai_socktype = socktype;
+        v6->ai_protocol = protocol;
+        v6->ai_addrlen = sizeof(*sa6);
+        v6->ai_addr = (struct sockaddr *)sa6;
+    }
+    if (v4 && v6) v4->ai_next = v6;
+    *res = v4 ?: v6;
     return 0;
 }
 

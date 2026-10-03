@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.0.0"
+                description: "Publish a prerelease tagged instagram-x-v2.1.0"
                 default: true
                 required: false
                 type: boolean
@@ -216,9 +216,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.0.0
+                tag_name: instagram-x-v2.1.0
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.0.0
+                name: Instagram X 2.1.0
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -240,4 +240,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.0.0"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.0"

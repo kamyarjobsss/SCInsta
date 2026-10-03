@@ -206,13 +206,13 @@ static char kIXBaseInsetKey;
 }
 
 + (BOOL)controllerLooksLikeSettings:(UIViewController *)controller {
+    // The profile header button is the entry point. This row is only placed
+    // under Accounts Center, never as a floating overlay on other screens.
     if (!controller) return NO;
-    NSString *title = controller.title.lowercaseString ?: @"";
     NSString *cls = NSStringFromClass(controller.class);
     if ([cls containsString:@"SCISettings"] || [cls containsString:@"IXProxy"] || [cls containsString:@"IXLocation"]) return NO;
-    if ([title containsString:@"setting"] || [title containsString:@"تنظیمات"] || [title containsString:@"activity"]) return YES;
-    if ([cls rangeOfString:@"Setting" options:NSCaseInsensitiveSearch].location != NSNotFound) return YES;
-    return NO;
+    NSString *title = controller.title.lowercaseString ?: @"";
+    return [title containsString:@"setting"] || [title containsString:@"تنظیمات"];
 }
 
 + (void)noteSettingsController:(UIViewController *)controller {
@@ -235,10 +235,7 @@ static char kIXBaseInsetKey;
                     break;
                 }
             }
-            if (!anchor) {
-                anchor = [self candidateRows:scroll].firstObject;
-                above = YES;
-            }
+            if (!anchor) return;
             [self attachToScroll:scroll anchor:anchor placeAbove:above];
         } @catch (NSException *exception) {
             NSLog(@"[InstagramX] settings scan skipped: %@", exception.reason);

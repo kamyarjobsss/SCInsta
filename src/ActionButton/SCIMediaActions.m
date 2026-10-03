@@ -575,7 +575,7 @@ static void sciConfirmThen(NSString *title, void(^block)(void)) {
                     BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_ryukgram_album"];
                     void (^onDone)(BOOL, NSError *) = ^(BOOL ok, NSError *e) {
                         dispatch_async(dispatch_get_main_queue(), ^{
-                            if (ok) [pill finishTicket:ticket successMessage:useAlbum ? SCILocalized(@"Saved to RyukGram") : SCILocalized(@"Saved to Photos")];
+                            if (ok) [pill finishTicket:ticket successMessage:useAlbum ? SCILocalized(@"Saved to Instagram X") : SCILocalized(@"Saved to Photos")];
                             else [pill finishTicket:ticket errorMessage:e.localizedDescription ?: @"Failed to save"];
                         });
                     };

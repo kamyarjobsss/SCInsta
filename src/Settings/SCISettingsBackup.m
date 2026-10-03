@@ -393,7 +393,7 @@ static const SCIBackupScope SCIBackupScopeAll =
     NSError *parseErr = nil;
     id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:&parseErr];
     if (![parsed isKindOfClass:[NSDictionary class]]) {
-        [self showError:SCILocalized(@"File is not a valid RyukGram export.")];
+        [self showError:SCILocalized(@"File is not a valid Instagram X export.")];
         return;
     }
     NSDictionary *root = parsed;

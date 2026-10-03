@@ -170,9 +170,39 @@ static int IXRebindImage(const struct mach_header *header, intptr_t slide, const
     return patched;
 }
 
+static const char *ix_saved_names[8];
+static void *ix_saved_repl[8];
+static unsigned ix_saved_count = 0;
+static int ix_rebind_live = 0;
+static int ix_image_callback = 0;
+
+static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
+    pthread_mutex_lock(&ix_rebind_mu);
+    if (!ix_rebind_live || ix_saved_count == 0) {
+        pthread_mutex_unlock(&ix_rebind_mu);
+        return;
+    }
+    const char *path = NULL;
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images; i++) {
+        if (_dyld_get_image_header(i) == header) {
+            path = _dyld_get_image_name(i);
+            break;
+        }
+    }
+    IXRebindImage(header, slide, path, ix_saved_names, ix_saved_repl, ix_saved_count);
+    pthread_mutex_unlock(&ix_rebind_mu);
+}
+
 int IXSymbolRebindSlots(const char *const *names, void *const *replacements, unsigned count) {
     if (!names || !replacements || count == 0) return 0;
     pthread_mutex_lock(&ix_rebind_mu);
+    ix_saved_count = count > 8 ? 8 : count;
+    for (unsigned i = 0; i < ix_saved_count; i++) {
+        ix_saved_names[i] = names[i];
+        ix_saved_repl[i] = replacements[i];
+    }
+    ix_rebind_live = 1;
     int patched = 0;
     uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
@@ -180,12 +210,21 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
         patched += IXRebindImage(_dyld_get_image_header(i), _dyld_get_image_vmaddr_slide(i), path,
                                  names, replacements, count);
     }
+    int registerCallback = 0;
+    if (!ix_image_callback) {
+        ix_image_callback = 1;
+        registerCallback = 1;
+    }
     pthread_mutex_unlock(&ix_rebind_mu);
+    // Registration invokes the callback for images already loaded. That must
+    // happen without ix_rebind_mu held, because the callback takes the same lock.
+    if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);
     return patched;
 }
 
 void IXSymbolRebindRestore(void) {
     pthread_mutex_lock(&ix_rebind_mu);
+    ix_rebind_live = 0;
     for (unsigned i = 0; i < ix_slot_count; i++) {
         void **slot = ix_slots[i].slot;
         if (!slot) continue;

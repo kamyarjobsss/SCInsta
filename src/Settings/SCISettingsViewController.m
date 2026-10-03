@@ -91,10 +91,11 @@ static char rowStaticRef[] = "row";
         UIImage *globe = [UIImage systemImageNamed:@"globe"];
         UIBarButtonItem *langItem = [[UIBarButtonItem alloc] initWithImage:globe
                                                                      style:UIBarButtonItemStylePlain
-                                                                    target:nil
-                                                                    action:nil];
-        langItem.menu = [self sciBuildLanguageMenu];
+                                                                    target:self
+                                                                    action:@selector(sciToggleLanguage)];
+        langItem.accessibilityLabel = @"Language";
         self.navigationItem.rightBarButtonItem = langItem;
+        [self sciApplyDirection];
     }
 
     // Pushed Advanced VC reloads the Clear cache row when size lands.
@@ -112,66 +113,27 @@ static char rowStaticRef[] = "row";
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
-- (void)sciShowLanguageInfo {
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:SCILocalized(@"settings.language.title")
-                         message:SCILocalized(@"settings.language.english_only")
-                  preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.language.ok") style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.language.help_translate") style:UIAlertActionStyleDefault
-                                            handler:^(__unused UIAlertAction *a) {
-        NSURL *url = [NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram#translating-ryukgram"];
-        if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
+- (void)sciApplyDirection {
+    BOOL persian = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
+    UISemanticContentAttribute attr = persian ? UISemanticContentAttributeForceRightToLeft : UISemanticContentAttributeForceLeftToRight;
+    self.view.semanticContentAttribute = attr;
+    self.tableView.semanticContentAttribute = attr;
+    self.navigationController.view.semanticContentAttribute = attr;
 }
 
-- (UIMenu *)sciBuildLanguageMenu {
-    NSString *current = [[NSUserDefaults standardUserDefaults] stringForKey:SCILanguagePrefKey] ?: @"system";
-    NSMutableArray<UIAction *> *actions = [NSMutableArray array];
-
-    for (NSDictionary<NSString *, NSString *> *lang in SCIAvailableLanguages()) {
-        NSString *code = lang[@"code"];
-        NSString *title = [code isEqualToString:@"system"]
-            ? SCILocalized(@"settings.language.system")
-            : lang[@"native"];
-
-        UIAction *action = [UIAction actionWithTitle:title
-                                                image:nil
-                                           identifier:nil
-                                              handler:^(UIAction * _Nonnull a) {
-            NSString *prev = [[NSUserDefaults standardUserDefaults] stringForKey:SCILanguagePrefKey] ?: @"system";
-            if ([prev isEqualToString:code]) return;
-            [[NSUserDefaults standardUserDefaults] setObject:code forKey:SCILanguagePrefKey];
-            SCILocalizationReset();
-            [self sciApplyLanguageChange];
-            // Most IG-side hooks cache their labels at load time, so a full
-            // restart is the only way to flip every menu/button cleanly.
-            [SCIUtils showRestartConfirmation];
-        }];
-        action.state = [code isEqualToString:current] ? UIMenuElementStateOn : UIMenuElementStateOff;
-        [actions addObject:action];
-    }
-
-    UIAction *help = [UIAction actionWithTitle:[NSString stringWithFormat:@"❤️ %@", SCILocalized(@"settings.language.help_translate")]
-                                          image:nil
-                                     identifier:nil
-                                        handler:^(__unused UIAction *a) {
-        NSURL *url = [NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram#translating-ryukgram"];
-        if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-    }];
-
-    return [UIMenu menuWithTitle:SCILocalized(@"settings.language.title")
-                        children:[actions arrayByAddingObject:help]];
+- (void)sciToggleLanguage {
+    BOOL persian = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
+    [[NSUserDefaults standardUserDefaults] setObject:(persian ? @"en" : @"fa") forKey:SCILanguagePrefKey];
+    SCILocalizationReset();
+    [self sciApplyLanguageChange];
 }
 
 - (void)sciApplyLanguageChange {
-    // Root title + search placeholder reflect the new language immediately.
+    SCISettingsViewController *fresh = [[SCISettingsViewController alloc] initWithTitle:SCILocalized(@"settings.title") sections:[SCITweakSettings sections] reduceMargin:self.reduceMargin];
+    self.sections = fresh.sections;
     self.title = SCILocalized(@"settings.title");
     self.searchController.searchBar.placeholder = SCILocalized(@"settings.search.placeholder");
-    if (self.navigationItem.rightBarButtonItem.menu) {
-        self.navigationItem.rightBarButtonItem.menu = [self sciBuildLanguageMenu];
-    }
+    [self sciApplyDirection];
     [self.tableView reloadData];
 
     // Features watching for runtime label refreshes (IG menu items, overlay
@@ -185,6 +147,7 @@ static char rowStaticRef[] = "row";
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    [self sciApplyDirection];
     [self.tableView reloadData];
     [self sciStyleSearchBar];
 }

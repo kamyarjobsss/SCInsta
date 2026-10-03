@@ -42,6 +42,9 @@ static void sciSaveCachedRelease(NSString *tag, NSDictionary *json) {
 // MARK: - Network
 
 static void sciFetchJSON(NSString *url, void (^completion)(NSDictionary *)) {
+    (void)url;
+    if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(nil); });
+    return;
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
     [req setValue:@"application/vnd.github+json" forHTTPHeaderField:@"Accept"];
     [[[NSURLSession sharedSession] dataTaskWithRequest:req completionHandler:^(NSData *data, NSURLResponse *resp, NSError *err) {
@@ -74,6 +77,8 @@ static void sciFetchRelease(NSString *tag, void (^completion)(NSDictionary *)) {
 }
 
 static void sciFetchReleaseList(void (^completion)(NSArray<NSDictionary *> *)) {
+    if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(nil); });
+    return;
     NSString *url = [NSString stringWithFormat:@"https://api.github.com/repos/%@/releases?per_page=50", kRepo];
     NSMutableURLRequest *req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
     [req setValue:@"application/vnd.github+json" forHTTPHeaderField:@"Accept"];
@@ -339,6 +344,9 @@ static NSAttributedString *sciRenderMarkdown(NSString *md) {
 }
 
 + (void)presentIfNewFromWindow:(UIWindow *)window {
+    // No update check and no request to GitHub.
+    (void)window;
+    return;
     if (!window) return;
     NSUserDefaults *ud = [NSUserDefaults standardUserDefaults];
     BOOL force = [ud boolForKey:kForceShowKey];
@@ -359,6 +367,8 @@ static NSAttributedString *sciRenderMarkdown(NSString *md) {
 }
 
 + (void)presentAllFromViewController:(UIViewController *)host {
+    (void)host;
+    return;
     if (!host) return;
     _SCIReleaseListVC *list = [_SCIReleaseListVC new];
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:list];

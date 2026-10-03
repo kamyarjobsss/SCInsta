@@ -239,7 +239,7 @@ static NSError *IXURIError(NSString *message) {
         @"protocol": @"vless",
         @"settings": @{
             @"vnext": @[@{
-                @"address": self.host ?: @"",
+                @"address": self.dialAddress.length ? self.dialAddress : (self.host ?: @""),
                 @"port": @(self.port),
                 @"users": @[user]
             }]
@@ -257,20 +257,41 @@ static NSError *IXURIError(NSString *message) {
                 @"port": @(socksPort),
                 @"protocol": @"socks",
                 @"settings": @{@"auth": @"noauth", @"udp": @YES},
-                @"sniffing": @{@"enabled": @YES, @"destOverride": @[@"http", @"tls"]}
+                @"tag": @"socks-in",
+                @"sniffing": @{
+                    @"enabled": @YES,
+                    @"destOverride": @[@"http", @"tls", @"quic"],
+                    @"metadataOnly": @NO
+                }
             },
             @{
+                @"tag": @"http-in",
                 @"listen": @"127.0.0.1",
                 @"port": @(httpPort),
                 @"protocol": @"http",
-                @"settings": @{}
+                @"settings": @{},
+                @"sniffing": @{
+                    @"enabled": @YES,
+                    @"destOverride": @[@"http", @"tls"],
+                    @"metadataOnly": @NO
+                }
             }
         ],
         @"outbounds": @[
             [self xrayOutbound]
         ],
+        @"stats": @{},
+        @"policy": @{
+            @"system": @{
+                @"statsInboundUplink": @YES,
+                @"statsInboundDownlink": @YES
+            }
+        },
         @"routing": @{
-            @"domainStrategy": @"AsIs"
+            // Hostnames stay hostnames so the remote server resolves them.
+            // Sniffing rewrites a poisoned IP destination back to the TLS/HTTP name.
+            @"domainStrategy": @"AsIs",
+            @"rules": @[]
         }
     };
     NSData *data = [NSJSONSerialization dataWithJSONObject:config options:0 error:nil];

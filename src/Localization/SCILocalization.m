@@ -49,14 +49,12 @@ NSBundle *SCILocalizationBundle(void) {
 }
 
 static NSString *preferredLanguageCode(NSBundle *resource) {
+    (void)resource;
     NSString *pref = [[NSUserDefaults standardUserDefaults] stringForKey:SCILanguagePrefKey];
-    if (pref.length && ![pref isEqualToString:@"system"]) return pref;
-
-    // Match iOS locale against the languages actually shipped in the bundle.
-    NSArray<NSString *> *shipped = [resource localizations];
-    NSArray<NSString *> *matches = [NSBundle preferredLocalizationsFromArray:shipped
-                                                      forPreferences:[NSLocale preferredLanguages]];
-    return matches.firstObject ?: @"en";
+    if ([pref hasPrefix:@"fa"]) return @"fa";
+    if ([pref isEqualToString:@"en"]) return @"en";
+    NSString *first = [NSLocale preferredLanguages].firstObject ?: @"en";
+    return [first hasPrefix:@"fa"] ? @"fa" : @"en";
 }
 
 NSString *SCIResolvedLanguageCode(void) {
@@ -99,39 +97,10 @@ NSString *SCILocalizedString(NSString *key, NSString *fallback) {
 }
 
 NSArray<NSDictionary<NSString *, NSString *> *> *SCIAvailableLanguages(void) {
-    NSMutableArray *result = [NSMutableArray array];
-    [result addObject:@{@"code": @"system", @"native": @"System"}];
-    [result addObject:@{@"code": @"en", @"native": @"English"}];
-
-    NSFileManager *fm = [NSFileManager defaultManager];
-    NSMutableSet *seen = [NSMutableSet setWithObject:@"en"];
-
-    // Scan both shipped bundle + writable override dir for .lproj dirs.
-    NSMutableArray *searchPaths = [NSMutableArray array];
-    NSBundle *res = SCILocalizationBundle();
-    if (res) [searchPaths addObject:res.bundlePath];
-    NSString *overrides = SCILocalizationOverridePath();
-    if ([fm fileExistsAtPath:overrides]) [searchPaths addObject:overrides];
-
-    for (NSString *base in searchPaths) {
-        NSArray *contents = [fm contentsOfDirectoryAtPath:base error:nil];
-        for (NSString *name in [contents sortedArrayUsingSelector:@selector(compare:)]) {
-            if (![name hasSuffix:@".lproj"]) continue;
-            NSString *code = [name stringByDeletingPathExtension];
-            if ([code isEqualToString:@"Base"] || [seen containsObject:code]) continue;
-            NSString *stringsPath = [[base stringByAppendingPathComponent:name]
-                                      stringByAppendingPathComponent:@"Localizable.strings"];
-            if (![fm fileExistsAtPath:stringsPath]) continue;
-            [seen addObject:code];
-
-            NSLocale *loc = [NSLocale localeWithLocaleIdentifier:code];
-            NSString *native = [loc localizedStringForLanguageCode:code] ?: code;
-            if (native.length) native = [[[native substringToIndex:1] uppercaseString]
-                                          stringByAppendingString:[native substringFromIndex:1]];
-            [result addObject:@{@"code": code, @"native": native}];
-        }
-    }
-    return result;
+    return @[
+        @{@"code": @"fa", @"native": @"فارسی"},
+        @{@"code": @"en", @"native": @"English"}
+    ];
 }
 
 void SCILocalizationReset(void) {

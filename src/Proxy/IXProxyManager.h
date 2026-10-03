@@ -41,6 +41,14 @@ typedef NS_ENUM(NSInteger, IXProxyStatus) {
 
 - (void)restoreOnLaunch;
 - (void)testProfile:(IXVLESSProfile *)profile completion:(void (^)(NSInteger millis, NSError * _Nullable error))completion;
+- (void)runTunnelTest:(void (^)(NSInteger millis, NSError * _Nullable error))completion;
+
+- (uint64_t)bytesUp;
+- (uint64_t)bytesDown;
+- (double)speedUp;
+- (double)speedDown;
+- (NSInteger)lastPingMs;
+- (NSString *)recentLog;
 
 + (NSString *)statusSubtitle;
 

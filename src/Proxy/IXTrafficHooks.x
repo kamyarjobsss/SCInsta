@@ -10,6 +10,17 @@ static void IXApplyProxy(NSURLSessionConfiguration *config) {
 }
 
 %group IXTrafficSessionHooks
+%hook NSURLSession
++ (NSURLSession *)sessionWithConfiguration:(NSURLSessionConfiguration *)configuration {
+    IXApplyProxy(configuration);
+    return %orig;
+}
++ (NSURLSession *)sessionWithConfiguration:(NSURLSessionConfiguration *)configuration delegate:(id)delegate delegateQueue:(NSOperationQueue *)queue {
+    IXApplyProxy(configuration);
+    return %orig;
+}
+%end
+
 %hook NSURLSessionConfiguration
 + (NSURLSessionConfiguration *)defaultSessionConfiguration {
     NSURLSessionConfiguration *config = %orig;

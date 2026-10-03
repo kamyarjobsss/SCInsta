@@ -22,6 +22,10 @@ copy_bundle_assets() {
     mkdir -p "$DEST"
     find "$SRC" -maxdepth 1 -type f \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.pdf' \) \
         -exec cp {} "$DEST/" \;
+    if [ -d "$SRC/Fonts" ]; then
+        mkdir -p "$DEST/Fonts"
+        find "$SRC/Fonts" -type f \( -iname '*.ttf' -o -iname '*.otf' \) -exec cp {} "$DEST/Fonts/" \;
+    fi
 }
 
 # Optional. modules/ffmpegkit is gitignored. setup-ffmpegkit.sh downloads the

@@ -8,5 +8,7 @@ BOOL IXRayCoreLoad(NSError * _Nullable * _Nullable error);
 char * _Nullable IXRayStart(char * _Nullable configJSON);
 void IXRayStop(void);
 char * _Nullable IXRayVersion(void);
+char * _Nullable IXRayCopyLog(void);
+void IXRayTraffic(uint64_t * _Nullable uplink, uint64_t * _Nullable downlink);
 
 NS_ASSUME_NONNULL_END

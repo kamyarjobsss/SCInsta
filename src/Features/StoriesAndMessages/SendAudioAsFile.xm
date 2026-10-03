@@ -113,8 +113,7 @@ static void sciShowUnsupportedAlert(NSURL *url, NSString *reason, UIViewControll
         @"iOS audio APIs couldn't process this file%@%@\n\n"
          "You can try sending it to Instagram as-is — IG's server may accept it "
          "(e.g. Opus/Ogg from web users), or it may silently fail.\n\n"
-         "If you'd like RyukGram to support this format natively, open an issue:\n"
-         "https://github.com/faroukbmiled/RyukGram/issues",
+         "You can still try sending the original file.",
         reason.length > 0 ? @":\n" : @".",
         reason.length > 0 ? reason : @""];
 
@@ -124,11 +123,6 @@ static void sciShowUnsupportedAlert(NSURL *url, NSString *reason, UIViewControll
     __weak UIViewController *weakVC = threadVC;
     [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Send anyway") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         sciSendAudioFile(url, weakVC);
-    }]];
-    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Open GitHub") style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        [[UIApplication sharedApplication]
-            openURL:[NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram/issues"]
-            options:@{} completionHandler:nil];
     }]];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
 

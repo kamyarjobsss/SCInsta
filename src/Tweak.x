@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.0.0";
+NSString *SCIVersionString = @"v2.1.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;

@@ -466,7 +466,7 @@
                         dispatch_async(dispatch_get_main_queue(), ^{
                             if (success) {
                                 [self.pill finishTicket:self.ticketId
-                                         successMessage:useAlbum ? SCILocalized(@"Saved to RyukGram") : SCILocalized(@"Saved to Photos")];
+                                         successMessage:useAlbum ? SCILocalized(@"Saved to Instagram X") : SCILocalized(@"Saved to Photos")];
                             } else {
                                 [self.pill finishTicket:self.ticketId errorMessage:SCILocalized(@"Failed to save")];
                             }

@@ -25,9 +25,10 @@
     }];
 
     UIImageView *logo = [[UIImageView alloc] initWithImage:
-        [UIImage imageNamed:@"ryukgram"
+        [[UIImage imageNamed:@"ix-mark"
                    inBundle:SCILocalizationBundle()
-      compatibleWithTraitCollection:nil]];
+      compatibleWithTraitCollection:nil] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
+    logo.tintColor = [UIColor labelColor];
     logo.contentMode = UIViewContentModeScaleAspectFill;
     logo.clipsToBounds = YES;
     logo.layer.cornerRadius = 18;
@@ -46,24 +47,12 @@
     version.textColor = [UIColor secondaryLabelColor];
     version.textAlignment = NSTextAlignmentCenter;
 
-    UIButton *github = [self makeButtonWithTitle:SCILocalized(@"View on GitHub")
-                                        sfSymbol:@"chevron.left.forwardslash.chevron.right"
-                                            tint:[UIColor labelColor]
-                                      background:[UIColor tertiarySystemFillColor]];
-    [github addTarget:self action:@selector(openGitHub) forControlEvents:UIControlEventTouchUpInside];
+    UILabel *credit = [[UILabel alloc] init];
+    credit.text = SCILocalized(@"Developed by Wexpid");
+    credit.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    credit.textAlignment = NSTextAlignmentCenter;
 
-    UIButton *telegram = [self makeButtonWithTitle:@"Upstream GPL source"
-                                          sfSymbol:@"arrow.up.doc"
-                                              tint:[UIColor whiteColor]
-                                        background:[UIColor colorWithRed:0.15 green:0.56 blue:0.93 alpha:1.0]];
-    [telegram addTarget:self action:@selector(openUpstream) forControlEvents:UIControlEventTouchUpInside];
-
-    UIStackView *buttons = [[UIStackView alloc] initWithArrangedSubviews:@[github, telegram]];
-    buttons.axis = UILayoutConstraintAxisVertical;
-    buttons.spacing = 10;
-    buttons.distribution = UIStackViewDistributionFillEqually;
-
-    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[logo, title, version, buttons]];
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[logo, title, version, credit]];
     stack.axis = UILayoutConstraintAxisVertical;
     stack.alignment = UIStackViewAlignmentCenter;
     stack.spacing = 14;
@@ -77,7 +66,7 @@
         [stack.centerYAnchor constraintEqualToAnchor:g.centerYAnchor],
         [stack.leadingAnchor constraintEqualToAnchor:g.leadingAnchor constant:20],
         [stack.trailingAnchor constraintEqualToAnchor:g.trailingAnchor constant:-20],
-        [buttons.widthAnchor constraintEqualToAnchor:stack.widthAnchor],
+        [credit.widthAnchor constraintEqualToAnchor:stack.widthAnchor],
     ]];
 }
 

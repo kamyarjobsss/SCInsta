@@ -9,6 +9,8 @@ static void *ix_ray_handle = NULL;
 static char *(*ix_ray_start)(char *) = NULL;
 static void (*ix_ray_stop)(void) = NULL;
 static char *(*ix_ray_version)(void) = NULL;
+static char *(*ix_ray_copy_log)(void) = NULL;
+static void (*ix_ray_traffic)(uint64_t *, uint64_t *) = NULL;
 
 static NSError *IXRayError(NSString *message) {
     return [NSError errorWithDomain:@"InstagramX.Xray" code:1 userInfo:@{NSLocalizedDescriptionKey: message ?: @"Xray failed"}];
@@ -35,6 +37,8 @@ BOOL IXRayCoreLoad(NSError **error) {
     ix_ray_start = dlsym(ix_ray_handle, "ixray_start");
     ix_ray_stop = dlsym(ix_ray_handle, "ixray_stop");
     ix_ray_version = dlsym(ix_ray_handle, "ixray_version");
+    ix_ray_copy_log = dlsym(ix_ray_handle, "ixray_copy_log");
+    ix_ray_traffic = dlsym(ix_ray_handle, "ixray_traffic");
     if (!ix_ray_start || !ix_ray_stop) {
         dlclose(ix_ray_handle);
         ix_ray_handle = NULL;
@@ -61,6 +65,17 @@ char *IXRayVersion(void) {
     return ix_ray_version();
 }
 
+char *IXRayCopyLog(void) {
+    if (!ix_ray_copy_log) return NULL;
+    return ix_ray_copy_log();
+}
+
+void IXRayTraffic(uint64_t *uplink, uint64_t *downlink) {
+    if (uplink) *uplink = 0;
+    if (downlink) *downlink = 0;
+    if (ix_ray_traffic) ix_ray_traffic(uplink, downlink);
+}
+
 #else
 
 BOOL IXRayCoreLoad(NSError **error) {
@@ -76,5 +91,12 @@ char *IXRayStart(char *configJSON) {
 void IXRayStop(void) {}
 
 char *IXRayVersion(void) { return NULL; }
+
+char *IXRayCopyLog(void) { return NULL; }
+
+void IXRayTraffic(uint64_t *uplink, uint64_t *downlink) {
+    if (uplink) *uplink = 0;
+    if (downlink) *downlink = 0;
+}
 
 #endif

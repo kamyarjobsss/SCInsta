@@ -5,6 +5,7 @@
 #import "../Launch/IXLaunchGuard.h"
 
 #import <QuartzCore/QuartzCore.h>
+#import <stdint.h>
 #import <arpa/inet.h>
 #import <fcntl.h>
 #import <netdb.h>
@@ -26,12 +27,38 @@ static NSError *IXProxyError(NSString *message) {
     return [NSError errorWithDomain:@"InstagramX.Proxy" code:1 userInfo:@{NSLocalizedDescriptionKey: message ?: @"Proxy error"}];
 }
 
+@interface IXDoHTrust : NSObject <NSURLSessionDelegate>
+@end
+
+@implementation IXDoHTrust
+- (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
+    NSString *host = challenge.protectionSpace.host ?: @"";
+    BOOL known = [host isEqualToString:@"1.1.1.1"] || [host isEqualToString:@"1.0.0.1"] || [host isEqualToString:@"8.8.8.8"] || [host isEqualToString:@"8.8.4.4"];
+    if (known && challenge.protectionSpace.serverTrust &&
+        [challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
+        completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
+        return;
+    }
+    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+}
+@end
+
 @implementation IXProxyManager {
     IXNativeEngine *_native;
     BOOL _usingXray;
     IXProxyStatus _status;
     NSString *_lastError;
     NSString *_engineName;
+    NSMutableArray<NSString *> *_logLines;
+    uint64_t _bytesUp;
+    uint64_t _bytesDown;
+    double _speedUp;
+    double _speedDown;
+    NSInteger _lastPingMs;
+    uint64_t _sampleUp;
+    uint64_t _sampleDown;
+    NSTimeInterval _sampleTime;
+    dispatch_source_t _statsTimer;
 }
 
 + (instancetype)shared {
@@ -47,6 +74,8 @@ static NSError *IXProxyError(NSString *message) {
     self = [super init];
     if (self) {
         _status = IXProxyStatusOff;
+        _logLines = [NSMutableArray array];
+        _lastPingMs = -1;
 #if IX_LITE
         _engineName = @"Lite build";
 #elif IX_HAS_XRAY
@@ -175,6 +204,10 @@ static NSError *IXProxyError(NSString *message) {
 }
 
 - (void)stopEngine {
+    if (_statsTimer) {
+        dispatch_source_cancel(_statsTimer);
+        _statsTimer = nil;
+    }
     if (_usingXray) {
         IXRayStop();
         _usingXray = NO;
@@ -196,6 +229,8 @@ static NSError *IXProxyError(NSString *message) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;
     }
+    NSString *dial = [self resolveHost:profile.host];
+    profile.dialAddress = dial.length ? dial : nil;
     IXTrafficGuardSetPorts(kSocksPort, kHTTPPort);
     IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
     // Fail closed while the listener is coming up.
@@ -223,7 +258,7 @@ static NSError *IXProxyError(NSString *message) {
                 free(version);
             }
             IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
-            return YES;
+            return [self confirmTunnel:error];
         }
         NSString *message = [NSString stringWithUTF8String:err];
         free(err);
@@ -254,7 +289,7 @@ static NSError *IXProxyError(NSString *message) {
     _usingXray = NO;
     _engineName = @"Built-in VLESS";
     IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
-    return YES;
+    return [self confirmTunnel:error];
 #endif
 }
 
@@ -314,6 +349,229 @@ static NSError *IXProxyError(NSString *message) {
     [self setEnabled:YES completion:^(NSError *error) {
         if (error) NSLog(@"[InstagramX] proxy restore failed: %@", error.localizedDescription);
     }];
+}
+
+- (uint64_t)bytesUp { return _bytesUp; }
+- (uint64_t)bytesDown { return _bytesDown; }
+- (double)speedUp { return _speedUp; }
+- (double)speedDown { return _speedDown; }
+- (NSInteger)lastPingMs { return _lastPingMs; }
+
+- (void)note:(NSString *)line {
+    if (line.length == 0) return;
+    if (!_logLines) _logLines = [NSMutableArray array];
+    [_logLines addObject:line];
+    if (_logLines.count > 80) [_logLines removeObjectsInRange:NSMakeRange(0, _logLines.count - 80)];
+}
+
+- (NSString *)recentLog {
+    NSMutableArray *lines = [_logLines mutableCopy] ?: [NSMutableArray array];
+    char *raw = IXRayCopyLog();
+    if (raw) {
+        NSString *text = [NSString stringWithUTF8String:raw];
+        free(raw);
+        if (text.length) [lines addObject:text];
+    }
+    if (lines.count == 0) return @"No log yet.";
+    return [lines componentsJoinedByString:@"\n"];
+}
+
+- (void)sampleStats {
+    uint64_t up = 0, down = 0;
+    IXRayTraffic(&up, &down);
+    NSTimeInterval now = CACurrentMediaTime();
+    if (_sampleTime > 0) {
+        double dt = now - _sampleTime;
+        if (dt > 0.2) {
+            _speedUp = (double)(up - _sampleUp) / dt;
+            _speedDown = (double)(down - _sampleDown) / dt;
+            if (_speedUp < 0) _speedUp = 0;
+            if (_speedDown < 0) _speedDown = 0;
+        }
+    }
+    _sampleUp = up;
+    _sampleDown = down;
+    _sampleTime = now;
+    _bytesUp = up;
+    _bytesDown = down;
+}
+
+- (void)startStats {
+    if (_statsTimer) return;
+    _sampleTime = 0;
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, dispatch_get_main_queue());
+    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 0), (uint64_t)(1 * NSEC_PER_SEC), (uint64_t)(0.2 * NSEC_PER_SEC));
+    __weak IXProxyManager *weakSelf = self;
+    dispatch_source_set_event_handler(timer, ^{
+        [weakSelf sampleStats];
+    });
+    _statsTimer = timer;
+    dispatch_resume(timer);
+}
+
+- (BOOL)hostIsAddress:(NSString *)host {
+    if (host.length == 0) return NO;
+    struct in_addr v4;
+    struct in6_addr v6;
+    return inet_pton(AF_INET, host.UTF8String, &v4) == 1 || inet_pton(AF_INET6, host.UTF8String, &v6) == 1;
+}
+
+- (NSString *)addressFromDoHJSON:(NSData *)data {
+    if (data.length == 0) return nil;
+    id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    NSArray *answers = [obj isKindOfClass:[NSDictionary class]] ? obj[@"Answer"] : nil;
+    if (![answers isKindOfClass:[NSArray class]]) return nil;
+    for (id item in answers) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        NSNumber *type = item[@"type"];
+        NSString *value = item[@"data"];
+        if (type.intValue == 1 && [value isKindOfClass:[NSString class]] && [self hostIsAddress:value]) return value;
+    }
+    return nil;
+}
+
+- (NSString *)resolveHost:(NSString *)host {
+    if ([self hostIsAddress:host]) return host;
+    NSString *escaped = [host stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: host;
+    NSArray<NSString *> *urls = @[
+        [NSString stringWithFormat:@"https://1.1.1.1/dns-query?name=%@&type=A", escaped],
+        [NSString stringWithFormat:@"https://1.0.0.1/dns-query?name=%@&type=A", escaped],
+        [NSString stringWithFormat:@"https://8.8.8.8/resolve?name=%@&type=A", escaped]
+    ];
+    IXDoHTrust *trust = [IXDoHTrust new];
+    NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    config.connectionProxyDictionary = @{};
+    config.timeoutIntervalForRequest = 6;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:trust delegateQueue:nil];
+    for (NSString *raw in urls) {
+        dispatch_semaphore_t gate = dispatch_semaphore_create(0);
+        __block NSData *body = nil;
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:raw]];
+        [request setValue:@"application/dns-json" forHTTPHeaderField:@"Accept"];
+        NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            if (!error) body = data;
+            dispatch_semaphore_signal(gate);
+        }];
+        [task resume];
+        dispatch_semaphore_wait(gate, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7 * NSEC_PER_SEC)));
+        NSString *ip = [self addressFromDoHJSON:body];
+        if (ip.length) {
+            [self note:[NSString stringWithFormat:@"Resolved %@ to %@ without the system resolver.", host, ip]];
+            [session finishTasksAndInvalidate];
+            return ip;
+        }
+    }
+    [session finishTasksAndInvalidate];
+    [self note:[NSString stringWithFormat:@"Could not resolve %@ with DNS-over-HTTPS. The link's host will be used as written.", host]];
+    return nil;
+}
+
+- (NSInteger)httpProbe:(NSString *)urlString error:(NSString **)errorOut {
+    uint16_t port = IXTrafficGuardHTTPPort();
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        if (errorOut) *errorOut = @"Could not open a socket for the connectivity test.";
+        return -1;
+    }
+    struct timeval tv = {.tv_sec = 12, .tv_usec = 0};
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    int nosig = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosig, sizeof(nosig));
+    struct sockaddr_in local;
+    memset(&local, 0, sizeof(local));
+    local.sin_family = AF_INET;
+    local.sin_len = sizeof(local);
+    local.sin_port = htons(port);
+    local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    NSTimeInterval start = CACurrentMediaTime();
+    if (IXOrigConnect(fd, (struct sockaddr *)&local, sizeof(local)) != 0) {
+        close(fd);
+        if (errorOut) *errorOut = @"The local proxy is not accepting connections.";
+        return -1;
+    }
+    NSURL *url = [NSURL URLWithString:urlString];
+    NSString *request = [NSString stringWithFormat:@"GET %@ HTTP/1.1\r\nHost: %@\r\nConnection: close\r\nUser-Agent: InstagramX\r\n\r\n", urlString, url.host ?: @"connectivitycheck.gstatic.com"];
+    const char *bytes = request.UTF8String;
+    size_t sent = 0;
+    size_t len = strlen(bytes);
+    while (sent < len) {
+        ssize_t n = send(fd, bytes + sent, len - sent, 0);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            close(fd);
+            if (errorOut) *errorOut = @"Could not write the connectivity test to the proxy.";
+            return -1;
+        }
+        sent += (size_t)n;
+    }
+    char buf[512];
+    ssize_t got = recv(fd, buf, sizeof(buf) - 1, 0);
+    close(fd);
+    if (got <= 0) {
+        if (errorOut) *errorOut = @"The tunnel did not answer the connectivity test. The server may be blocked, or the VLESS link was not accepted.";
+        return -1;
+    }
+    buf[got] = 0;
+    NSString *head = [NSString stringWithUTF8String:buf] ?: @"";
+    NSRange lineEnd = [head rangeOfString:@"\r\n"];
+    NSString *status = lineEnd.location == NSNotFound ? head : [head substringToIndex:lineEnd.location];
+    if ([status containsString:@" 204"]) {
+        return (NSInteger)((CACurrentMediaTime() - start) * 1000.0);
+    }
+    if (errorOut) *errorOut = [NSString stringWithFormat:@"Connectivity test failed (%@).", status.length ? status : @"empty response"];
+    return -1;
+}
+
+- (NSInteger)tunnelProbe:(NSString **)errorOut {
+    NSArray *urls = @[
+        @"http://connectivitycheck.gstatic.com/generate_204",
+        @"http://www.gstatic.com/generate_204"
+    ];
+    NSString *last = nil;
+    for (NSString *url in urls) {
+        NSString *why = nil;
+        NSInteger ms = [self httpProbe:url error:&why];
+        if (ms >= 0) return ms;
+        last = why;
+        [self note:why ?: @"Connectivity test failed."];
+    }
+    if (errorOut) *errorOut = last ?: @"The tunnel did not pass the connectivity test.";
+    return -1;
+}
+
+- (BOOL)confirmTunnel:(NSError **)error {
+    NSString *why = nil;
+    NSInteger ms = [self tunnelProbe:&why];
+    if (ms < 0) {
+        NSString *log = [self recentLog];
+        [self stopEngine];
+        NSString *message = why ?: @"The tunnel did not pass the connectivity test.";
+        if (log.length && ![log isEqualToString:@"No log yet."]) {
+            message = [message stringByAppendingFormat:@"\n\n%@", log];
+        }
+        if (error) *error = IXProxyError(message);
+        return NO;
+    }
+    _lastPingMs = ms;
+    [self note:[NSString stringWithFormat:@"Tunnel answered generate_204 in %ld ms.", (long)ms]];
+    [self startStats];
+    return YES;
+}
+
+- (void)runTunnelTest:(void (^)(NSInteger, NSError *))completion {
+    if (_status != IXProxyStatusConnected) {
+        if (completion) completion(-1, IXProxyError(@"Turn the VPN on first. Connected is shown only after a request succeeds through the tunnel."));
+        return;
+    }
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *why = nil;
+        NSInteger ms = [self tunnelProbe:&why];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (ms >= 0) self->_lastPingMs = ms;
+            if (completion) completion(ms, ms >= 0 ? nil : IXProxyError(why ?: @"The test failed."));
+        });
+    });
 }
 
 - (void)testProfile:(IXVLESSProfile *)profile completion:(void (^)(NSInteger, NSError *))completion {
