@@ -1,0 +1,183 @@
+name: Build Instagram X Add-on
+
+on:
+    push:
+        branches:
+            - cursor/instagram-x-addon-8ca9
+        paths:
+            - .github/workflows/buildaddon.yml
+            - addon/**
+            - scripts/inject_addon.py
+            - scripts/check_addon_ipa.py
+            - scripts/build_ixray.sh
+            - scripts/ipa_macho.py
+            - src/Launch/**
+            - src/Proxy/**
+            - src/Location/**
+            - src/Brand/**
+            - src/Features/General/IXSettingsEntry.m
+            - resources/AppIcon/**
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    build:
+        name: Build Instagram X Add-on IPA
+        runs-on: macos-latest
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                path: main
+                submodules: recursive
+
+            - name: Install Dependencies
+              run: brew install ldid dpkg make
+
+            - name: Set PATH environment variable
+              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: "1.26.x"
+
+            - name: Setup Theos
+              uses: actions/checkout@v4
+              with:
+                repository: theos/theos
+                ref: master
+                path: ${{ github.workspace }}/theos
+                submodules: recursive
+
+            - name: Pin Logos to known-good version
+              run: |
+                cd "$THEOS/vendor/logos"
+                git fetch --depth=1 origin a62370066a97e36d59b200a9fa10c5091f5e8972
+                git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
+              env:
+                THEOS: ${{ github.workspace }}/theos
+
+            - name: SDK Caching
+              id: SDK
+              uses: actions/cache@v4
+              env:
+                cache-name: iPhoneOS16.2.sdk
+              with:
+                path: ${{ github.workspace }}/theos/sdks/
+                key: ${{ env.cache-name }}
+                restore-keys: ${{ env.cache-name }}
+
+            - name: Download iOS SDK
+              if: steps.SDK.outputs.cache-hit != 'true'
+              run: |
+                git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/xybp888/iOS-SDKs/
+                cd iOS-SDKs
+                git sparse-checkout set --no-cone iPhoneOS16.2.sdk
+                git checkout
+                mv *.sdk $THEOS/sdks
+              env:
+                THEOS: ${{ github.workspace }}/theos
+
+            - name: Download Instagram 436
+              run: |
+                cd main
+                mkdir -p packages
+                wget --no-verbose -O packages/com.burbn.instagram.ipa \
+                  https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/instagram-v436.ipa
+                echo "20f6f7d07523d9f3c0b83faf684b544a58555494f3fbf2e13aa862eefb60357a  packages/com.burbn.instagram.ipa" | shasum -a 256 -c -
+
+            - name: Build the add-on
+              run: |
+                cd main
+                chmod +x scripts/build_ixray.sh
+                ./scripts/build_ixray.sh
+                check_dylib() {
+                  local dylib="$1"
+                  local mode="$2"
+                  if otool -L "$dylib" | grep -E 'CydiaSubstrate|substrate'; then
+                    echo "add-on must not link CydiaSubstrate"
+                    exit 1
+                  fi
+                  if strings "$dylib" | grep -F MSHookFunction; then
+                    echo "add-on contains MSHookFunction"
+                    exit 1
+                  fi
+                  if [[ "$mode" == full ]]; then
+                    strings "$dylib" | grep -F ixray_start >/dev/null
+                    if strings "$dylib" | grep -F IX_ADDON_LITE_BUILD; then
+                      echo "full add-on contains the lite marker"
+                      exit 1
+                    fi
+                  else
+                    if strings "$dylib" | grep -F ixray_start; then
+                      echo "lite add-on references ixray_start"
+                      exit 1
+                    fi
+                    strings "$dylib" | grep -F IX_ADDON_LITE_BUILD >/dev/null
+                  fi
+                }
+                make -C addon clean
+                make -C addon IX_HAS_XRAY=1
+                FULL="addon/.theos/obj/debug/InstagramXAddon.dylib"
+                test -f "$FULL"
+                install_name_tool -id @rpath/InstagramXAddon.dylib "$FULL"
+                cp "$FULL" packages/InstagramXAddon.full.dylib
+                check_dylib packages/InstagramXAddon.full.dylib full
+                make -C addon clean
+                make -C addon IX_ADDON_LITE=1
+                LITE="addon/.theos/obj/debug/InstagramXAddon.dylib"
+                test -f "$LITE"
+                install_name_tool -id @rpath/InstagramXAddon.dylib "$LITE"
+                cp "$LITE" packages/InstagramXAddon.lite.dylib
+                check_dylib packages/InstagramXAddon.lite.dylib lite
+              env:
+                THEOS: ${{ github.workspace }}/theos
+
+            - name: Inject into the 436 IPA
+              run: |
+                cd main
+                cp packages/com.burbn.instagram.ipa packages/InstagramX_addon_436_v1.0.0.ipa
+                cp packages/com.burbn.instagram.ipa packages/InstagramX_addon_436_lite_v1.0.0.ipa
+                python3 scripts/inject_addon.py \
+                  packages/InstagramX_addon_436_v1.0.0.ipa \
+                  packages/InstagramXAddon.full.dylib \
+                  vendor/ixray/IXRayCore.dylib
+                python3 scripts/check_addon_ipa.py packages/InstagramX_addon_436_v1.0.0.ipa
+                python3 scripts/inject_addon.py \
+                  packages/InstagramX_addon_436_lite_v1.0.0.ipa \
+                  packages/InstagramXAddon.lite.dylib \
+                  --display "Instagram X Lite"
+                python3 scripts/check_addon_ipa.py --lite packages/InstagramX_addon_436_lite_v1.0.0.ipa
+                ls -lh packages/*.ipa
+
+            - name: Publish prerelease
+              uses: softprops/action-gh-release@v2.0.6
+              with:
+                tag_name: instagram-x-addon-436-v1.0.0
+                target_commitish: ${{ github.sha }}
+                name: Instagram X Add-on 1.0.0 for Instagram 436
+                draft: false
+                prerelease: true
+                make_latest: false
+                generate_release_notes: false
+                body: |
+                  Instagram X Add-on for the owner's Instagram 436.0.0 IPA. The two IPAs share a bundle id, so install one at a time.
+
+                  - `InstagramX_addon_436_v1.0.0.ipa` adds the settings row, the VLESS proxy, fake location, and launch safe mode. IXRayCore.dylib is copied with no load command.
+                  - `InstagramX_addon_436_lite_v1.0.0.ipa` is the crash-isolation fallback. It has the settings row and launch safe mode only. The proxy and Xray are not included.
+
+                  RyukGram.dylib, RyukGram.bundle, and the rest of that IPA are unchanged. Each build adds InstagramXAddon.dylib, one weak load command, and the Instagram X icon and display name. Injected dylibs are ad-hoc signed with `ldid -S`. The main executable is unsigned, because its linkedit is not a layout ldid can rewrite, so Sideloadly can sign the new header. Every Mach-O in the IPA has cryptid 0.
+
+                  The add-on does not include SCInsta. Socket hooks are data-pointer rebinds and run only while the proxy is on. There is no MSHookFunction.
+
+                  Not tested on a device. The other tweak in the IPA is left as it was shipped.
+                files: |
+                  ${{ github.workspace }}/main/packages/InstagramX_addon_436_v1.0.0.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_addon_436_lite_v1.0.0.ipa

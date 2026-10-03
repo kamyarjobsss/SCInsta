@@ -1,7 +1,13 @@
 #import "IXSettingsEntry.h"
 #import "../../Brand/IXBrand.h"
+#if !IX_ADDON_LITE
 #import "../../Proxy/IXProxyManager.h"
+#endif
+#if IX_ADDON
+#import "../../../addon/IXAddonSettings.h"
+#else
 #import "../../Utils.h"
+#endif
 #import <objc/runtime.h>
 
 static char kIXAnchorKey;
@@ -106,7 +112,11 @@ static char kIXBaseInsetKey;
     mask.path = path.CGPath;
     mask.fillRule = kCAFillRuleEvenOdd;
     self.glow.mask = mask;
+#if IX_ADDON_LITE
+    self.detailLabel.text = @"Settings and safe mode";
+#else
     self.detailLabel.text = [IXProxyManager statusSubtitle];
+#endif
 }
 
 - (void)open {
@@ -119,7 +129,12 @@ static char kIXBaseInsetKey;
             }
         }
     }
+#if IX_ADDON
+    (void)window;
+    IXAddonPresentSettings(self);
+#else
     if (window) [SCIUtils showSettingsVC:window];
+#endif
 }
 
 @end
