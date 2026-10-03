@@ -4,6 +4,9 @@
 #import "Utils.h"
 #import "Proxy/IXProxyManager.h"
 #import "Location/IXLocationStore.h"
+#import "Location/IXLocationHooks.h"
+#import "Features/General/IXSettingsEntry.h"
+#import "Launch/IXLaunchGuard.h"
 
 ///////////////////////////////////////////////////////////
 
@@ -15,7 +18,7 @@
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v1.2.0";
+NSString *SCIVersionString = @"v1.2.1";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -66,29 +69,51 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
     %orig;
 
-    // Open settings for first-time users
-    double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
+    BOOL safeMode = IXLaunchGuardIsSafeMode();
+    if (!safeMode) {
+        // Open settings for first-time users
+        double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
 
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (
-            ![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]
-            || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
-        ) {
-            NSLog(@"[SCInsta] First run, initializing");
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (
+                ![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]
+                || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
+            ) {
+                NSLog(@"[SCInsta] First run, initializing");
 
-            // Display settings modal on screen
-            NSLog(@"[SCInsta] Displaying SCInsta first-time settings modal");
-            [SCIUtils showSettingsVC:[self window]];
-        }
-    });
+                // Display settings modal on screen
+                NSLog(@"[SCInsta] Displaying SCInsta first-time settings modal");
+                [SCIUtils showSettingsVC:[self window]];
+            }
+        });
+
+        IXSettingsEntryInstall();
+        if ([IXLocationStore isEnabled]) IXLocationHooksInstall();
+    }
 
     NSLog(@"[SCInsta] Cleaning cache...");
     [SCIUtils cleanCache];
-    [IXProxyManager.shared restoreOnLaunch];
-
-    if ([SCIUtils getBoolPref:@"flex_app_launch"]) {
-        [[objc_getClass("FLEXManager") sharedManager] showExplorer];
+    if (!safeMode) {
+        [IXProxyManager.shared restoreOnLaunch];
+        if ([SCIUtils getBoolPref:@"flex_app_launch"]) {
+            [[objc_getClass("FLEXManager") sharedManager] showExplorer];
+        }
+    } else {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            UIViewController *presenter = [self window].rootViewController;
+            if (!presenter) return;
+            while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
+                                                                           message:@"The last launch closed before Instagram X was ready, so the VPN, fake location, and the settings row stayed off. You can turn them on from the tweak settings."
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [presenter presentViewController:alert animated:YES completion:nil];
+        });
     }
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXLaunchGuardMarkReady();
+    });
 
     return true;
 }
@@ -96,7 +121,7 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 - (void)applicationDidBecomeActive:(id)arg1 {
     %orig;
     
-    if ([SCIUtils getBoolPref:@"flex_app_start"]) {
+    if (!IXLaunchGuardIsSafeMode() && [SCIUtils getBoolPref:@"flex_app_start"]) {
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
     }
 }

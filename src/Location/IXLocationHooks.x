@@ -1,4 +1,5 @@
 #import "IXLocationStore.h"
+#import "IXLocationHooks.h"
 #import <objc/runtime.h>
 #import <substrate.h>
 
@@ -62,6 +63,7 @@ static void IXStopRepeating(CLLocationManager *manager) {
     objc_setAssociatedObject(manager, &kIXLocationTimerKey, nil, OBJC_ASSOCIATION_ASSIGN);
 }
 
+%group IXLocationHooks
 %hook CLLocationManager
 - (CLLocation *)location {
     if ([IXLocationStore isEnabled]) return [IXLocationStore fakeLocation];
@@ -174,6 +176,7 @@ static void IXStopRepeating(CLLocationManager *manager) {
     return %orig;
 }
 %end
+%end
 
 static id (*ix_origIGLocation)(id, SEL) = NULL;
 static id (*ix_origIGCurrentLocation)(id, SEL) = NULL;
@@ -198,7 +201,11 @@ static void IXHookOptionalLocation(const char *className, SEL selector, IMP repl
     NSLog(@"[InstagramX] hooked optional location method %s %s", className, sel_getName(selector));
 }
 
-%ctor {
+void IXLocationHooksInstall(void) {
+    static BOOL installed = NO;
+    if (installed) return;
+    installed = YES;
+    %init(IXLocationHooks);
     @try {
         IXHookOptionalLocation("IGLocationManager", @selector(location), (IMP)IXIGLocation, (IMP *)&ix_origIGLocation);
         IXHookOptionalLocation("IGLocationManager", @selector(currentLocation), (IMP)IXIGCurrentLocation, (IMP *)&ix_origIGCurrentLocation);

@@ -36,7 +36,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v1.2.0"
+                description: "Publish a prerelease tagged instagram-x-v1.2.1"
                 default: true
                 required: false
                 type: boolean
@@ -147,6 +147,7 @@ jobs:
                 export PATH=.:$PATH
                 ./build.sh sideload
                 test -f packages/InstagramX-sideloaded.ipa
+                test -f packages/InstagramX-lite-sideloaded.ipa
                 ls -la packages
               env:
                 THEOS: ${{ github.workspace }}/theos
@@ -157,20 +158,27 @@ jobs:
               run: |
                 cd main/packages
                 mv InstagramX-sideloaded.ipa "InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                mv InstagramX-lite-sideloaded.ipa "InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
 
             - name: Sanity check the IPA
               run: |
                 cd main
-                IPA="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
-                python3 scripts/check_sideload_ipa.py "$IPA"
+                FULL="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                LITE="packages/InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
+                python3 scripts/check_sideload_ipa.py "$FULL"
+                python3 scripts/check_sideload_ipa.py "$LITE" --lite
                 # otool is the check the owner asked for. The Python check above
                 # is what fails the job; this prints the same load list.
                 TMP=$(mktemp -d)
-                unzip -q "$IPA" "Payload/Instagram.app/Instagram" "Payload/Instagram.app/Frameworks/SCInsta.dylib" "Payload/Instagram.app/Info.plist" -d "$TMP"
-                echo "---- otool -L Instagram ----"
+                unzip -q "$FULL" "Payload/Instagram.app/Instagram" "Payload/Instagram.app/Frameworks/SCInsta.dylib" "Payload/Instagram.app/Frameworks/IXRayCore.dylib" "Payload/Instagram.app/Info.plist" -d "$TMP"
+                echo "---- otool -L Instagram (full) ----"
                 otool -L "$TMP/Payload/Instagram.app/Instagram" | awk 'NR==1 || $1 !~ /^\/(usr|System)/'
                 echo "---- otool -L SCInsta.dylib (hooking runtime) ----"
-                otool -L "$TMP/Payload/Instagram.app/Frameworks/SCInsta.dylib" | awk 'NR<=2 || /substrate|ellekit|ixray|@rpath/'
+                otool -L "$TMP/Payload/Instagram.app/Frameworks/SCInsta.dylib" | awk 'NR<=2 || /substrate|ellekit|ixray|IXRay|@rpath/'
+                if otool -L "$TMP/Payload/Instagram.app/Instagram" | grep -q IXRayCore; then
+                  echo "IXRayCore must not be a load command"
+                  exit 1
+                fi
                 plutil -lint "$TMP/Payload/Instagram.app/Info.plist"
                 rm -rf "$TMP"
 
@@ -178,29 +186,37 @@ jobs:
               if: ${{ github.event_name != 'workflow_dispatch' || inputs.upload_artifact }}
               uses: actions/upload-artifact@v4
               with:
-                name: InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}
-                path: ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                name: InstagramX_v${{ steps.tweak_version.outputs.version }}
+                path: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
             - name: Publish prerelease
               if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v1.2.0
+                tag_name: instagram-x-v1.2.1
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 1.2.0
+                name: Instagram X 1.2.1
                 draft: false
                 prerelease: true
                 make_latest: false
                 generate_release_notes: false
                 body: |
-                  Sideload build of Instagram X ${{ steps.tweak_version.outputs.version }}.
+                  Sideload builds of Instagram X ${{ steps.tweak_version.outputs.version }}.
 
                   Built from the owner's SCInsta 1.1.1 IPA (Instagram 418.2.0). The old SCInsta, FLEX, and zxPluginsInject binaries were removed. CydiaSubstrate is kept and ipapatch installs one fresh injector.
 
-                  Not tested on a device. In-app VLESS is limited to traffic that uses the hooked socket calls. Do not install over an account you cannot recover.
-                files: ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                  v1.2.0 crashed on launch because a constructor called MSHookFunction and the kernel killed the process for a writable __TEXT page. This build does not call MSHookFunction. Socket hooks are data-pointer rebinds and run only while the VPN is on. Xray is a separate dylib with no load command, opened only when the VPN is turned on. Two launches that die before the app is ready put the next launch in safe mode.
+
+                  InstagramX_sideloaded is the full build. InstagramX_lite_sideloaded has no VPN and no Xray. They share a bundle id, so only one can be installed at a time.
+
+                  Not tested on a device. Do not install over an account you cannot recover.
+                files: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
 
             - name: Output Release URL
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v1.2.0"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v1.2.1"

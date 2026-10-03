@@ -9,7 +9,7 @@
 #import <stdlib.h>
 #import <string.h>
 #import <unistd.h>
-#import <substrate.h>
+#import "IXSymbolRebind.h"
 
 static _Atomic int ix_vpn_on = 0;
 static _Atomic int ix_proxy_up = 0;
@@ -83,7 +83,7 @@ static BOOL IXCallerIsSelf(void) {
     void *ra = __builtin_return_address(0);
     Dl_info info;
     if (ra && dladdr(ra, &info) && info.dli_fname) {
-        if (strstr(info.dli_fname, "SCInsta") || strstr(info.dli_fname, "InstagramX")) return YES;
+        if (strstr(info.dli_fname, "SCInsta") || strstr(info.dli_fname, "InstagramX") || strstr(info.dli_fname, "IXRayCore")) return YES;
     }
     return NO;
 }
@@ -365,7 +365,10 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr) {
 }
 
 static int IXConnect(int fd, const struct sockaddr *addr, socklen_t len) {
-    if (!ix_orig_connect) return connect(fd, addr, len);
+    if (!ix_orig_connect) {
+        errno = ENOSYS;
+        return -1;
+    }
     if (IXSocketType(fd) == SOCK_DGRAM) {
         if (IXTrafficGuardVPNOn() && IXTrafficGuardBlockUDP() && !IXCallerIsSelf() && !IXAddrIsLoopback(addr)) {
             errno = EPERM;
@@ -424,7 +427,7 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
 }
 
 static int IXGetAddrInfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
-    if (!ix_orig_getaddrinfo) return getaddrinfo(node, service, hints, res);
+    if (!ix_orig_getaddrinfo) return EAI_FAIL;
     BOOL vpn = IXTrafficGuardVPNOn();
     if (!vpn || !node || IXCallerIsSelf() || IXHostIsProxy(node) || IXIsNumericHost(node)) {
         return ix_orig_getaddrinfo(node, service, hints, res);
@@ -467,7 +470,10 @@ static int IXGetAddrInfo(const char *node, const char *service, const struct add
 }
 
 static struct hostent *IXGetHostByName(const char *name) {
-    if (!ix_orig_gethostbyname) return gethostbyname(name);
+    if (!ix_orig_gethostbyname) {
+        h_errno = HOST_NOT_FOUND;
+        return NULL;
+    }
     if (!IXTrafficGuardVPNOn() || !name || IXCallerIsSelf() || IXHostIsProxy(name) || IXIsNumericHost(name)) {
         return ix_orig_gethostbyname(name);
     }
@@ -506,8 +512,11 @@ static ssize_t IXSendTo(int fd, const void *buf, size_t len, int flags, const st
         errno = EPERM;
         return -1;
     }
-    if (ix_orig_sendto) return ix_orig_sendto(fd, buf, len, flags, dest, destLen);
-    return sendto(fd, buf, len, flags, dest, destLen);
+    if (!ix_orig_sendto) {
+        errno = ENOSYS;
+        return -1;
+    }
+    return ix_orig_sendto(fd, buf, len, flags, dest, destLen);
 }
 
 static ssize_t IXSendMsg(int fd, const struct msghdr *msg, int flags) {
@@ -516,27 +525,55 @@ static ssize_t IXSendMsg(int fd, const struct msghdr *msg, int flags) {
         errno = EPERM;
         return -1;
     }
-    if (ix_orig_sendmsg) return ix_orig_sendmsg(fd, msg, flags);
-    return sendmsg(fd, msg, flags);
-}
-
-static void IXHook(const char *name, void *replacement, void **original) {
-    void *symbol = dlsym(RTLD_DEFAULT, name);
-    if (!symbol) {
-        NSLog(@"[InstagramX] traffic hook skipped, missing %s", name);
-        return;
+    if (!ix_orig_sendmsg) {
+        errno = ENOSYS;
+        return -1;
     }
-    MSHookFunction(symbol, replacement, original);
+    return ix_orig_sendmsg(fd, msg, flags);
 }
 
-void IXTrafficGuardInstall(void) {
-    if (ix_installed) return;
+static void IXCapture(const char *name, void **slot) {
+    if (*slot) return;
+    *slot = dlsym(RTLD_DEFAULT, name);
+    if (!*slot) NSLog(@"[InstagramX] traffic symbol missing: %s", name);
+}
+
+BOOL IXTrafficGuardInstall(void) {
+#if IX_LITE
+    return NO;
+#else
+    if (ix_installed) return YES;
+    IXCapture("connect", (void **)&ix_orig_connect);
+    IXCapture("connectx", (void **)&ix_orig_connectx);
+    IXCapture("getaddrinfo", (void **)&ix_orig_getaddrinfo);
+    IXCapture("gethostbyname", (void **)&ix_orig_gethostbyname);
+    IXCapture("sendto", (void **)&ix_orig_sendto);
+    IXCapture("sendmsg", (void **)&ix_orig_sendmsg);
+    if (!ix_orig_connect) return NO;
+
+    const char *names[] = {"connect", "connectx", "getaddrinfo", "gethostbyname", "sendto", "sendmsg"};
+    void *replacements[] = {
+        (void *)IXConnect,
+        (void *)IXConnectX,
+        (void *)IXGetAddrInfo,
+        (void *)IXGetHostByName,
+        (void *)IXSendTo,
+        (void *)IXSendMsg
+    };
+    int patched = IXSymbolRebindSlots(names, replacements, 6);
+    if (patched <= 0) {
+        NSLog(@"[InstagramX] traffic rebind found no symbol pointers");
+        return NO;
+    }
     ix_installed = YES;
-    IXHook("connect", (void *)IXConnect, (void **)&ix_orig_connect);
-    IXHook("connectx", (void *)IXConnectX, (void **)&ix_orig_connectx);
-    IXHook("getaddrinfo", (void *)IXGetAddrInfo, (void **)&ix_orig_getaddrinfo);
-    IXHook("gethostbyname", (void *)IXGetHostByName, (void **)&ix_orig_gethostbyname);
-    IXHook("sendto", (void *)IXSendTo, (void **)&ix_orig_sendto);
-    IXHook("sendmsg", (void *)IXSendMsg, (void **)&ix_orig_sendmsg);
-    NSLog(@"[InstagramX] in-process traffic hooks installed");
+    IXTrafficHooksInstall();
+    NSLog(@"[InstagramX] rebound %d symbol pointers", patched);
+    return YES;
+#endif
+}
+
+void IXTrafficGuardUninstall(void) {
+    if (!ix_installed) return;
+    IXSymbolRebindRestore();
+    ix_installed = NO;
 }

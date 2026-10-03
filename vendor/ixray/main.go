@@ -24,20 +24,26 @@ var (
 	inst *core.Instance
 )
 
-func init() {
+var gcOnce sync.Once
+
+func startGC() {
 	// libXray does this on iOS: a periodic GC keeps the embedded runtime from
 	// holding onto freed connection buffers inside a long-lived app process.
-	go func() {
-		t := time.NewTicker(10 * time.Second)
-		defer t.Stop()
-		for range t.C {
-			runtime.GC()
-		}
-	}()
+	// Started from ixray_start so dlopen itself does not spawn the ticker.
+	gcOnce.Do(func() {
+		go func() {
+			t := time.NewTicker(10 * time.Second)
+			defer t.Stop()
+			for range t.C {
+				runtime.GC()
+			}
+		}()
+	})
 }
 
 //export ixray_start
 func ixray_start(configJSON *C.char) *C.char {
+	startGC()
 	if configJSON == nil {
 		return C.CString("empty xray config")
 	}

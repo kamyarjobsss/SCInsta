@@ -6,9 +6,12 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// In-process traffic policy shared by the VLESS engine and the socket hooks.
-/// Hooks are installed at load and no-op until a proxy is actually up.
+/// Symbol rebinding is installed only when the VPN is turned on, and removed
+/// when it is turned off. Nothing here runs from a constructor.
 
-void IXTrafficGuardInstall(void);
+BOOL IXTrafficGuardInstall(void);
+void IXTrafficGuardUninstall(void);
+void IXTrafficHooksInstall(void);
 
 void IXTrafficGuardSetRuntime(BOOL vpnOn, BOOL proxyUp, BOOL killSwitch, BOOL blockUDP);
 void IXTrafficGuardSetPorts(uint16_t socksPort, uint16_t httpPort);

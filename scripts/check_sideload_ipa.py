@@ -23,10 +23,14 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: check_sideload_ipa.py <ipa>", file=sys.stderr)
+    args = sys.argv[1:]
+    lite = "--lite" in args
+    args = [arg for arg in args if arg != "--lite"]
+    if len(args) != 1:
+        print("usage: check_sideload_ipa.py <ipa> [--lite]", file=sys.stderr)
         return 2
-    ipa = Path(sys.argv[1])
+    ipa = Path(args[0])
+    expected_display = "Instagram X Lite" if lite else "Instagram X"
     if not ipa.is_file():
         return fail(f"IPA not found: {ipa}")
 
@@ -56,8 +60,8 @@ def main() -> int:
     display = info.get("CFBundleDisplayName")
     executable = info.get("CFBundleExecutable")
     print(f"[*] display={display!r} version={version!r} id={info.get('CFBundleIdentifier')!r} exe={executable!r}")
-    if display != "Instagram X":
-        return fail(f"display name is {display!r}, expected 'Instagram X'")
+    if display != expected_display:
+        return fail(f"display name is {display!r}, expected {expected_display!r}")
     if not version or not executable:
         return fail("Info.plist is missing a version or executable")
 
@@ -84,9 +88,21 @@ def main() -> int:
             return fail(f"missing {name}")
         print(f"[*] present {info_entry.file_size:10} {name}")
 
-    scinsta_size = archive.getinfo(f"Payload/{app_name}/Frameworks/SCInsta.dylib").file_size
-    if scinsta_size < 8_000_000:
-        return fail(f"SCInsta.dylib is only {scinsta_size} bytes; Xray did not get linked")
+    scinsta_name = f"Payload/{app_name}/Frameworks/SCInsta.dylib"
+    xray_name = f"Payload/{app_name}/Frameworks/IXRayCore.dylib"
+    scinsta_size = archive.getinfo(scinsta_name).file_size
+    if scinsta_size > 16_000_000:
+        return fail(f"SCInsta.dylib is {scinsta_size} bytes; Xray must not be linked into the tweak")
+    xray_present = xray_name in names
+    if lite and xray_present:
+        return fail("lite IPA still contains IXRayCore.dylib")
+    if not lite:
+        if not xray_present:
+            return fail("full IPA is missing Frameworks/IXRayCore.dylib")
+        xray_size = archive.getinfo(xray_name).file_size
+        print(f"[*] present {xray_size:10} {xray_name}")
+        if xray_size < 8_000_000:
+            return fail(f"IXRayCore.dylib is only {xray_size} bytes")
 
     with tempfile.TemporaryDirectory(prefix="ix-check-") as tmp:
         work = Path(tmp)
@@ -120,6 +136,8 @@ def main() -> int:
         got = counts.get(name, 0)
         if got != expect:
             return fail(f"main binary loads {name} {got} times, expected {expect}")
+    if counts.get("IXRayCore.dylib", 0):
+        return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")
     if counts.get("CydiaSubstrate", 0) > 1:
         return fail("main binary loads CydiaSubstrate more than once")
 
@@ -141,16 +159,29 @@ def main() -> int:
         if not path.startswith("@rpath/"):
             return fail(f"hooking runtime is not @rpath: {path}")
 
-    blob = archive.read(f"Payload/{app_name}/Frameworks/SCInsta.dylib")
-    if b"ixray_start" not in blob and b"xray-core" not in blob:
-        return fail("SCInsta.dylib has no Xray marker (ixray_start / xray-core)")
+    blob = archive.read(scinsta_name)
+    # ixray_start is the dlsym name inside the full tweak. The Go runtime
+    # markers are what show the core was linked into SCInsta itself.
+    banned = [b"MSHookFunction", b"x_cgo_init", b"runtime.rt0_go"]
+    if lite:
+        banned.append(b"ixray_start")
+    for needle in banned:
+        if needle in blob:
+            return fail(f"SCInsta.dylib still contains {needle.decode()}")
+    if not lite:
+        xray_blob = archive.read(xray_name)
+        for needle in (b"ixray_start", b"x_cgo_init", b"runtime.rt0_go"):
+            if needle not in xray_blob:
+                return fail(f"IXRayCore.dylib is missing {needle.decode()}")
+        if b"MSHookFunction" in xray_blob:
+            return fail("IXRayCore.dylib contains MSHookFunction")
 
     # Extensions must not keep the old tweak, and must not load the injector twice.
     with tempfile.TemporaryDirectory(prefix="ix-check-extra-") as extra_tmp:
         extra = Path(extra_tmp) / "macho"
         for info_entry in archive.infolist():
             name = info_entry.filename
-            if name == binary_name or info_entry.file_size < 64 or info_entry.file_size > 80_000_000:
+            if name == binary_name or name.endswith("/IXRayCore.dylib") or info_entry.file_size < 64 or info_entry.file_size > 80_000_000:
                 continue
             if name.endswith((".png", ".car", ".json", ".plist", ".ttf", ".otf", ".metallib", ".strings")):
                 continue

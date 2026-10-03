@@ -27,11 +27,11 @@ A free Apple ID sideload lasts about **7 days**. After that the app will not ope
 2. Run the workflow.
 3. Paste a direct URL to your decrypted IPA.
 4. Optional: set **bundle id** to something like `com.yourname.instagramx` if you want Instagram X installed beside the App Store app. Leave it empty to keep `com.burbn.instagram` (the sideload then replaces a copy with that id; it does not replace the App Store app itself, because the signature is different, but iOS may refuse two apps that share an id).
-5. Download the artifact `InstagramX_sideloaded_v1.2.0.ipa`. The workflow also publishes it as a prerelease tagged `instagram-x-v1.2.0`.
+5. Download `InstagramX_sideloaded_v1.2.1.ipa`, or `InstagramX_lite_sideloaded_v1.2.1.ipa` if you do not want the VPN. The workflow publishes both on the prerelease tagged `instagram-x-v1.2.1`.
 
 The default URL is the owner's already-injected SCInsta 1.1.1 IPA. The build removes that old `SCInsta.dylib`, `FLEXing.dylib`, `libflex.dylib`, and `zxPluginsInject.dylib` (and their load commands, including inside app extensions) before injecting Instagram X. `CydiaSubstrate.framework` stays, and ipapatch installs one fresh `zxPluginsInject`. A clean decrypted IPA works the same way: there is nothing to remove, and cyan injects the new dylibs.
 
-The same workflow links an iOS arm64 Xray-core static library into the tweak when the build runs on the macOS runner.
+The full IPA carries Xray as `IXRayCore.dylib` next to the tweak, with no load command, so it stays unmapped until the VPN is turned on. The lite IPA leaves that file out and refuses to start a proxy.
 
 **On your Mac**
 
@@ -55,9 +55,9 @@ chmod +x build.sh scripts/build_ixray.sh
 ./build.sh sideload
 ```
 
-The IPA is `packages/InstagramX-sideloaded.ipa`.
+The IPAs are `packages/InstagramX-sideloaded.ipa` and `packages/InstagramX-lite-sideloaded.ipa`. Only one can be installed at a time when they share `com.burbn.instagram`.
 
-Jailbreak packages (no IPA) are `./build.sh rootless` or `./build.sh rootful`. On macOS those also link Xray.
+Jailbreak packages (no IPA) are `./build.sh rootless` or `./build.sh rootful`. Those use the built-in VLESS engine. Xray is in the full sideload IPA.
 
 ### 3. Install with Sideloadly
 
@@ -146,11 +146,11 @@ Fake location is the next row. Search or long-press the map, then turn **Use thi
 2. آن را اجرا کنید.
 3. لینک مستقیم IPA رمزگشایی‌شدهٔ خودتان را بگذارید.
 4. اختیاری: اگر می‌خواهید اینستاگرام ایکس کنار برنامهٔ اپ‌استور نصب شود، bundle id را چیزی مثل `com.yourname.instagramx` بگذارید. خالی بماند یعنی همان `com.burbn.instagram`. iOS معمولاً دو برنامه با یک شناسه را هم‌زمان قبول نمی‌کند.
-5. فایل `InstagramX_sideloaded_v1.2.0.ipa` را دانلود کنید. همین workflow آن را به‌صورت prerelease با برچسب `instagram-x-v1.2.0` هم منتشر می‌کند.
+5. فایل `InstagramX_sideloaded_v1.2.1.ipa` را دانلود کنید، یا اگر VPN نمی‌خواهید `InstagramX_lite_sideloaded_v1.2.1.ipa`. هر دو روی prerelease با برچسب `instagram-x-v1.2.1` منتشر می‌شوند.
 
 لینک پیش‌فرض، IPA خود صاحب مخزن است که از قبل SCInsta 1.1.1 در آن تزریق شده. بیلد، `SCInsta.dylib` و `FLEXing.dylib` و `libflex.dylib` و `zxPluginsInject.dylib` قدیمی و load command آن‌ها (از جمله داخل افزونه‌ها) را برمی‌دارد و اینستاگرام ایکس را تزریق می‌کند. `CydiaSubstrate.framework` می‌ماند و ipapatch یک `zxPluginsInject` تازه می‌گذارد. IPA تمیز هم همین مسیر را می‌رود؛ چیزی برای حذف نیست و cyan کتابخانه‌های جدید را اضافه می‌کند.
 
-همین workflow روی رانر مک، کتابخانهٔ ایستای Xray-core برای arm64 را به توییک لینک می‌کند.
+IPA کامل، Xray را به‌صورت `IXRayCore.dylib` کنار توییک می‌گذارد و load command ندارد، پس تا وقتی VPN روشن نشود به حافظه نمی‌آید. IPA لایت آن فایل را ندارد و پروکسی را راه نمی‌اندازد.
 
 **روی مک خودتان**
 

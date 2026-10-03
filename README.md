@@ -1,6 +1,6 @@
 # Instagram X
 A rebranded, stability-focused fork of [SCInsta](https://github.com/SoCuul/SCInsta) v1.1.1 for Instagram on iOS.\
-`Version v1.2.0` | `Tested target: Instagram 418.2.0` | `Package: com.kamyar.instagramx`
+`Version v1.2.1` | `Tested target: Instagram 418.2.0` | `Package: com.kamyar.instagramx`
 
 The injected library is still named `SCInsta.dylib` so the existing sideload tooling keeps finding it. Everything the tweak shows the user is labeled **Instagram X**.
 
@@ -29,13 +29,15 @@ When the proxy is connected, this process does the following:
 | UDP, including calls | Blocked (`EPERM`) while "Block UDP and calls" is on (the default). Call buttons show an alert instead of starting WebRTC. UDP is not relayed. |
 | Kill switch | Default on. If the local proxy is not up, outbound TCP returns "network unreachable" instead of connecting directly. |
 
-The engine is [Xray-core](https://github.com/xtls/xray-core) `v1.260327.0`, built on the macOS CI runner as an iOS arm64 static library and linked into the tweak. REALITY, xtls-rprx-vision, gRPC, XHTTP, and HTTP/2 are handled by that library. If Xray is not linked (a Linux build, or Xray failed to start on a simple TCP/TLS/WebSocket link), a built-in engine speaks VLESS over TCP, TLS, and WebSocket only.
+The engine is [Xray-core](https://github.com/xtls/xray-core) `v1.260327.0`, built on the macOS CI runner as `IXRayCore.dylib` and placed in `Frameworks` with no load command. The tweak `dlopen`s it only after the VPN is turned on, and the Go runtime does not start at launch. REALITY, xtls-rprx-vision, gRPC, XHTTP, and HTTP/2 are handled by that library. Socket hooks are fishhook-style rebases of `__got` / `__la_symbol_ptr` / `__auth_got` and are applied only while the VPN is on. They never patch `__TEXT`. If Xray is absent (the lite IPA, a Linux build, or Xray failed to start on a simple TCP/TLS/WebSocket link), a built-in engine speaks VLESS over TCP, TLS, and WebSocket only. Instagram X Lite omits the VPN entirely.
+
+A launch that dies before it has been up for a few seconds is counted. The next launch enters safe mode: it skips VPN restore, fake location, the settings row, and FLEX-on-launch, and shows an alert. Turning a feature on from the tweak settings still installs that feature.
 
 ### Known limitations (not verified on a device)
 
 These are real gaps. Do not treat the VPN as a complete IP-hiding system until you have checked it on your phone.
 
-- **Not tested on a device.** The Go runtime inside an injected dylib, the socket hooks, and Xray startup can fail or crash on a real iPhone even when CI links successfully.
+- **Not tested on a device.** `dlopen` of the Go runtime, the GOT rebind, and Xray startup can still fail on a real iPhone even when CI packages successfully. v1.2.0 crashed on launch because `MSHookFunction` made a `__TEXT` page writable; v1.2.1 does not call it.
 - **WKWebView** runs networking in another process. In-process `connect` hooks do not see it. The iOS 17 proxy setter is only logged; no proxy object is installed.
 - **AVPlayer / mediaserverd** can fetch media outside this process. Those bytes never enter the hooks.
 - **Network.framework** paths that do not call `connect` or `connectx` are not redirected.

@@ -57,7 +57,17 @@ then
 
     echo -e '\033[1m\033[32mBuilding Instagram X for sideloading (as IPA)\033[0m'
 
-    if [[ "$(uname -s)" == "Darwin" ]]; then
+    IPA_OUT="packages/InstagramX-sideloaded.ipa"
+    DISPLAY_NAME="${IX_DISPLAY_NAME:-Instagram X}"
+    CHECK_ARGS=()
+    if [[ "${IX_LITE:-}" == "1" ]]; then
+        unset IX_HAS_XRAY
+        export IX_LITE=1
+        IPA_OUT="packages/InstagramX-lite-sideloaded.ipa"
+        DISPLAY_NAME="${IX_DISPLAY_NAME:-Instagram X Lite}"
+        CHECK_ARGS=(--lite)
+        echo -e '\033[1m\033[32mLite build: no VPN and no Xray\033[0m'
+    elif [[ "$(uname -s)" == "Darwin" ]]; then
         echo -e '\033[1m\033[32mBuilding in-process Xray core\033[0m'
         ./scripts/build_ixray.sh
         export IX_HAS_XRAY=1
@@ -87,18 +97,28 @@ then
 
     # Create IPA File
     echo -e '\033[1m\033[32mCreating the IPA file...\033[0m'
-    rm -f packages/InstagramX-sideloaded.ipa packages/SCInsta-sideloaded.ipa
-    cyan -i "packages/${ipaFile}" -o packages/InstagramX-sideloaded.ipa -f $SCINSTAPATH $FLEXPATH -c $COMPRESSION -m 15.0 -du
+    rm -f "$IPA_OUT" packages/SCInsta-sideloaded.ipa
+    cyan -i "packages/${ipaFile}" -o "$IPA_OUT" -f $SCINSTAPATH $FLEXPATH -c $COMPRESSION -m 15.0 -du
 
     # Display name, holographic icon, and optional bundle id (IX_BUNDLE_ID).
-    IX_DISPLAY_NAME="${IX_DISPLAY_NAME:-Instagram X}" python3 scripts/brand_ipa.py packages/InstagramX-sideloaded.ipa "${IX_DISPLAY_NAME:-Instagram X}"
+    IX_DISPLAY_NAME="$DISPLAY_NAME" python3 scripts/brand_ipa.py "$IPA_OUT" "$DISPLAY_NAME"
 
     # Patch IPA for sideloading
-    ipapatch --input "packages/InstagramX-sideloaded.ipa" --inplace --noconfirm
+    ipapatch --input "$IPA_OUT" --inplace --noconfirm
 
-    python3 scripts/check_sideload_ipa.py packages/InstagramX-sideloaded.ipa
+    # Full builds only. No LC_LOAD: the tweak dlopens this after the VPN is on.
+    if [[ "${IX_LITE:-}" != "1" && -f vendor/ixray/IXRayCore.dylib ]]; then
+        python3 scripts/embed_ixray.py "$IPA_OUT" vendor/ixray/IXRayCore.dylib
+    fi
 
-    echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/packages/InstagramX-sideloaded.ipa"
+    python3 scripts/check_sideload_ipa.py "$IPA_OUT" "${CHECK_ARGS[@]}"
+
+    echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/$IPA_OUT"
+
+    # The sideload entry point builds the full IPA, then the lite IPA.
+    if [[ "${IX_LITE:-}" != "1" && "$2" != "--dev" && "$2" != "--buildonly" && "$2" != "--devquick" ]]; then
+        IX_LITE=1 IX_DISPLAY_NAME="Instagram X Lite" ./build.sh sideload
+    fi
     if [[ -n "${IX_BUNDLE_ID:-}" ]]; then
         echo "Bundle id: ${IX_BUNDLE_ID} (installs next to the App Store app)"
     else
@@ -112,13 +132,7 @@ then
     make clean
     rm -rf .theos
 
-    echo -e '\033[1m\033[32mBuilding Instagram X for rootless\033[0m'
-
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-        echo -e '\033[1m\033[32mBuilding in-process Xray core\033[0m'
-        ./scripts/build_ixray.sh
-        export IX_HAS_XRAY=1
-    fi
+    echo -e '\033[1m\033[32mBuilding Instagram X for rootless (built-in VLESS; Xray ships in the sideload IPA)\033[0m'
 
     export THEOS_PACKAGE_SCHEME=rootless
     make package
@@ -132,13 +146,7 @@ then
     make clean
     rm -rf .theos
 
-    echo -e '\033[1m\033[32mBuilding Instagram X for rootful\033[0m'
-
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-        echo -e '\033[1m\033[32mBuilding in-process Xray core\033[0m'
-        ./scripts/build_ixray.sh
-        export IX_HAS_XRAY=1
-    fi
+    echo -e '\033[1m\033[32mBuilding Instagram X for rootful (built-in VLESS; Xray ships in the sideload IPA)\033[0m'
 
     unset THEOS_PACKAGE_SCHEME
     make package

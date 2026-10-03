@@ -1,5 +1,6 @@
 #import "IXSettingsEntry.h"
 
+%group IXSettingsEntryHooks
 %hook UILabel
 - (void)setText:(NSString *)text {
     %orig;
@@ -24,3 +25,11 @@
     [IXSettingsEntry relayoutIfNeeded:self];
 }
 %end
+%end
+
+void IXSettingsEntryInstall(void) {
+    static BOOL installed = NO;
+    if (installed) return;
+    installed = YES;
+    %init(IXSettingsEntryHooks);
+}

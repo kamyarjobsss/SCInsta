@@ -1,5 +1,6 @@
 #import "IXLocationPickerViewController.h"
 #import "IXLocationStore.h"
+#import "IXLocationHooks.h"
 
 #import <MapKit/MapKit.h>
 
@@ -170,6 +171,7 @@
         return;
     }
     [IXLocationStore setEnabled:sender.on];
+    if (sender.on) IXLocationHooksInstall();
     self.mapView.showsUserLocation = !sender.on;
 }
 

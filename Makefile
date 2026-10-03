@@ -12,15 +12,14 @@ $(TWEAK_NAME)_PRIVATE_FRAMEWORKS = Preferences
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-unsupported-availability-guard -Wno-unused-value -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-incompatible-pointer-types
 $(TWEAK_NAME)_LOGOSFLAGS = --c warnings=none
 
-# Optional in-process Xray core. scripts/build_ixray.sh produces this archive on macOS.
-# CFLAGS must be appended after the assignment above, or -DIX_HAS_XRAY is lost.
-IXRAY_LIB := $(THEOS_PROJECT_DIR)/vendor/ixray/libixray.a
-ifeq ($(IX_HAS_XRAY),1)
-  ifeq ($(wildcard $(IXRAY_LIB)),)
-    $(error IX_HAS_XRAY=1 but $(IXRAY_LIB) was not built)
+# Xray is a separate dylib (vendor/ixray/IXRayCore.dylib) dlopened when the VPN
+# turns on. Do not -force_load it into SCInsta: that runs the Go runtime at launch.
+ifeq ($(IX_LITE),1)
+  $(TWEAK_NAME)_CFLAGS += -DIX_LITE=1
+else
+  ifeq ($(IX_HAS_XRAY),1)
+    $(TWEAK_NAME)_CFLAGS += -DIX_HAS_XRAY=1
   endif
-  $(TWEAK_NAME)_CFLAGS += -DIX_HAS_XRAY=1
-  $(TWEAK_NAME)_LDFLAGS += -Wl,-force_load,$(IXRAY_LIB) -Wl,-no_dead_strip_inits_and_terms -lz -lresolv -liconv -lc++
 endif
 
 CCFLAGS += -std=c++11

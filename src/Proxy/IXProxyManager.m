@@ -1,6 +1,8 @@
 #import "IXProxyManager.h"
 #import "IXNativeEngine.h"
 #import "IXTrafficGuard.h"
+#import "IXRayLoader.h"
+#import "../Launch/IXLaunchGuard.h"
 
 #import <QuartzCore/QuartzCore.h>
 #import <arpa/inet.h>
@@ -10,12 +12,6 @@
 #import <stdlib.h>
 #import <sys/socket.h>
 #import <unistd.h>
-
-#if IX_HAS_XRAY
-extern char *ixray_start(char *configJSON);
-extern void ixray_stop(void);
-extern char *ixray_version(void);
-#endif
 
 NSString *const IXProxyEnabledKey = @"ix_vless_enabled";
 NSString *const IXProxyKillSwitchKey = @"ix_killswitch";
@@ -51,10 +47,10 @@ static NSError *IXProxyError(NSString *message) {
     self = [super init];
     if (self) {
         _status = IXProxyStatusOff;
-#if IX_HAS_XRAY
-        char *version = ixray_version();
-        _engineName = version ? [NSString stringWithFormat:@"Xray %@", [NSString stringWithUTF8String:version]] : @"Xray";
-        if (version) free(version);
+#if IX_LITE
+        _engineName = @"Lite build";
+#elif IX_HAS_XRAY
+        _engineName = @"Xray (loads when the VPN is on)";
 #else
         _engineName = @"Built-in VLESS";
 #endif
@@ -180,49 +176,70 @@ static NSError *IXProxyError(NSString *message) {
 
 - (void)stopEngine {
     if (_usingXray) {
-#if IX_HAS_XRAY
-        ixray_stop();
-#endif
+        IXRayStop();
         _usingXray = NO;
     }
     [_native stop];
     _native = nil;
     IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
+    IXTrafficGuardUninstall();
     _status = IXProxyStatusOff;
 }
 
 - (BOOL)startProfile:(IXVLESSProfile *)profile error:(NSError **)error {
+#if IX_LITE
+    (void)profile;
+    if (error) *error = IXProxyError(@"Instagram X Lite does not include the VPN.");
+    return NO;
+#else
+    if (!IXTrafficGuardInstall()) {
+        if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
+        return NO;
+    }
     IXTrafficGuardSetPorts(kSocksPort, kHTTPPort);
     IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
     // Fail closed while the listener is coming up.
     IXTrafficGuardSetRuntime(YES, NO, YES, [self blockUDP]);
 
 #if IX_HAS_XRAY
-    NSString *json = [profile xrayJSONWithSocksPort:kSocksPort httpPort:kHTTPPort];
-    char *err = ixray_start((char *)json.UTF8String);
-    if (!err) {
-        _usingXray = YES;
-        _engineName = @"Xray";
-        char *version = ixray_version();
-        if (version) {
-            _engineName = [NSString stringWithFormat:@"Xray %@", [NSString stringWithUTF8String:version]];
-            free(version);
+    NSError *loadError = nil;
+    if (!IXRayCoreLoad(&loadError)) {
+        if (profile.needsXray) {
+            IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
+            IXTrafficGuardUninstall();
+            if (error) *error = loadError ?: IXProxyError(@"Xray could not be loaded.");
+            return NO;
         }
-        IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
-        return YES;
+        NSLog(@"[InstagramX] Xray dylib unavailable (%@), trying the built-in engine", loadError.localizedDescription);
+    } else {
+        NSString *json = [profile xrayJSONWithSocksPort:kSocksPort httpPort:kHTTPPort];
+        char *err = IXRayStart((char *)json.UTF8String);
+        if (!err) {
+            _usingXray = YES;
+            _engineName = @"Xray";
+            char *version = IXRayVersion();
+            if (version) {
+                _engineName = [NSString stringWithFormat:@"Xray %@", [NSString stringWithUTF8String:version]];
+                free(version);
+            }
+            IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+            return YES;
+        }
+        NSString *message = [NSString stringWithUTF8String:err];
+        free(err);
+        if (profile.needsXray) {
+            IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
+            IXTrafficGuardUninstall();
+            if (error) *error = IXProxyError(message.length ? message : @"Xray failed to start.");
+            return NO;
+        }
+        NSLog(@"[InstagramX] Xray failed (%@), trying the built-in engine", message);
     }
-    NSString *message = [NSString stringWithUTF8String:err];
-    free(err);
-    if (profile.needsXray) {
-        IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
-        if (error) *error = IXProxyError(message.length ? message : @"Xray failed to start.");
-        return NO;
-    }
-    NSLog(@"[InstagramX] Xray failed (%@), trying the built-in engine", message);
 #endif
 
     if (profile.needsXray) {
         IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
+        IXTrafficGuardUninstall();
         if (error) *error = IXProxyError(@"This link needs Xray (REALITY, Vision, gRPC, or XHTTP). This build only includes the built-in TCP/TLS/WebSocket engine.");
         return NO;
     }
@@ -230,6 +247,7 @@ static NSError *IXProxyError(NSString *message) {
     NSError *nativeError = nil;
     if (![_native startWithProfile:profile error:&nativeError]) {
         IXTrafficGuardSetRuntime(NO, NO, [self killSwitch], [self blockUDP]);
+        IXTrafficGuardUninstall();
         if (error) *error = nativeError;
         return NO;
     }
@@ -237,9 +255,19 @@ static NSError *IXProxyError(NSString *message) {
     _engineName = @"Built-in VLESS";
     IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
     return YES;
+#endif
 }
 
 - (void)setEnabled:(BOOL)enabled completion:(void (^)(NSError *))completion {
+#if IX_LITE
+    if (enabled) {
+        _status = IXProxyStatusFailed;
+        _lastError = @"Instagram X Lite does not include the VPN.";
+        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
+        if (completion) completion(IXProxyError(_lastError));
+        return;
+    }
+#endif
     if (!enabled) {
         [self stopEngine];
         _lastError = nil;
@@ -278,6 +306,10 @@ static NSError *IXProxyError(NSString *message) {
 }
 
 - (void)restoreOnLaunch {
+    if (IXLaunchGuardIsSafeMode()) {
+        NSLog(@"[InstagramX] safe mode: not restoring the VPN");
+        return;
+    }
     if (![self isEnabled]) return;
     [self setEnabled:YES completion:^(NSError *error) {
         if (error) NSLog(@"[InstagramX] proxy restore failed: %@", error.localizedDescription);

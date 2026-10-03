@@ -1,6 +1,6 @@
 Package: com.kamyar.instagramx
 Name: Instagram X
-Version: 1.2.0
+Version: 1.2.1
 Architecture: iphoneos-arm
 Description: Instagram X, a stability-focused fork of SCInsta with in-app VLESS and fake location. Tested against Instagram 418.2.0.
 Homepage: https://github.com/kamyarjobsss/SCInsta

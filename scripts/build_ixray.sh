@@ -39,5 +39,19 @@ go build -trimpath -ldflags "-s -w -buildid=" -buildmode=c-archive -o "$OUT" .
 
 test -f "$OUT"
 test -f "$SRC/libixray.h"
+
+DYLIB="$SRC/IXRayCore.dylib"
+xcrun --sdk iphoneos clang -dynamiclib \
+    -arch arm64 \
+    -isysroot "$SDK" \
+    -miphoneos-version-min=15.0 \
+    -Wl,-force_load,"$OUT" \
+    -Wl,-no_dead_strip_inits_and_terms \
+    -lz -lresolv -liconv -lc++ \
+    -install_name @rpath/IXRayCore.dylib \
+    -o "$DYLIB"
+
+test -f "$DYLIB"
 echo "Built $OUT"
-ls -lh "$OUT"
+echo "Built $DYLIB"
+ls -lh "$OUT" "$DYLIB"

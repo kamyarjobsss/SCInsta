@@ -2,6 +2,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+void IXSettingsEntryInstall(void);
+
 @interface IXSettingsEntry : NSObject
 + (BOOL)textIsAccountsCenter:(nullable NSString *)text;
 + (void)noteLabel:(UILabel *)label;

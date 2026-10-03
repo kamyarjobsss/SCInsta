@@ -4,15 +4,12 @@
 
 #import <WebKit/WebKit.h>
 
-%ctor {
-    IXTrafficGuardInstall();
-}
-
 static void IXApplyProxy(NSURLSessionConfiguration *config) {
     if (!config || !IXTrafficGuardVPNOn()) return;
     config.connectionProxyDictionary = IXTrafficGuardProxyDictionary();
 }
 
+%group IXTrafficSessionHooks
 %hook NSURLSessionConfiguration
 + (NSURLSessionConfiguration *)defaultSessionConfiguration {
     NSURLSessionConfiguration *config = %orig;
@@ -54,3 +51,15 @@ static void IXApplyProxy(NSURLSessionConfiguration *config) {
     return %orig;
 }
 %end
+%end
+
+void IXTrafficHooksInstall(void) {
+#if IX_LITE
+    return;
+#else
+    static BOOL installed = NO;
+    if (installed) return;
+    installed = YES;
+    %init(IXTrafficSessionHooks);
+#endif
+}
