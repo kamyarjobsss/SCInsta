@@ -17,6 +17,7 @@ on:
             - scripts/strip_previous_tweak.py
             - scripts/check_sideload_ipa.py
             - scripts/ipa_macho.py
+            - scripts/build_ixray.sh
             - build.sh
     workflow_dispatch:
         inputs:
