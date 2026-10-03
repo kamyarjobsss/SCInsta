@@ -235,22 +235,6 @@ static char rowStaticRef[] = "row";
     if (![SCIUtils getBoolPref:@"liquid_glass_buttons"] && self.searchController.isActive) {
         self.searchController.active = NO;
     }
-
-    if (![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]) {
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:SCILocalized(@"settings.firstrun.title")
-                                                                       message:SCILocalized(@"settings.firstrun.message")
-                                                                preferredStyle:UIAlertControllerStyleAlert];
-
-        [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"settings.firstrun.ok")
-                                                  style:UIAlertActionStyleDefault
-                                                handler:nil]];
-        
-        UIViewController *presenter = self.presentingViewController;
-        [presenter presentViewController:alert animated:YES completion:nil];
-        
-        // Done with first-time setup for this version
-        [[NSUserDefaults standardUserDefaults] setValue:SCIVersionString forKey:@"SCInstaFirstRun"];
-    }
 }
 
 // MARK: - UITableViewDataSource

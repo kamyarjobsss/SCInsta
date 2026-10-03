@@ -118,7 +118,24 @@ static NSError *IXURIError(NSString *message) {
     profile.publicKey = param(@"pbk");
     profile.shortId = param(@"sid");
     profile.spiderX = param(@"spx").length ? param(@"spx") : @"/";
-    profile.path = param(@"path").length ? param(@"path") : @"/";
+    NSInteger earlyData = param(@"ed").integerValue;
+    NSString *path = param(@"path").length ? param(@"path") : @"/";
+    NSRange pathQuery = [path rangeOfString:@"?"];
+    if (pathQuery.location != NSNotFound) {
+        NSDictionary *inner = IXQuery([path substringFromIndex:pathQuery.location + 1]);
+        if ([inner[@"ed"] integerValue] > 0) earlyData = [inner[@"ed"] integerValue];
+        NSMutableArray *kept = [NSMutableArray array];
+        for (NSString *key in inner) {
+            if ([key isEqualToString:@"ed"] || ![inner[key] isKindOfClass:[NSString class]]) continue;
+            [kept addObject:[NSString stringWithFormat:@"%@=%@", key, inner[key]]];
+        }
+        path = [path substringToIndex:pathQuery.location];
+        if (kept.count) path = [path stringByAppendingFormat:@"?%@", [kept componentsJoinedByString:@"&"]];
+    }
+    if (path.length == 0) path = @"/";
+    if (![path hasPrefix:@"/"]) path = [@"/" stringByAppendingString:path];
+    profile.path = path;
+    profile.earlyData = earlyData > 0 ? earlyData : 0;
     profile.wsHost = param(@"host");
     profile.serviceName = param(@"serviceName").length ? param(@"serviceName") : param(@"authority");
     profile.alpn = param(@"alpn");
@@ -129,7 +146,8 @@ static NSError *IXURIError(NSString *message) {
 
     BOOL nativeOK = ([profile.network isEqualToString:@"tcp"] || [profile.network isEqualToString:@"ws"])
         && ([profile.security isEqualToString:@"none"] || [profile.security isEqualToString:@"tls"])
-        && profile.flow.length == 0;
+        && profile.flow.length == 0
+        && profile.earlyData == 0;
     profile.needsXray = !nativeOK;
     return profile;
 }
@@ -191,12 +209,20 @@ static NSError *IXURIError(NSString *message) {
     stream[@"security"] = security;
 
     if ([self.network isEqualToString:@"ws"]) {
-        NSMutableDictionary *headers = [NSMutableDictionary dictionary];
-        if (self.wsHost.length) headers[@"Host"] = self.wsHost;
-        stream[@"wsSettings"] = @{
-            @"path": self.path.length ? self.path : @"/",
-            @"headers": headers
-        };
+        NSString *hostHeader = self.wsHost.length ? self.wsHost : (self.sni.length ? self.sni : self.host);
+        NSString *wsPath = self.path.length ? self.path : @"/";
+        if (self.earlyData > 0 && [wsPath rangeOfString:@"ed="].location == NSNotFound) {
+            // Xray 26.3.27 reads early data only from the path query, then
+            // strips it and sends those bytes in Sec-WebSocket-Protocol.
+            wsPath = [NSString stringWithFormat:@"%@%@ed=%ld", wsPath, [wsPath containsString:@"?"] ? @"&" : @"?", (long)self.earlyData];
+        }
+        NSMutableDictionary *ws = [@{
+            @"path": wsPath,
+            @"host": hostHeader ?: @"",
+            @"heartbeatPeriod": @15
+        } mutableCopy];
+        if (hostHeader.length) ws[@"headers"] = @{@"Host": hostHeader};
+        stream[@"wsSettings"] = ws;
     } else if ([self.network isEqualToString:@"grpc"]) {
         stream[@"grpcSettings"] = @{@"serviceName": self.serviceName ?: @""};
     } else if ([self.network isEqualToString:@"xhttp"] || [self.network isEqualToString:@"splithttp"]) {
@@ -222,6 +248,8 @@ static NSError *IXURIError(NSString *message) {
         } mutableCopy];
         if (self.alpn.length) {
             tls[@"alpn"] = [self.alpn componentsSeparatedByString:@","];
+        } else if ([self.network isEqualToString:@"ws"]) {
+            tls[@"alpn"] = @[@"http/1.1"];
         }
         stream[@"tlsSettings"] = tls;
     } else if ([security isEqualToString:@"reality"]) {
@@ -234,6 +262,11 @@ static NSError *IXURIError(NSString *message) {
         };
     }
 
+    stream[@"sockopt"] = @{
+        @"tcpKeepAliveIdle": @30,
+        @"tcpKeepAliveInterval": @15
+    };
+
     return @{
         @"tag": @"proxy",
         @"protocol": @"vless",
@@ -244,7 +277,11 @@ static NSError *IXURIError(NSString *message) {
                 @"users": @[user]
             }]
         },
-        @"streamSettings": stream
+        @"streamSettings": stream,
+        @"mux": @{
+            @"enabled": @NO,
+            @"concurrency": @(-1)
+        }
     };
 }
 

@@ -1,25 +1,9 @@
 #import "IXSettingsEntry.h"
 
-%group IXSettingsEntryHooks
-%hook UIViewController
-- (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    [IXSettingsEntry noteSettingsController:self];
-}
-- (void)viewDidDisappear:(BOOL)animated {
-    %orig;
-    [IXSettingsEntry removeSettingsRowForController:self];
-}
-- (void)viewDidLayoutSubviews {
-    %orig;
-    [IXSettingsEntry relayoutSettingsRowForController:self];
-}
-%end
-%end
+// The accounts-center row was inserted as a subview of the settings list and
+// stayed on screen after navigation. It is not installed. Settings open from
+// the profile header button, the profile-tab long-press, the home-tab
+// long-press or three-finger tap, and the hamburger long-press.
 
 void IXSettingsEntryInstall(void) {
-    static BOOL installed = NO;
-    if (installed) return;
-    installed = YES;
-    %init(IXSettingsEntryHooks);
 }

@@ -967,19 +967,6 @@ static UIViewController *sciTopVC(void);
 
 + (NSArray *)aboutNavSections {
     SCISetting *credit = [SCISetting staticCellWithTitle:SCILocalized(@"Developed by Wexpid") subtitle:SCILocalized(@"Instagram X") icon:[SCISymbol symbolWithName:@"person.fill" color:[UIColor systemGrayColor] size:14.0]];
-    SCISetting *licenses = [SCISetting buttonCellWithTitle:SCILocalized(@"Open-source licenses")
-                                                  subtitle:SCILocalized(@"GPL-3.0 and the projects this build includes")
-                                                      icon:nil
-                                                    action:^{
-        UIViewController *vc = [NSClassFromString(@"IXLicensesViewController") new];
-        if (!vc) return;
-        UIViewController *top = sciTopVC();
-        if (top.navigationController) {
-            [top.navigationController pushViewController:vc animated:YES];
-        } else if (top) {
-            [top presentViewController:[[UINavigationController alloc] initWithRootViewController:vc] animated:YES completion:nil];
-        }
-    }];
     return @[
         @{
             @"header": SCILocalized(@"Version"),
@@ -992,7 +979,6 @@ static UIViewController *sciTopVC(void);
             @"header": @"",
             @"rows": @[
                 credit,
-                licenses,
             ]
         },
     ];

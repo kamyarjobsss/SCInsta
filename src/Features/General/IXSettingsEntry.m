@@ -250,6 +250,8 @@ static CGFloat const kIXRowHeight = 52.0;
 }
 
 + (void)noteSettingsController:(UIViewController *)controller {
+    (void)controller;
+    return;
     if (![self controllerIsSettingsList:controller]) return;
     BOOL already = NO;
     [self view:controller.view containsRow:&already];

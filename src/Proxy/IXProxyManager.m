@@ -5,6 +5,7 @@
 #import "../Launch/IXLaunchGuard.h"
 #import "../Localization/SCILocalization.h"
 
+#import <Security/Security.h>
 #import <QuartzCore/QuartzCore.h>
 #import <stdint.h>
 #import <arpa/inet.h>
@@ -23,6 +24,56 @@ NSString *const IXProxySelectedKey = @"ix_vless_selected";
 
 static const uint16_t kSocksPort = 61850;
 static const uint16_t kHTTPPort = 61851;
+static NSString *const IXProxyKeychainService = @"instagramx.vpn.settings";
+static NSString *const IXProxyKeychainAccount = @"settings";
+
+static NSUserDefaults *IXProxySuite(void) {
+    static NSUserDefaults *suite;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        suite = [[NSUserDefaults alloc] initWithSuiteName:@"instagramx.vpn"];
+    });
+    return suite ?: [NSUserDefaults standardUserDefaults];
+}
+
+static NSDictionary *IXProxyKeychainRead(void) {
+    NSDictionary *query = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: IXProxyKeychainService,
+        (__bridge id)kSecAttrAccount: IXProxyKeychainAccount,
+        (__bridge id)kSecReturnData: @YES,
+        (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
+    };
+    CFTypeRef result = NULL;
+    if (SecItemCopyMatching((__bridge CFDictionaryRef)query, &result) != errSecSuccess || !result) return nil;
+    NSData *data = CFGetTypeID(result) == CFDataGetTypeID() ? (__bridge_transfer NSData *)result : nil;
+    if (!data) {
+        CFRelease(result);
+        return nil;
+    }
+    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [object isKindOfClass:[NSDictionary class]] ? object : nil;
+}
+
+static void IXProxyKeychainWrite(NSDictionary *payload) {
+    if (![NSJSONSerialization isValidJSONObject:payload ?: @{}]) return;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
+    if (!data) return;
+    NSDictionary *query = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: IXProxyKeychainService,
+        (__bridge id)kSecAttrAccount: IXProxyKeychainAccount
+    };
+    NSDictionary *attrs = @{
+        (__bridge id)kSecValueData: data,
+        (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlock
+    };
+    if (SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)attrs) == errSecItemNotFound) {
+        NSMutableDictionary *add = [query mutableCopy];
+        [add addEntriesFromDictionary:attrs];
+        SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+    }
+}
 
 static NSError *IXProxyError(NSString *message) {
     return [NSError errorWithDomain:@"InstagramX.Proxy" code:1 userInfo:@{NSLocalizedDescriptionKey: message ?: @"Proxy error"}];
@@ -134,34 +185,126 @@ static NSError *IXProxyError(NSString *message) {
     return [NSString stringWithFormat:@"%@ · %@", IXProxyManager.shared.statusText, IXProxyManager.shared.engineName];
 }
 
+- (void)adoptPayload:(NSDictionary *)payload {
+    if (![payload isKindOfClass:[NSDictionary class]]) return;
+    NSUserDefaults *suite = IXProxySuite();
+    NSUserDefaults *standard = [NSUserDefaults standardUserDefaults];
+    NSArray *profiles = [payload[@"profiles"] isKindOfClass:[NSArray class]] ? payload[@"profiles"] : @[];
+    [suite setObject:profiles forKey:IXProxyProfilesKey];
+    [standard setObject:profiles forKey:IXProxyProfilesKey];
+    NSString *selected = [payload[@"selected"] isKindOfClass:[NSString class]] ? payload[@"selected"] : @"";
+    if (selected.length) {
+        [suite setObject:selected forKey:IXProxySelectedKey];
+        [standard setObject:selected forKey:IXProxySelectedKey];
+    }
+    if (payload[@"enabled"]) {
+        BOOL enabled = [payload[@"enabled"] boolValue];
+        [suite setBool:enabled forKey:IXProxyEnabledKey];
+        [standard setBool:enabled forKey:IXProxyEnabledKey];
+    }
+    if (payload[@"killswitch"]) {
+        BOOL on = [payload[@"killswitch"] boolValue];
+        [suite setBool:on forKey:IXProxyKillSwitchKey];
+        [standard setBool:on forKey:IXProxyKillSwitchKey];
+    }
+    if (payload[@"blockudp"]) {
+        BOOL on = [payload[@"blockudp"] boolValue];
+        [suite setBool:on forKey:IXProxyBlockUDPKey];
+        [standard setBool:on forKey:IXProxyBlockUDPKey];
+    }
+    [suite synchronize];
+    [standard synchronize];
+}
+
+- (void)persistSettings {
+    NSUserDefaults *suite = IXProxySuite();
+    NSArray *profiles = [suite arrayForKey:IXProxyProfilesKey] ?: @[];
+    NSString *selected = [suite stringForKey:IXProxySelectedKey] ?: @"";
+    BOOL kill = [suite objectForKey:IXProxyKillSwitchKey] ? [suite boolForKey:IXProxyKillSwitchKey] : YES;
+    BOOL block = [suite objectForKey:IXProxyBlockUDPKey] ? [suite boolForKey:IXProxyBlockUDPKey] : YES;
+    BOOL enabled = [suite boolForKey:IXProxyEnabledKey];
+    NSUserDefaults *standard = [NSUserDefaults standardUserDefaults];
+    [standard setObject:profiles forKey:IXProxyProfilesKey];
+    if (selected.length) [standard setObject:selected forKey:IXProxySelectedKey];
+    else [standard removeObjectForKey:IXProxySelectedKey];
+    [standard setBool:enabled forKey:IXProxyEnabledKey];
+    [standard setBool:kill forKey:IXProxyKillSwitchKey];
+    [standard setBool:block forKey:IXProxyBlockUDPKey];
+    [suite synchronize];
+    [standard synchronize];
+    IXProxyKeychainWrite(@{
+        @"profiles": profiles,
+        @"selected": selected,
+        @"enabled": @(enabled),
+        @"killswitch": @(kill),
+        @"blockudp": @(block)
+    });
+}
+
+- (void)restoreStoredSettings {
+    NSUserDefaults *suite = IXProxySuite();
+    NSUserDefaults *standard = [NSUserDefaults standardUserDefaults];
+    NSArray *suiteProfiles = [suite arrayForKey:IXProxyProfilesKey];
+    NSArray *standardProfiles = [standard arrayForKey:IXProxyProfilesKey];
+    if (suiteProfiles.count == 0 && standardProfiles.count > 0) {
+        [self adoptPayload:@{
+            @"profiles": standardProfiles,
+            @"selected": [standard stringForKey:IXProxySelectedKey] ?: @"",
+            @"enabled": @([standard boolForKey:IXProxyEnabledKey]),
+            @"killswitch": @([standard objectForKey:IXProxyKillSwitchKey] ? [standard boolForKey:IXProxyKillSwitchKey] : YES),
+            @"blockudp": @([standard objectForKey:IXProxyBlockUDPKey] ? [standard boolForKey:IXProxyBlockUDPKey] : YES)
+        }];
+        [self persistSettings];
+        return;
+    }
+    if (suiteProfiles.count == 0) {
+        NSDictionary *saved = IXProxyKeychainRead();
+        if ([saved[@"profiles"] isKindOfClass:[NSArray class]] && [saved[@"profiles"] count] > 0) {
+            [self adoptPayload:saved];
+        }
+    }
+}
+
+- (NSUserDefaults *)settingsStore {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        [self restoreStoredSettings];
+    });
+    return IXProxySuite();
+}
+
 - (BOOL)killSwitch {
-    id value = [[NSUserDefaults standardUserDefaults] objectForKey:IXProxyKillSwitchKey];
+    NSUserDefaults *store = [self settingsStore];
+    id value = [store objectForKey:IXProxyKillSwitchKey];
     if (!value) return YES;
-    return [[NSUserDefaults standardUserDefaults] boolForKey:IXProxyKillSwitchKey];
+    return [store boolForKey:IXProxyKillSwitchKey];
 }
 
 - (BOOL)blockUDP {
-    id value = [[NSUserDefaults standardUserDefaults] objectForKey:IXProxyBlockUDPKey];
+    NSUserDefaults *store = [self settingsStore];
+    id value = [store objectForKey:IXProxyBlockUDPKey];
     if (!value) return YES;
-    return [[NSUserDefaults standardUserDefaults] boolForKey:IXProxyBlockUDPKey];
+    return [store boolForKey:IXProxyBlockUDPKey];
 }
 
 - (BOOL)isEnabled {
-    return [[NSUserDefaults standardUserDefaults] boolForKey:IXProxyEnabledKey];
+    return [[self settingsStore] boolForKey:IXProxyEnabledKey];
 }
 
 - (void)setKillSwitch:(BOOL)on {
-    [[NSUserDefaults standardUserDefaults] setBool:on forKey:IXProxyKillSwitchKey];
+    [[self settingsStore] setBool:on forKey:IXProxyKillSwitchKey];
+    [self persistSettings];
     IXTrafficGuardSetRuntime(IXTrafficGuardVPNOn(), IXTrafficGuardProxyUp(), on, [self blockUDP]);
 }
 
 - (void)setBlockUDP:(BOOL)on {
-    [[NSUserDefaults standardUserDefaults] setBool:on forKey:IXProxyBlockUDPKey];
+    [[self settingsStore] setBool:on forKey:IXProxyBlockUDPKey];
+    [self persistSettings];
     IXTrafficGuardSetRuntime(IXTrafficGuardVPNOn(), IXTrafficGuardProxyUp(), [self killSwitch], on);
 }
 
 - (NSArray<IXVLESSProfile *> *)profiles {
-    NSArray *uris = [[NSUserDefaults standardUserDefaults] arrayForKey:IXProxyProfilesKey];
+    NSArray *uris = [[self settingsStore] arrayForKey:IXProxyProfilesKey];
     NSMutableArray *profiles = [NSMutableArray array];
     for (id item in uris) {
         if (![item isKindOfClass:[NSString class]]) continue;
@@ -172,16 +315,18 @@ static NSError *IXProxyError(NSString *message) {
 }
 
 - (void)storeURIs:(NSArray<NSString *> *)uris selected:(NSString *)selected {
-    [[NSUserDefaults standardUserDefaults] setObject:uris forKey:IXProxyProfilesKey];
+    NSUserDefaults *store = [self settingsStore];
+    [store setObject:uris ?: @[] forKey:IXProxyProfilesKey];
     if (selected.length) {
-        [[NSUserDefaults standardUserDefaults] setObject:selected forKey:IXProxySelectedKey];
+        [store setObject:selected forKey:IXProxySelectedKey];
     } else {
-        [[NSUserDefaults standardUserDefaults] removeObjectForKey:IXProxySelectedKey];
+        [store removeObjectForKey:IXProxySelectedKey];
     }
+    [self persistSettings];
 }
 
 - (nullable IXVLESSProfile *)selectedProfile {
-    NSString *selected = [[NSUserDefaults standardUserDefaults] stringForKey:IXProxySelectedKey];
+    NSString *selected = [[self settingsStore] stringForKey:IXProxySelectedKey];
     NSArray<IXVLESSProfile *> *profiles = [self profiles];
     for (IXVLESSProfile *profile in profiles) {
         if ([profile.uri isEqualToString:selected]) return profile;
@@ -197,7 +342,7 @@ static NSError *IXProxyError(NSString *message) {
     }
     NSMutableArray<NSString *> *uris = [NSMutableArray array];
     for (IXVLESSProfile *profile in [self profiles]) [uris addObject:profile.uri];
-    NSString *selected = [[NSUserDefaults standardUserDefaults] stringForKey:IXProxySelectedKey];
+    NSString *selected = [[self settingsStore] stringForKey:IXProxySelectedKey];
     for (IXVLESSProfile *profile in incoming) {
         if (![uris containsObject:profile.uri]) [uris addObject:profile.uri];
         if (!selected.length) selected = profile.uri;
@@ -221,7 +366,8 @@ static NSError *IXProxyError(NSString *message) {
 
 - (void)selectProfile:(IXVLESSProfile *)profile {
     if (!profile) return;
-    [[NSUserDefaults standardUserDefaults] setObject:profile.uri forKey:IXProxySelectedKey];
+    [[self settingsStore] setObject:profile.uri forKey:IXProxySelectedKey];
+    [self persistSettings];
 }
 
 - (void)stopEngine {
@@ -319,7 +465,8 @@ static NSError *IXProxyError(NSString *message) {
     if (enabled) {
         _status = IXProxyStatusFailed;
         _lastError = [SCIResolvedLanguageCode() hasPrefix:@"fa"] ? @"نسخهٔ سبک اینستاگرام ایکس فیلترشکن ندارد." : @"Instagram X Lite does not include the VPN.";
-        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
+        [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
+        [self persistSettings];
         if (completion) completion(IXProxyError(_lastError));
         return;
     }
@@ -327,7 +474,8 @@ static NSError *IXProxyError(NSString *message) {
     if (!enabled) {
         [self stopEngine];
         _lastError = nil;
-        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
+        [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
+        [self persistSettings];
         if (completion) completion(nil);
         return;
     }
@@ -335,7 +483,8 @@ static NSError *IXProxyError(NSString *message) {
     if (!profile) {
         _status = IXProxyStatusFailed;
         _lastError = @"Add a vless:// link first.";
-        [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
+        [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
+        [self persistSettings];
         if (completion) completion(IXProxyError(_lastError));
         return;
     }
@@ -349,12 +498,14 @@ static NSError *IXProxyError(NSString *message) {
             if (ok) {
                 self->_status = IXProxyStatusConnected;
                 self->_lastError = nil;
-                [[NSUserDefaults standardUserDefaults] setBool:YES forKey:IXProxyEnabledKey];
+                [[self settingsStore] setBool:YES forKey:IXProxyEnabledKey];
+                [self persistSettings];
             } else {
                 [self stopEngine];
                 self->_status = IXProxyStatusFailed;
                 self->_lastError = error.localizedDescription ?: @"Could not start the proxy.";
-                [[NSUserDefaults standardUserDefaults] setBool:NO forKey:IXProxyEnabledKey];
+                [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
+                [self persistSettings];
             }
             if (completion) completion(ok ? nil : error);
         });
@@ -362,6 +513,7 @@ static NSError *IXProxyError(NSString *message) {
 }
 
 - (void)restoreOnLaunch {
+    [self restoreStoredSettings];
     if (IXLaunchGuardIsSafeMode()) {
         NSLog(@"[InstagramX] safe mode: not restoring the VPN");
         return;

@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.1.3";
+NSString *SCIVersionString = @"v2.1.4";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -197,17 +197,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 
     BOOL safeMode = IXLaunchGuardIsSafeMode();
     if (!safeMode) {
-        double openDelay = [SCIUtils getBoolPref:@"tweak_settings_app_launch"] ? 0.0 : 5.0;
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(openDelay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (
-                ![[[NSUserDefaults standardUserDefaults] objectForKey:@"SCInstaFirstRun"] isEqualToString:SCIVersionString]
-                || [SCIUtils getBoolPref:@"tweak_settings_app_launch"]
-            ) {
-                NSLog(@"[InstagramX] First run — showing settings modal");
-                [SCIUtils showSettingsVC:[self window]];
-            }
-        });
-        IXSettingsEntryInstall();
         if ([[NSUserDefaults standardUserDefaults] boolForKey:@"fake_location_enabled"]) {
             SCIFakeLocationInstall();
         }
@@ -221,7 +210,7 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
             if (!presenter) return;
             while (presenter.presentedViewController) presenter = presenter.presentedViewController;
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
-                                                                           message:@"The last launch closed before Instagram X was ready, so the VPN, fake location, and the settings row stayed off. You can turn them on from settings."
+                                                                           message:@"The last launch closed before Instagram X was ready, so the VPN and fake location stayed off. You can turn them on from settings."
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [presenter presentViewController:alert animated:YES completion:nil];

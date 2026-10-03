@@ -14,12 +14,15 @@
 }
 
 %new - (void)addLongPressGestureRecognizer {
-    if ([self.gestureRecognizers count] == 0) {
-        NSLog(@"[SCInsta] Adding tweak settings long press gesture recognizer");
-
-        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
-        [self addGestureRecognizer:longPress];
+    for (UIGestureRecognizer *existing in self.gestureRecognizers) {
+        if ([existing isKindOfClass:[UILongPressGestureRecognizer class]] && existing.minimumPressDuration >= 0.4) return;
     }
+    NSLog(@"[SCInsta] Adding tweak settings long press gesture recognizer");
+    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+    longPress.minimumPressDuration = 0.45;
+    longPress.cancelsTouchesInView = NO;
+    longPress.delaysTouchesBegan = NO;
+    [self addGestureRecognizer:longPress];
 }
 %new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
     if (sender.state != UIGestureRecognizerStateBegan) return;

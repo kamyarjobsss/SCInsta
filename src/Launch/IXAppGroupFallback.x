@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import <Security/Security.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <dlfcn.h>
@@ -38,6 +39,61 @@ static NSString *IXGroupIdentifier(id name) {
     return @"group.com.burbn.instagram";
 }
 
+// Sideload entitlements do not contain the App Store group name. SecItem's
+// default access group is the team-prefixed one. keychainAccessAppGroup
+// returns the identifier ivar, so that ivar has to be this group or the
+// session written at login cannot be read on the next launch.
+static NSString *IXRealKeychainAccessGroup(void) {
+    static NSString *cached;
+    static NSLock *lock;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ lock = [NSLock new]; });
+    [lock lock];
+    if (cached.length) {
+        NSString *found = cached;
+        [lock unlock];
+        return found;
+    }
+    NSDictionary *base = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: @"instagramx.keychain-group-probe",
+        (__bridge id)kSecAttrAccount: @"probe"
+    };
+    NSMutableDictionary *add = [base mutableCopy];
+    add[(__bridge id)kSecValueData] = [@"ix" dataUsingEncoding:NSUTF8StringEncoding];
+    add[(__bridge id)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleAfterFirstUnlock;
+    add[(__bridge id)kSecReturnAttributes] = @YES;
+    CFTypeRef result = NULL;
+    OSStatus status = SecItemAdd((__bridge CFDictionaryRef)add, &result);
+    if (status != errSecSuccess || !result) {
+        if (result) {
+            CFRelease(result);
+            result = NULL;
+        }
+        NSMutableDictionary *query = [base mutableCopy];
+        query[(__bridge id)kSecReturnAttributes] = @YES;
+        query[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
+        status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
+    }
+    if (result && CFGetTypeID(result) == CFDictionaryGetTypeID()) {
+        id group = ((__bridge NSDictionary *)result)[(__bridge id)kSecAttrAccessGroup];
+        if ([group isKindOfClass:[NSString class]] && [group length]) cached = [group copy];
+    }
+    if (result) CFRelease(result);
+    SecItemDelete((__bridge CFDictionaryRef)base);
+    NSString *found = cached;
+    [lock unlock];
+    if (found.length) NSLog(@"[InstagramX] keychain access group %@", found);
+    else NSLog(@"[InstagramX] keychain access group probe failed (%d)", (int)status);
+    return found;
+}
+
+static NSString *IXPersistentSuiteName(void) {
+    // Preferences file inside the app container. Independent of the keychain
+    // access group, and the same suite 2.1.3 already wrote.
+    return @"group.com.burbn.instagram";
+}
+
 static id IXReadIvar(id object, const char *name) {
     if (!object) return nil;
     Ivar ivar = class_getInstanceVariable(object_getClass(object), name);
@@ -60,23 +116,25 @@ static BOOL IXGroupIsUsable(id object) {
     if (!object) return NO;
     id identifier = IXReadIvar(object, "_identifier");
     if (![identifier isKindOfClass:[NSString class]] || [identifier length] == 0) return NO;
+    NSString *real = IXRealKeychainAccessGroup();
+    if (real.length && ![identifier isEqualToString:real]) return NO;
     if (![IXReadIvar(object, "_userDefaults") isKindOfClass:[NSUserDefaults class]]) return NO;
     if (![IXReadIvar(object, "_containerURL") isKindOfClass:[NSURL class]]) return NO;
     return YES;
 }
 
 static void IXFillAppGroup(id object, id name) {
-    NSString *identifier = IXGroupIdentifier(IXReadIvar(object, "_identifier") ?: name);
-    if (![IXReadIvar(object, "_identifier") isKindOfClass:[NSString class]] || [IXReadIvar(object, "_identifier") length] == 0) {
+    NSString *real = IXRealKeychainAccessGroup();
+    NSString *identifier = real.length ? real : IXGroupIdentifier(name);
+    id current = IXReadIvar(object, "_identifier");
+    if (![current isKindOfClass:[NSString class]] || ![current isEqualToString:identifier]) {
         IXWriteIvar(object, "_identifier", [identifier copy]);
     }
-    identifier = IXReadIvar(object, "_identifier");
-    if (![identifier isKindOfClass:[NSString class]] || identifier.length == 0) identifier = IXGroupIdentifier(name);
     if (![IXReadIvar(object, "_userDefaults") isKindOfClass:[NSUserDefaults class]]) {
-        IXWriteIvar(object, "_userDefaults", [[NSUserDefaults alloc] initWithSuiteName:identifier]);
+        IXWriteIvar(object, "_userDefaults", [[NSUserDefaults alloc] initWithSuiteName:IXPersistentSuiteName()]);
     }
     if (![IXReadIvar(object, "_containerURL") isKindOfClass:[NSURL class]]) {
-        IXWriteIvar(object, "_containerURL", IXSandboxGroupURL(identifier));
+        IXWriteIvar(object, "_containerURL", IXSandboxGroupURL(IXGroupIdentifier(name)));
     }
 }
 
@@ -139,6 +197,8 @@ static void IXInstallDirectAppGroup(void) {
     NSString *value = nil;
     @try { value = %orig; }
     @catch (__unused NSException *exception) { value = nil; }
+    NSString *real = IXRealKeychainAccessGroup();
+    if (real.length) return real;
     if ([value isKindOfClass:[NSString class]] && value.length) return value;
     id filled = IXReadIvar(self, "_identifier");
     if ([filled isKindOfClass:[NSString class]] && [filled length]) return filled;

@@ -20,6 +20,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *shortId;
 @property (nonatomic, copy, nullable) NSString *spiderX;
 @property (nonatomic, copy, nullable) NSString *path;
+/// WebSocket early-data budget from `ed` or a path query `?ed=2048`.
+@property (nonatomic) NSInteger earlyData;
 @property (nonatomic, copy, nullable) NSString *wsHost;
 @property (nonatomic, copy, nullable) NSString *serviceName;
 @property (nonatomic, copy, nullable) NSString *alpn;

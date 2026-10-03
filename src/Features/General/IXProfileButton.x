@@ -251,6 +251,66 @@ static void IXArmTabButtons(id controller) {
     IXArmTabButton(IXIvar(controller, "_timelineButton"), YES);
 }
 
+// The configure-array insert is not enough: Instagram rebuilds the visible
+// header later, and the own-profile "+" is the view whose accessibility
+// identifier is profile-add-button. Place a real button in that view's
+// superview, immediately beside it, and drop it when the "+" leaves.
+static char kIXBesideAdd;
+
+static UIButton *IXMenuBeside(UIView *addButton) {
+    UIButton *existing = objc_getAssociatedObject(addButton, &kIXBesideAdd);
+    if ([existing isKindOfClass:[UIButton class]]) return existing;
+    UIButton *button = (UIButton *)IXBuildButton();
+    objc_setAssociatedObject(addButton, &kIXBesideAdd, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return button;
+}
+
+static void IXPlaceMenuBesideAddButton(UIView *addButton) {
+    static __thread int placing = 0;
+    if (placing) return;
+    if (![addButton isKindOfClass:[UIView class]]) return;
+    placing = 1;
+    if (addButton.window == nil) {
+        UIButton *existing = objc_getAssociatedObject(addButton, &kIXBesideAdd);
+        [existing removeFromSuperview];
+        placing = 0;
+        return;
+    }
+    UIView *host = addButton.superview;
+    if (![host isKindOfClass:[UIView class]] || [host isKindOfClass:[UIWindow class]]) {
+        placing = 0;
+        return;
+    }
+    UIButton *button = IXMenuBeside(addButton);
+    if (button.superview != host) {
+        [button removeFromSuperview];
+        [host insertSubview:button aboveSubview:addButton];
+    }
+    CGRect addFrame = addButton.frame;
+    CGFloat size = addFrame.size.height >= 24 ? addFrame.size.height : 32;
+    CGFloat x = CGRectGetMidX(addFrame) <= CGRectGetMidX(host.bounds)
+        ? CGRectGetMaxX(addFrame) + 4
+        : CGRectGetMinX(addFrame) - 4 - size;
+    CGFloat y = CGRectGetMidY(addFrame) - size / 2.0;
+    button.translatesAutoresizingMaskIntoConstraints = YES;
+    button.frame = CGRectMake(x, y, size, size);
+    placing = 0;
+}
+
+static char kIXHamburger;
+
+static void IXArmHamburger(UIView *view) {
+    if (![view isKindOfClass:[UIView class]]) return;
+    if (objc_getAssociatedObject(view, &kIXHamburger)) return;
+    IXEnsureActions();
+    objc_setAssociatedObject(view, &kIXHamburger, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    UILongPressGestureRecognizer *press = [[UILongPressGestureRecognizer alloc] initWithTarget:view action:@selector(ix_settingsGesture:)];
+    press.minimumPressDuration = 0.45;
+    press.cancelsTouchesInView = NO;
+    press.delaysTouchesBegan = NO;
+    [view addGestureRecognizer:press];
+}
+
 %hook IGTabBarController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
@@ -263,6 +323,23 @@ static void IXArmTabButtons(id controller) {
 - (void)_createAndConfigureTimelineButtonIfNeeded {
     %orig;
     IXArmTabButtons(self);
+}
+%end
+
+%hook UIView
+- (void)didMoveToWindow {
+    %orig;
+    NSString *identifier = self.accessibilityIdentifier;
+    if (identifier.length == 0) return;
+    if ([identifier isEqualToString:kIXAddID]) IXPlaceMenuBesideAddButton(self);
+    else if ([identifier isEqualToString:@"profile-more-button"]) IXArmHamburger(self);
+}
+- (void)layoutSubviews {
+    %orig;
+    NSString *identifier = self.accessibilityIdentifier;
+    if (identifier.length == 0) return;
+    if ([identifier isEqualToString:kIXAddID]) IXPlaceMenuBesideAddButton(self);
+    else if ([identifier isEqualToString:@"profile-more-button"]) IXArmHamburger(self);
 }
 %end
 
