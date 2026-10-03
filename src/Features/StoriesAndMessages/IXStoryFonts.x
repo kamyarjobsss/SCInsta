@@ -28,7 +28,15 @@
 //   -[IGStoryTextEntryControlsOverlayView fontPresets]
 //   -getTextFormatsWithCompletionHandler:  v24@0:8@?<v@?@"NSArray"@"NSError">16
 //
-// Preview chips use displayName. Ours is وکسپید, with RTL on the real font-picker labels.
+// Preview chips use displayName. Ours is وکسپید.
+//
+// The chip strip is IGScrollingSelectorView (collection view + custom layout),
+// data source IGStoryTextEntryControlsOverlayView. numberOfItems and
+// itemAtIndexPath read the overlay ivar _textFormats (offset 264) directly.
+// Prepending put the four fonts at index 0, the leading edge. On a Persian
+// phone that edge is to the right, and the selector never scrolls back there
+// (its targetContentOffset path rejects a negative proposed offset). Append
+// them so the data-source count includes them, then center that range once.
 
 static NSString *const IXPreviewText = @"وکسپید";
 
@@ -183,9 +191,10 @@ static NSArray *IXMergeFormats(NSArray *original) {
         }
         [rest addObject:item];
     }
-    [leading addObjectsFromArray:rest];
-    // Never rewrite a list Instagram still owns. Callers keep their array.
-    return [leading copy];
+    // Append. Index 0 stays the font Instagram centers, and the strip's
+    // item count is this array's count, so the new chips are real items.
+    [rest addObjectsFromArray:leading];
+    return [rest copy];
     } @catch (__unused NSException *exception) {
         return original;
     }
@@ -197,21 +206,24 @@ static NSArray *IXMergePresets(NSArray *original) {
     Class formatClass = IXFormatClass();
     if (formatClass && [first isKindOfClass:formatClass]) return IXMergeFormats(original);
     if ([first isKindOfClass:[NSString class]]) {
-        NSMutableArray *merged = [IXFontNames() mutableCopy];
+        NSMutableArray *merged = [NSMutableArray array];
         for (id item in original) {
             if (![merged containsObject:item]) [merged addObject:item];
+        }
+        for (NSString *name in IXFontNames()) {
+            if (![merged containsObject:name]) [merged addObject:name];
         }
         return merged;
     }
     if ([first isKindOfClass:[UIFont class]]) {
         CGFloat size = ((UIFont *)first).pointSize > 0 ? ((UIFont *)first).pointSize : 18;
         NSMutableArray *merged = [NSMutableArray array];
+        for (UIFont *font in original) {
+            if (![font isKindOfClass:[UIFont class]] || !IXIsOurFont(font)) [merged addObject:font];
+        }
         for (NSString *name in IXFontNames()) {
             UIFont *font = IXFont(name, size);
             if (font) [merged addObject:font];
-        }
-        for (UIFont *font in original) {
-            if (![font isKindOfClass:[UIFont class]] || !IXIsOurFont(font)) [merged addObject:font];
         }
         return merged;
     }
@@ -226,7 +238,8 @@ static BOOL IXInFontPicker(UIView *view) {
         NSString *name = NSStringFromClass(current.class);
         if ([name containsString:@"FontCell"] || [name containsString:@"FontPicker"] ||
             [name containsString:@"FontSelector"] || [name containsString:@"IGTextStyleToolFont"] ||
-            [name containsString:@"fontSelector"]) {
+            [name containsString:@"fontSelector"] || [name containsString:@"ScrollingSelector"] ||
+            [name containsString:@"TextCell"]) {
             return YES;
         }
         current = current.superview;
@@ -291,6 +304,76 @@ static void IXWrapGetTextFormats(void) {
 }
 %end
 
+static BOOL IXFormatsIncludeOurs(NSArray *formats) {
+    Class formatClass = IXFormatClass();
+    for (id item in formats) {
+        if (!formatClass || ![item isKindOfClass:formatClass] || ![item respondsToSelector:@selector(loggingName)]) continue;
+        id logging = ((IXIdFn)objc_msgSend)(item, @selector(loggingName));
+        if ([logging isKindOfClass:[NSString class]] && IXIsOurLoggingName(logging)) return YES;
+    }
+    return NO;
+}
+
+static void IXCenterFontIndex(UICollectionView *collection, NSInteger index) {
+    if (collection.numberOfSections < 1) return;
+    NSInteger count = [collection numberOfItemsInSection:0];
+    if (count <= 0) return;
+    if (index < 0) index = 0;
+    if (index >= count) index = count - 1;
+    NSIndexPath *path = [NSIndexPath indexPathForItem:index inSection:0];
+    UICollectionViewLayoutAttributes *attributes = [collection layoutAttributesForItemAtIndexPath:path];
+    if (!attributes || collection.bounds.size.width < 1) {
+        [collection scrollToItemAtIndexPath:path atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
+        return;
+    }
+    CGFloat width = collection.bounds.size.width;
+    CGFloat x = CGRectGetMidX(attributes.frame) - width * 0.5;
+    CGFloat minX = -collection.adjustedContentInset.left;
+    CGFloat maxX = collection.contentSize.width - width + collection.adjustedContentInset.right;
+    if (maxX < minX) maxX = minX;
+    if (x < minX) x = minX;
+    if (x > maxX) x = maxX;
+    [collection setContentOffset:CGPointMake(x, collection.contentOffset.y) animated:NO];
+}
+
+static char IXFontRevealKey;
+
+static void IXRevealFontsOnSelector(id selector) {
+    if (objc_getAssociatedObject(selector, &IXFontRevealKey)) return;
+    Class overlayClass = objc_getClass("IGStoryTextEntryControlsOverlayView");
+    id dataSource = IXIvarObject(selector, "_dataSource");
+    if (!overlayClass || ![dataSource isKindOfClass:overlayClass]) return;
+    NSArray *formats = IXIvarObject(dataSource, "_textFormats");
+    if (![formats isKindOfClass:[NSArray class]] || formats.count == 0) return;
+    NSArray *merged = IXMergeFormats(formats);
+    if (![merged isKindOfClass:[NSArray class]] || !IXFormatsIncludeOurs(merged)) return;
+    UICollectionView *collection = IXIvarObject(selector, "_collectionView");
+    if (![collection isKindOfClass:[UICollectionView class]]) return;
+    objc_setAssociatedObject(selector, &IXFontRevealKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (merged != formats) IXSetIvarObject(dataSource, "_textFormats", merged);
+    // Four fonts sit at the end. Center the second so the row is on screen.
+    NSInteger index = (NSInteger)merged.count - 3;
+    __weak UICollectionView *weakCollection = collection;
+    __weak UIView *weakSelector = [selector isKindOfClass:[UIView class]] ? selector : nil;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UICollectionView *view = weakCollection;
+        if (!view) return;
+        view.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+        weakSelector.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
+        [view reloadData];
+        [view layoutIfNeeded];
+        @try { IXCenterFontIndex(view, index); }
+        @catch (__unused NSException *exception) {}
+    });
+}
+
+%hook IGScrollingSelectorView
+- (void)layoutSubviews {
+    %orig;
+    IXRevealFontsOnSelector(self);
+}
+%end
+
 %hook UILabel
 - (void)setText:(NSString *)text {
     if (!ixPreviewing && self.font.pointSize > 0 && self.font.pointSize <= 32 && IXIsOurFont(self.font) && IXInFontPicker(self)) {
@@ -315,6 +398,7 @@ static void IXWrapGetTextFormats(void) {
 %end
 
 %ctor {
+    %init;
     IXRegisterFonts();
     IXWrapGetTextFormats();
 }

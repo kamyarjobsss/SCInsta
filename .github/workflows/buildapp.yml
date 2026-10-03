@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.1"
+                description: "Publish a prerelease tagged instagram-x-v2.1.2"
                 default: true
                 required: false
                 type: boolean
@@ -212,9 +212,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.1
+                tag_name: instagram-x-v2.1.2
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.1
+                name: Instagram X 2.1.2
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -226,7 +226,7 @@ jobs:
 
                   Socket hooks are data-pointer rebinds and run only while the VPN is on. There is no MSHookFunction. Xray is IXRayCore.dylib with no load command.
 
-                  This release is the full build only. It fixes the post-login abort in IGDirectMDCoreSyncAccountSessionHolder: a sideloaded app has no app-group identifier, and that loader called abort() while opening the account. Missing group containers now fall back to a directory in the app sandbox.
+                  This release is the full build only. It fixes the post-login SIGSEGV in the app-group rebind: the direct METAAppGroup call has no _cmd, and the previous replacement retained a garbage argument. The replacement now returns a real METAAppGroup whose identifier, userDefaults, and containerURL live in the app sandbox. Persian story fonts are appended onto the font chip strip and scrolled into view.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -235,4 +235,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.1"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.2"
