@@ -624,7 +624,7 @@ static dispatch_queue_t IXProxyQueue(void) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *res = NULL;
-    int gai = IXOrigGetaddrinfo(host.UTF8String, NULL, &hints, &res);
+    int gai = IXOrigGetaddrinfo(host.UTF8String, "0", &hints, &res);
     if (gai != 0 || !res || res->ai_family != AF_INET) {
         if (res) freeaddrinfo(res);
         return nil;
