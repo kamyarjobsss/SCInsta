@@ -22,13 +22,13 @@ on:
     workflow_dispatch:
         inputs:
             decrypted_instagram_url:
-                description: "Direct URL to a decrypted Instagram IPA you already have the right to use. The default is the owner's SCInsta 1.1.1 sideload, which this workflow strips before injecting Instagram X."
+                description: "Direct URL to a decrypted Instagram IPA you already have the right to use. The default is the owner's Instagram 436 IPA on the base-ipa release. The workflow strips the closed injection before adding Instagram X."
                 default: "https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/instagram-v436.ipa"
                 required: true
                 type: string
             expected_sha256:
                 description: "sha256 of the input IPA. Use skip to disable the check. Empty falls back to the known base IPA hash."
-                default: "skip"
+                default: "20f6f7d07523d9f3c0b83faf684b544a58555494f3fbf2e13aa862eefb60357a"
                 required: false
                 type: string
             upload_artifact:
@@ -137,7 +137,7 @@ jobs:
               env:
                 THEOS: ${{ github.workspace }}/theos
                 Instagram_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.decrypted_instagram_url || 'https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/instagram-v436.ipa' }}
-                EXPECTED_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha256 || 'skip' }}
+                EXPECTED_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha256 || '20f6f7d07523d9f3c0b83faf684b544a58555494f3fbf2e13aa862eefb60357a' }}
 
             - name: Get Instagram X Version
               id: tweak_version

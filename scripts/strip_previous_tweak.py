@@ -139,10 +139,20 @@ def main() -> int:
             rel = path.relative_to(work).as_posix()
             print(f"[*] updating {rel}")
             _run(["zip", "-q", str(ipa), rel], cwd=work)
+        pending: list[str] = []
+
+        def flush_deletes() -> None:
+            if not pending:
+                return
+            print(f"[*] deleting {len(pending)} zip entries")
+            _run(["zip", "-q", "-d", str(ipa), *pending])
+            pending.clear()
+
         for path in removed_files:
-            rel = path.relative_to(work).as_posix()
-            print(f"[*] deleting {rel}")
-            _run(["zip", "-q", "-d", str(ipa), rel])
+            pending.append(path.relative_to(work).as_posix())
+            if len(pending) >= 40:
+                flush_deletes()
+        flush_deletes()
 
     print(f"[*] stripped IPA written to {ipa}")
     return 0
