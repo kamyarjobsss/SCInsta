@@ -77,6 +77,63 @@ int main(void) {
         IXVLESSProfile *openTrue = [IXVLESSProfile profileFromURI:insecureTrue error:nil];
         IXExpect(openTrue.allowInsecure == YES, @"insecure=true sets allowInsecure");
 
+        profile.dialAddress = @"199.232.11.1";
+        NSData *configData = [[profile xrayJSONWithSocksPort:1080 httpPort:1081] dataUsingEncoding:NSUTF8StringEncoding];
+        NSDictionary *config = [NSJSONSerialization JSONObjectWithData:configData options:0 error:nil];
+        IXExpect([config[@"dns"][@"hosts"][@"mainweb.iwur274.f.garqino.ir"] isEqualToString:@"199.232.11.1"], @"dns.hosts keeps the dial IP off vnext");
+        NSDictionary *still = [[profile xrayOutbound][@"settings"][@"vnext"] firstObject];
+        IXExpect([still[@"address"] isEqualToString:@"mainweb.iwur274.f.garqino.ir"], @"vnext address stays the domain");
+        BOOL direct = NO;
+        BOOL dnsOut = NO;
+        for (NSDictionary *outbound in config[@"outbounds"]) {
+            if ([outbound[@"tag"] isEqualToString:@"direct"] && [outbound[@"protocol"] isEqualToString:@"freedom"]) direct = YES;
+            if ([outbound[@"tag"] isEqualToString:@"dns-out"] && [outbound[@"protocol"] isEqualToString:@"dns"]) dnsOut = YES;
+        }
+        IXExpect(direct, @"freedom outbound tagged direct");
+        IXExpect(dnsOut, @"dns outbound");
+        BOOL dohDirect = NO;
+        for (NSDictionary *rule in config[@"routing"][@"rules"]) {
+            NSArray *ips = rule[@"ip"];
+            if ([rule[@"outboundTag"] isEqualToString:@"direct"] && [ips containsObject:@"1.1.1.1"] && [ips containsObject:@"8.8.8.8"] && [rule[@"port"] isEqualToString:@"443"]) {
+                dohDirect = YES;
+            }
+        }
+        IXExpect(dohDirect, @"DoH addresses on 443 route direct");
+        BOOL localServer = NO;
+        for (id server in config[@"dns"][@"servers"]) {
+            if (![server isKindOfClass:[NSDictionary class]]) continue;
+            NSArray *domains = server[@"domains"];
+            if ([server[@"address"] isEqualToString:@"https+local://1.1.1.1/dns-query"] && [domains containsObject:@"full:mainweb.iwur274.f.garqino.ir"]) {
+                localServer = YES;
+            }
+        }
+        IXExpect(localServer, @"proxy domain resolves with https+local");
+        NSDictionary *httpIn = nil;
+        for (NSDictionary *inbound in config[@"inbounds"]) {
+            if ([inbound[@"tag"] isEqualToString:@"http-in"]) httpIn = inbound;
+        }
+        IXExpect([httpIn[@"sniffing"][@"routeOnly"] isEqual:@YES], @"http-in sniffing is routeOnly");
+        IXExpect([httpIn[@"sniffing"][@"destOverride"] containsObject:@"tls"], @"http-in still sniffs tls");
+
+        NSString *xhttpLink =
+            @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
+            @"?security=tls&type=xhttp"
+            @"&host=Kingkingprofosor1.global.ssl.fastly.net"
+            @"&sni=ssl.fastly.com&fp=chrome&mode=stream-one&alpn=h2&path=%2F"
+            @"&extra=%7B%22xPaddingBytes%22%3A%22100-1000%22%7D";
+        IXVLESSProfile *xhttp = [IXVLESSProfile profileFromURI:xhttpLink error:nil];
+        NSDictionary *xStream = [xhttp xrayOutbound][@"streamSettings"];
+        NSDictionary *xSettings = xStream[@"xhttpSettings"];
+        IXExpect([xSettings[@"host"] isEqualToString:@"Kingkingprofosor1.global.ssl.fastly.net"], @"xhttp host");
+        IXExpect([xSettings[@"mode"] isEqualToString:@"stream-one"], @"xhttp mode");
+        IXExpect([xSettings[@"path"] isEqualToString:@"/"], @"xhttp path");
+        IXExpect([xSettings[@"extra"][@"xPaddingBytes"] isEqualToString:@"100-1000"], @"xhttp extra");
+        IXExpect([xStream[@"tlsSettings"][@"serverName"] isEqualToString:@"ssl.fastly.com"], @"xhttp sni");
+        IXExpect([xStream[@"tlsSettings"][@"fingerprint"] isEqualToString:@"chrome"], @"xhttp fingerprint");
+        IXExpect([xStream[@"tlsSettings"][@"alpn"] isEqual:@[@"h2"]], @"xhttp alpn");
+        NSDictionary *xNext = [[xhttp xrayOutbound][@"settings"][@"vnext"] firstObject];
+        IXExpect([xNext[@"address"] isEqualToString:@"fs.koomeh.net"], @"xhttp dials the address domain");
+
         if (gFailures) {
             fprintf(stderr, "%d failure(s)\n%s\n", gFailures, [outbound description].UTF8String);
             return 1;

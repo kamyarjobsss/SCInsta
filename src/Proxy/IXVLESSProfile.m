@@ -1,4 +1,5 @@
 #import "IXVLESSProfile.h"
+#import <arpa/inet.h>
 
 static NSString *IXPercentDecode(NSString *value) {
     if (value.length == 0) return @"";
@@ -142,7 +143,8 @@ static NSError *IXURIError(NSString *message) {
     profile.wsHost = param(@"host");
     profile.serviceName = param(@"serviceName").length ? param(@"serviceName") : param(@"authority");
     profile.alpn = param(@"alpn");
-    profile.mode = param(@"mode").length ? param(@"mode") : @"auto";
+    profile.mode = param(@"mode");
+    profile.xhttpExtra = param(@"extra");
     BOOL (^flag)(NSString *) = ^BOOL(NSString *value) {
         return [value isEqualToString:@"1"] || [value isEqualToString:@"true"];
     };
@@ -231,11 +233,17 @@ static NSError *IXURIError(NSString *message) {
         stream[@"grpcSettings"] = @{@"serviceName": self.serviceName ?: @""};
     } else if ([self.network isEqualToString:@"xhttp"] || [self.network isEqualToString:@"splithttp"]) {
         stream[@"network"] = @"xhttp";
-        stream[@"xhttpSettings"] = @{
-            @"path": self.path.length ? self.path : @"/",
-            @"host": self.wsHost ?: @"",
-            @"mode": self.mode.length ? self.mode : @"auto"
-        };
+        NSMutableDictionary *xhttp = [@{
+            @"path": self.path.length ? self.path : @"/"
+        } mutableCopy];
+        if (self.wsHost.length) xhttp[@"host"] = self.wsHost;
+        if (self.mode.length) xhttp[@"mode"] = self.mode;
+        if (self.xhttpExtra.length) {
+            NSData *extraData = [self.xhttpExtra dataUsingEncoding:NSUTF8StringEncoding];
+            id extra = extraData ? [NSJSONSerialization JSONObjectWithData:extraData options:0 error:nil] : nil;
+            if ([extra isKindOfClass:[NSDictionary class]]) xhttp[@"extra"] = extra;
+        }
+        stream[@"xhttpSettings"] = xhttp;
     } else if ([self.network isEqualToString:@"h2"] || [self.network isEqualToString:@"http"]) {
         stream[@"network"] = @"h2";
         stream[@"httpSettings"] = @{
@@ -291,15 +299,42 @@ static NSError *IXURIError(NSString *message) {
 }
 
 - (NSString *)xrayJSONWithSocksPort:(uint16_t)socksPort httpPort:(uint16_t)httpPort {
+    NSString *server = self.host ?: @"";
+    NSMutableArray *dnsServers = [NSMutableArray array];
+    if (server.length && ![self ix_hostIsIP:server]) {
+        // https+local sends this lookup from the device, not through the proxy.
+        // Otherwise Xray asks the proxy to resolve its own address and the lookup dies.
+        for (NSString *address in @[
+            @"https+local://1.1.1.1/dns-query",
+            @"https+local://1.0.0.1/dns-query",
+            @"https+local://8.8.8.8/dns-query",
+            @"https+local://8.8.4.4/dns-query"
+        ]) {
+            [dnsServers addObject:@{
+                @"address": address,
+                @"domains": @[[@"full:" stringByAppendingString:server]],
+                @"skipFallback": @YES
+            }];
+        }
+    }
+    [dnsServers addObject:@"https://1.1.1.1/dns-query"];
+    [dnsServers addObject:@"https://dns.google/dns-query"];
+    NSMutableDictionary *dns = [@{
+        @"queryStrategy": @"UseIPv4",
+        @"servers": dnsServers
+    } mutableCopy];
+    if (server.length && self.dialAddress.length && ![self.dialAddress isEqualToString:server]) {
+        dns[@"hosts"] = @{server: self.dialAddress};
+    }
+    NSDictionary *sniff = @{
+        @"enabled": @YES,
+        @"destOverride": @[@"http", @"tls", @"quic"],
+        @"metadataOnly": @NO,
+        @"routeOnly": @YES
+    };
     NSDictionary *config = @{
         @"log": @{@"loglevel": @"warning"},
-        @"dns": @{
-            @"queryStrategy": @"UseIPv4",
-            @"servers": @[
-                @"https://1.1.1.1/dns-query",
-                @"https://8.8.8.8/dns-query"
-            ]
-        },
+        @"dns": dns,
         @"inbounds": @[
             @{
                 @"listen": @"127.0.0.1",
@@ -307,11 +342,7 @@ static NSError *IXURIError(NSString *message) {
                 @"protocol": @"socks",
                 @"settings": @{@"auth": @"noauth", @"udp": @YES},
                 @"tag": @"socks-in",
-                @"sniffing": @{
-                    @"enabled": @YES,
-                    @"destOverride": @[@"http", @"tls", @"quic"],
-                    @"metadataOnly": @NO
-                }
+                @"sniffing": sniff
             },
             @{
                 @"tag": @"http-in",
@@ -322,12 +353,22 @@ static NSError *IXURIError(NSString *message) {
                 @"sniffing": @{
                     @"enabled": @YES,
                     @"destOverride": @[@"http", @"tls"],
-                    @"metadataOnly": @NO
+                    @"metadataOnly": @NO,
+                    @"routeOnly": @YES
                 }
             }
         ],
         @"outbounds": @[
-            [self xrayOutbound]
+            [self xrayOutbound],
+            @{
+                @"tag": @"direct",
+                @"protocol": @"freedom",
+                @"settings": @{@"domainStrategy": @"UseIP"}
+            },
+            @{
+                @"tag": @"dns-out",
+                @"protocol": @"dns"
+            }
         ],
         @"stats": @{},
         @"policy": @{
@@ -337,14 +378,26 @@ static NSError *IXURIError(NSString *message) {
             }
         },
         @"routing": @{
-            // Hostnames stay hostnames so the remote server resolves them.
-            // Sniffing rewrites a poisoned IP destination back to the TLS/HTTP name.
             @"domainStrategy": @"AsIs",
-            @"rules": @[]
+            @"rules": @[
+                @{
+                    @"type": @"field",
+                    @"ip": @[@"1.1.1.1", @"1.0.0.1", @"8.8.8.8", @"8.8.4.4"],
+                    @"port": @"443",
+                    @"outboundTag": @"direct"
+                }
+            ]
         }
     };
     NSData *data = [NSJSONSerialization dataWithJSONObject:config options:0 error:nil];
     return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"{}";
+}
+
+- (BOOL)ix_hostIsIP:(NSString *)host {
+    if (host.length == 0) return NO;
+    struct in_addr v4;
+    struct in6_addr v6;
+    return inet_pton(AF_INET, host.UTF8String, &v4) == 1 || inet_pton(AF_INET6, host.UTF8String, &v6) == 1;
 }
 
 @end

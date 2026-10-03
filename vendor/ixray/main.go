@@ -107,23 +107,38 @@ func ixray_start(configJSON *C.char) *C.char {
 	if inst != nil {
 		_ = inst.Close()
 		inst = nil
+		// The previous listeners release the ports after Close returns.
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
-	if err != nil {
-		return C.CString(err.Error())
+	var last error
+	for attempt := 0; attempt < 5; attempt++ {
+		cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
+		if err != nil {
+			return C.CString(err.Error())
+		}
+		server, err := core.New(cfg)
+		if err != nil {
+			return C.CString(err.Error())
+		}
+		if err = server.Start(); err != nil {
+			_ = server.Close()
+			last = err
+			msg := err.Error()
+			if strings.Contains(msg, "address already in use") || strings.Contains(msg, "bind") {
+				time.Sleep(80 * time.Millisecond)
+				continue
+			}
+			return C.CString(msg)
+		}
+		inst = server
+		enableLog()
+		return nil
 	}
-	server, err := core.New(cfg)
-	if err != nil {
-		return C.CString(err.Error())
+	if last == nil {
+		return C.CString("xray did not start")
 	}
-	if err := server.Start(); err != nil {
-		_ = server.Close()
-		return C.CString(err.Error())
-	}
-	inst = server
-	enableLog()
-	return nil
+	return C.CString(last.Error())
 }
 
 //export ixray_stop

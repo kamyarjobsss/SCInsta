@@ -63,6 +63,55 @@
 }
 @end
 
+static BOOL IXRouteInstagramURL(NSURL *url) {
+    if (!url) return NO;
+    UIApplication *app = UIApplication.sharedApplication;
+    id delegate = app.delegate;
+    SEL modern = @selector(application:openURL:options:);
+    if ([delegate respondsToSelector:modern]) {
+        BOOL handled = ((BOOL (*)(id, SEL, id, NSURL *, NSDictionary *))objc_msgSend)(delegate, modern, app, url, @{});
+        if (handled) return YES;
+    }
+    SEL legacy = @selector(application:openURL:sourceApplication:annotation:);
+    if ([delegate respondsToSelector:legacy]) {
+        BOOL handled = ((BOOL (*)(id, SEL, id, NSURL *, id, id))objc_msgSend)(delegate, legacy, app, url, nil, nil);
+        if (handled) return YES;
+    }
+    for (NSString *name in @[@"IGInstagramURLHandler", @"IGURLHandler"]) {
+        Class cls = objc_getClass(name.UTF8String);
+        SEL handle = @selector(handleURL:);
+        if (cls && [cls respondsToSelector:handle]) {
+            ((void (*)(id, SEL, id))objc_msgSend)(cls, handle, url);
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static void IXOpenK8myarProfile(void) {
+    NSURL *appURL = [NSURL URLWithString:@"instagram://user?username=K8myar"];
+    NSURL *webURL = [NSURL URLWithString:@"https://instagram.com/K8myar"];
+    void (^route)(void) = ^{
+        if (IXRouteInstagramURL(appURL)) return;
+        if (IXRouteInstagramURL(webURL)) return;
+        [UIApplication.sharedApplication openURL:webURL options:@{} completionHandler:nil];
+    };
+    UIWindow *window = nil;
+    for (UIWindow *candidate in UIApplication.sharedApplication.windows) {
+        if (candidate.isKeyWindow) {
+            window = candidate;
+            break;
+        }
+    }
+    UIViewController *top = window.rootViewController;
+    while (top.presentedViewController) top = top.presentedViewController;
+    if (top.presentingViewController) {
+        [top dismissViewControllerAnimated:YES completion:route];
+        return;
+    }
+    route();
+}
+
 @implementation SCITweakSettings
 
 // MARK: - Sections
@@ -77,11 +126,7 @@
                                                            subtitle:SCIVersionString
                                                                icon:nil
                                                              action:^{
-                        NSURL *appURL = [NSURL URLWithString:@"instagram://user?username=K8myar"];
-                        NSURL *webURL = [NSURL URLWithString:@"https://instagram.com/K8myar"];
-                        UIApplication *app = UIApplication.sharedApplication;
-                        NSURL *open = ([app canOpenURL:appURL]) ? appURL : webURL;
-                        [app openURL:open options:@{} completionHandler:nil];
+                        IXOpenK8myarProfile();
                     }];
                     s.bundleImageName = @"wexpid-logo";
                     s.titleColor = [UIColor labelColor];

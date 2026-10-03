@@ -123,16 +123,13 @@ static char rowStaticRef[] = "row";
         NSString *path = [bundle pathForResource:@"wexpid-logo" ofType:@"png"];
         if (path) logo = [UIImage imageWithContentsOfFile:path];
     }
-    UIView *header = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, 128)];
+    UIView *header = [[UIView alloc] initWithFrame:CGRectMake(0, 0, width, 112)];
     header.backgroundColor = UIColor.clearColor;
-    UIImageView *mark = [[UIImageView alloc] initWithFrame:CGRectMake((width - 96) / 2.0, 12, 96, 96)];
-    mark.image = logo;
+    UIImageView *mark = [[UIImageView alloc] initWithFrame:CGRectMake((width - 88) / 2.0, 8, 88, 88)];
+    mark.image = [logo imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    mark.tintColor = UIColor.labelColor;
     mark.contentMode = UIViewContentModeScaleAspectFit;
-    mark.backgroundColor = UIColor.whiteColor;
-    mark.layer.cornerRadius = 22;
-    mark.clipsToBounds = YES;
-    mark.layer.borderWidth = 1.0 / UIScreen.mainScreen.scale;
-    mark.layer.borderColor = UIColor.separatorColor.CGColor;
+    mark.backgroundColor = UIColor.clearColor;
     [header addSubview:mark];
     self.tableView.tableHeaderView = header;
 }
@@ -323,9 +320,12 @@ static char rowStaticRef[] = "row";
                                   inBundle:SCILocalizationBundle()
              compatibleWithTraitCollection:nil];
         if (img) {
+            BOOL mark = [row.bundleImageName isEqualToString:@"wexpid-logo"];
+            if (mark) img = [img imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
             cellContentConfig.image = img;
             cellContentConfig.imageProperties.maximumSize = CGSizeMake(45, 45);
-            cellContentConfig.imageProperties.cornerRadius = 10;
+            cellContentConfig.imageProperties.cornerRadius = mark ? 0 : 10;
+            if (mark) cellContentConfig.imageProperties.tintColor = UIColor.labelColor;
             cellContentConfig.imageToTextPadding = 14;
         }
     }

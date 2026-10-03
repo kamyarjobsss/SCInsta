@@ -79,13 +79,22 @@ static NSError *IXProxyError(NSString *message) {
     return [NSError errorWithDomain:@"InstagramX.Proxy" code:1 userInfo:@{NSLocalizedDescriptionKey: message ?: @"Proxy error"}];
 }
 
+static dispatch_queue_t IXProxyQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        queue = dispatch_queue_create("instagramx.proxy", DISPATCH_QUEUE_SERIAL);
+    });
+    return queue;
+}
+
 @interface IXDoHTrust : NSObject <NSURLSessionDelegate>
 @end
 
 @implementation IXDoHTrust
 - (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
     NSString *host = challenge.protectionSpace.host ?: @"";
-    BOOL known = [host isEqualToString:@"1.1.1.1"] || [host isEqualToString:@"1.0.0.1"] || [host isEqualToString:@"8.8.8.8"] || [host isEqualToString:@"8.8.4.4"];
+    BOOL known = [host isEqualToString:@"1.1.1.1"] || [host isEqualToString:@"1.0.0.1"] || [host isEqualToString:@"8.8.8.8"] || [host isEqualToString:@"8.8.4.4"] || [host isEqualToString:@"dns.google"] || [host isEqualToString:@"cloudflare-dns.com"];
     if (known && challenge.protectionSpace.serverTrust &&
         [challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
         completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust]);
@@ -392,13 +401,14 @@ static NSError *IXProxyError(NSString *message) {
     if (error) *error = IXProxyError(@"Instagram X Lite does not include the VPN.");
     return NO;
 #else
+    // Resolve before the traffic hooks exist. URLSession here is a direct
+    // connection, and the IP is only written into dns.hosts. vnext stays the domain.
+    if ([self hostIsAddress:profile.host]) profile.dialAddress = nil;
+    else profile.dialAddress = [self resolveHost:profile.host];
     if (!IXTrafficGuardInstall()) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;
     }
-    // Dial the link's address. Xray resolves it through DoH. A pre-resolved
-    // Fastly IP can land on a different service than the websocket host / SNI.
-    profile.dialAddress = nil;
     IXTrafficGuardSetPorts(kSocksPort, kHTTPPort);
     IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
     // Fail closed while the listener is coming up.
@@ -495,7 +505,7 @@ static NSError *IXProxyError(NSString *message) {
     }
     _status = IXProxyStatusConnecting;
     _lastError = nil;
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+    dispatch_async(IXProxyQueue(), ^{
         [self stopEngine];
         NSError *error = nil;
         BOOL ok = [self startProfile:profile error:&error];
@@ -608,39 +618,68 @@ static NSError *IXProxyError(NSString *message) {
     return nil;
 }
 
+- (NSString *)resolveHostBySystem:(NSString *)host {
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo *res = NULL;
+    int gai = IXOrigGetaddrinfo(host.UTF8String, NULL, &hints, &res);
+    if (gai != 0 || !res || res->ai_family != AF_INET) {
+        if (res) freeaddrinfo(res);
+        return nil;
+    }
+    char buf[INET_ADDRSTRLEN];
+    const char *text = inet_ntop(AF_INET, &((struct sockaddr_in *)res->ai_addr)->sin_addr, buf, sizeof(buf));
+    NSString *ip = text ? [NSString stringWithUTF8String:text] : nil;
+    freeaddrinfo(res);
+    if (ip.length) [self note:[NSString stringWithFormat:@"Resolved %@ to %@ with the system resolver.", host, ip]];
+    return ip.length ? ip : nil;
+}
+
 - (NSString *)resolveHost:(NSString *)host {
     if ([self hostIsAddress:host]) return host;
     NSString *escaped = [host stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: host;
     NSArray<NSString *> *urls = @[
         [NSString stringWithFormat:@"https://1.1.1.1/dns-query?name=%@&type=A", escaped],
         [NSString stringWithFormat:@"https://1.0.0.1/dns-query?name=%@&type=A", escaped],
-        [NSString stringWithFormat:@"https://8.8.8.8/resolve?name=%@&type=A", escaped]
+        [NSString stringWithFormat:@"https://8.8.8.8/resolve?name=%@&type=A", escaped],
+        [NSString stringWithFormat:@"https://8.8.4.4/resolve?name=%@&type=A", escaped],
+        [NSString stringWithFormat:@"https://dns.google/resolve?name=%@&type=A", escaped],
+        [NSString stringWithFormat:@"https://cloudflare-dns.com/dns-query?name=%@&type=A", escaped]
     ];
     IXDoHTrust *trust = [IXDoHTrust new];
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    config.connectionProxyDictionary = @{};
-    config.timeoutIntervalForRequest = 6;
+    config.connectionProxyDictionary = @{@"HTTPEnable": @NO, @"HTTPSEnable": @NO, @"SOCKSEnable": @NO};
+    config.timeoutIntervalForRequest = 4;
     NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:trust delegateQueue:nil];
+    dispatch_semaphore_t done = dispatch_semaphore_create(0);
+    NSLock *lock = [NSLock new];
+    __block NSString *found = nil;
     for (NSString *raw in urls) {
-        dispatch_semaphore_t gate = dispatch_semaphore_create(0);
-        __block NSData *body = nil;
         NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:raw]];
         [request setValue:@"application/dns-json" forHTTPHeaderField:@"Accept"];
         NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (!error) body = data;
-            dispatch_semaphore_signal(gate);
+            (void)response;
+            NSString *ip = error ? nil : [self addressFromDoHJSON:data];
+            if (ip.length) {
+                [lock lock];
+                if (!found) found = [ip copy];
+                [lock unlock];
+                dispatch_semaphore_signal(done);
+            }
         }];
         [task resume];
-        dispatch_semaphore_wait(gate, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(7 * NSEC_PER_SEC)));
-        NSString *ip = [self addressFromDoHJSON:body];
-        if (ip.length) {
-            [self note:[NSString stringWithFormat:@"Resolved %@ to %@ without the system resolver.", host, ip]];
-            [session finishTasksAndInvalidate];
-            return ip;
-        }
     }
-    [session finishTasksAndInvalidate];
-    [self note:[NSString stringWithFormat:@"Could not resolve %@ with DNS-over-HTTPS. The link's host will be used as written.", host]];
+    dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)));
+    [session invalidateAndCancel];
+    if (found.length) {
+        [self note:[NSString stringWithFormat:@"Resolved %@ to %@ by direct DNS-over-HTTPS.", host, found]];
+        return found;
+    }
+    NSString *system = [self resolveHostBySystem:host];
+    if (system.length) return system;
+    [self note:[NSString stringWithFormat:@"Could not resolve %@. Xray will resolve it on the direct outbound.", host]];
     return nil;
 }
 

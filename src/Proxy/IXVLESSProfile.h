@@ -26,9 +26,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *serviceName;
 @property (nonatomic, copy, nullable) NSString *alpn;
 @property (nonatomic, copy, nullable) NSString *mode;
+/// Raw JSON object from the link's `extra` query, used by xhttp.
+@property (nonatomic, copy, nullable) NSString *xhttpExtra;
 @property (nonatomic) BOOL allowInsecure;
 @property (nonatomic) BOOL needsXray;
-/// Unused by the Xray outbound. The dial target is `host` so Fastly can route on SNI.
+/// Resolved address for `dns.hosts` only. `vnext.address` stays the domain.
 @property (nonatomic, copy, nullable) NSString *dialAddress;
 
 + (nullable instancetype)profileFromURI:(NSString *)uri error:(NSError * _Nullable * _Nullable)error;

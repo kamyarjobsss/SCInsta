@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.5"
+                description: "Publish a prerelease tagged instagram-x-v2.1.6"
                 default: true
                 required: false
                 type: boolean
@@ -221,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.5
+                tag_name: instagram-x-v2.1.6
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.5
+                name: Instagram X 2.1.6
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -237,11 +237,9 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.4 closed the VLESS socket with websocket close 1000 because the outbound overwrote the link's websocket host and TLS SNI with the address, and dialed a DoH-resolved Fastly IP. Fastly then routed the request to the wrong service. v2.1.5 copies host, sni, fingerprint, alpn, path, and ed verbatim, puts the host on wsSettings.host, and dials the address domain so Xray resolves it. `insecure` is accepted as an alias of `allowInsecure`.
+                  v2.1.5 sent Xray's DNS-over-HTTPS for the proxy domain through the proxy, so the lookup timed out before the tunnel existed. v2.1.6 resolves that domain on the device, stores the address in dns.hosts, and routes the DoH server IPs to a freedom outbound named direct. xhttp keeps the link's mode, alpn, and extra. Sniffing uses routeOnly. Switching servers restarts Xray on one queue.
 
-                  Story font chips snapped after a few scrolls because the four Persian copies share a real format type with later stock fonts, and the editor keeps the first type match. The chip the user scrolled to stays selected, and reused cells show وکسپید in our font or the stock preview on Instagram's chips.
-
-                  The profile header mark uses the same frame and tint as the + button. The settings screen shows the Wexpid logo and an Instagram @K8myar row. A METAAppGroup that already has an identifier, defaults, and container is left as Instagram created it. Only a nil identifier is filled, and the container path stays Library/Application Support/IXAppGroup.
+                  Story font selection follows the chip the user tapped. The type search no longer jumps to the first of the four prepended fonts. The settings logo is a transparent template glyph, and Instagram: @K8myar opens that profile through Instagram's URL handler.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -250,4 +248,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.5"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.6"
