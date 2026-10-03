@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.1.0";
+NSString *SCIVersionString = @"v2.1.1";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -228,10 +228,6 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
         });
     }
 
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        IXLaunchGuardMarkReady();
-    });
-
     return true;
 }
 
@@ -258,6 +254,10 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
     %orig;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
+        // The tab bar is the logged-in UI. Marking ready here, not a few
+        // seconds after launch, is what makes a post-login crash loop trip
+        // safe mode on the next start.
+        IXLaunchGuardMarkReady();
         [SCIChangelog presentIfNewFromWindow:self.view.window];
     });
 }

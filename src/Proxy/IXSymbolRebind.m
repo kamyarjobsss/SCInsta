@@ -87,7 +87,7 @@ static int IXNameMatch(const char *symbol, const char *const *names, unsigned co
 }
 
 static int IXRebindImage(const struct mach_header *header, intptr_t slide, const char *path,
-                         const char *const *names, void *const *replacements, unsigned count) {
+                         const char *const *names, void *const *replacements, unsigned count, int remember) {
     if (!header || header->magic != MH_MAGIC_64) return 0;
     if (path && strstr(path, "IXRayCore")) return 0;
 
@@ -159,7 +159,7 @@ static int IXRebindImage(const struct mach_header *header, intptr_t slide, const
                         if (!IXMakeDataWritable(slots, sect->size)) break;
                         writable = 1;
                     }
-                    if (!IXRemember(&slots[index], existing)) return patched;
+                    if (remember && !IXRemember(&slots[index], existing)) return patched;
                     slots[index] = IXSignLike(&slots[index], existing, replacement);
                     patched++;
                 }
@@ -175,13 +175,12 @@ static void *ix_saved_repl[8];
 static unsigned ix_saved_count = 0;
 static int ix_rebind_live = 0;
 static int ix_image_callback = 0;
+static const char *ix_perm_names[4];
+static void *ix_perm_repl[4];
+static unsigned ix_perm_count = 0;
 
 static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
     pthread_mutex_lock(&ix_rebind_mu);
-    if (!ix_rebind_live || ix_saved_count == 0) {
-        pthread_mutex_unlock(&ix_rebind_mu);
-        return;
-    }
     const char *path = NULL;
     uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
@@ -190,7 +189,12 @@ static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
             break;
         }
     }
-    IXRebindImage(header, slide, path, ix_saved_names, ix_saved_repl, ix_saved_count);
+    if (ix_rebind_live && ix_saved_count) {
+        IXRebindImage(header, slide, path, ix_saved_names, ix_saved_repl, ix_saved_count, 1);
+    }
+    if (ix_perm_count) {
+        IXRebindImage(header, slide, path, ix_perm_names, ix_perm_repl, ix_perm_count, 0);
+    }
     pthread_mutex_unlock(&ix_rebind_mu);
 }
 
@@ -208,7 +212,7 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
     for (uint32_t i = 0; i < images; i++) {
         const char *path = _dyld_get_image_name(i);
         patched += IXRebindImage(_dyld_get_image_header(i), _dyld_get_image_vmaddr_slide(i), path,
-                                 names, replacements, count);
+                                 names, replacements, count, 1);
     }
     int registerCallback = 0;
     if (!ix_image_callback) {
@@ -218,6 +222,42 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
     pthread_mutex_unlock(&ix_rebind_mu);
     // Registration invokes the callback for images already loaded. That must
     // happen without ix_rebind_mu held, because the callback takes the same lock.
+    if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);
+    return patched;
+}
+
+int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count) {
+    if (!names || !replacements || count == 0) return 0;
+    pthread_mutex_lock(&ix_rebind_mu);
+    unsigned kept = count > 4 ? 4 : count;
+    for (unsigned i = 0; i < kept; i++) {
+        int found = 0;
+        for (unsigned j = 0; j < ix_perm_count; j++) {
+            if (ix_perm_names[j] && names[i] && strcmp(ix_perm_names[j], names[i]) == 0) {
+                ix_perm_repl[j] = replacements[i];
+                found = 1;
+                break;
+            }
+        }
+        if (!found && ix_perm_count < 4) {
+            ix_perm_names[ix_perm_count] = names[i];
+            ix_perm_repl[ix_perm_count] = replacements[i];
+            ix_perm_count++;
+        }
+    }
+    int patched = 0;
+    uint32_t images = _dyld_image_count();
+    for (uint32_t i = 0; i < images; i++) {
+        const char *path = _dyld_get_image_name(i);
+        patched += IXRebindImage(_dyld_get_image_header(i), _dyld_get_image_vmaddr_slide(i), path,
+                                 ix_perm_names, ix_perm_repl, ix_perm_count, 0);
+    }
+    int registerCallback = 0;
+    if (!ix_image_callback) {
+        ix_image_callback = 1;
+        registerCallback = 1;
+    }
+    pthread_mutex_unlock(&ix_rebind_mu);
     if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);
     return patched;
 }

@@ -11,6 +11,12 @@
 int IXSymbolRebindSlots(const char *const *names, void *const *replacements, unsigned count);
 
 /// Put every slot from the last successful rebind back.
+/// Slots written by IXSymbolRebindPermanent are left in place.
 void IXSymbolRebindRestore(void);
+
+/// Same data-pointer rebind, but VPN restore does not undo it, and a later
+/// IXSymbolRebindSlots call does not drop these names. Used for the app-group
+/// symbols Instagram calls directly after login.
+int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count);
 
 #endif

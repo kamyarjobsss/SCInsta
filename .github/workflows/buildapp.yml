@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.0"
+                description: "Publish a prerelease tagged instagram-x-v2.1.1"
                 default: true
                 required: false
                 type: boolean
@@ -165,7 +165,7 @@ jobs:
                 fi
                 ./build.sh sideload
                 test -f packages/InstagramX-sideloaded.ipa
-                test -f packages/InstagramX-lite-sideloaded.ipa
+                test ! -f packages/InstagramX-lite-sideloaded.ipa
                 ls -la packages
               env:
                 THEOS: ${{ github.workspace }}/theos
@@ -177,16 +177,13 @@ jobs:
               run: |
                 cd main/packages
                 mv InstagramX-sideloaded.ipa "InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
-                mv InstagramX-lite-sideloaded.ipa "InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
 
             - name: Sanity check the IPA
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
                 cd main
                 FULL="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
-                LITE="packages/InstagramX_lite_sideloaded_v${SCINSTA_VERSION}.ipa"
                 python3 scripts/check_sideload_ipa.py "$FULL"
-                python3 scripts/check_sideload_ipa.py "$LITE" --lite
                 # otool is the check the owner asked for. The Python check above
                 # is what fails the job; this prints the same load list.
                 TMP=$(mktemp -d)
@@ -209,16 +206,15 @@ jobs:
                 name: InstagramX_v${{ steps.tweak_version.outputs.version }}
                 path: |
                   ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
-                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.0
+                tag_name: instagram-x-v2.1.1
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.0
+                name: Instagram X 2.1.1
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -230,14 +226,13 @@ jobs:
 
                   Socket hooks are data-pointer rebinds and run only while the VPN is on. There is no MSHookFunction. Xray is IXRayCore.dylib with no load command.
 
-                  InstagramX_sideloaded is the full build. InstagramX_lite_sideloaded has no VPN and no Xray. They share a bundle id, so only one can be installed at a time.
+                  This release is the full build only. It fixes the post-login abort in IGDirectMDCoreSyncAccountSessionHolder: a sideloaded app has no app-group identifier, and that loader called abort() while opening the account. Missing group containers now fall back to a directory in the app sandbox.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
                   ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
-                  ${{ github.workspace }}/main/packages/InstagramX_lite_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
 
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.0"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.1"

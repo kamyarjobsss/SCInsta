@@ -2,6 +2,7 @@
 #import "../../Localization/SCILocalization.h"
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import <string.h>
 
 // Own-profile header button. Instagram lays the "+" out as the first left
 // button; this inserts the mark immediately after it. No floating overlay.
@@ -70,6 +71,7 @@ static void IXConfigureHeader(id self, SEL _cmd, id titleView, id leftButtons, i
         if (ix_orig_configure) ix_orig_configure(self, _cmd, titleView, leftButtons, rightButtons, titleIsCentered);
         return;
     }
+    @try {
     NSArray *left = [leftButtons isKindOfClass:[NSArray class]] ? leftButtons : @[];
     BOOL already = NO;
     for (id wrapper in left) {
@@ -103,6 +105,9 @@ static void IXConfigureHeader(id self, SEL _cmd, id titleView, id leftButtons, i
         }
     }
     ix_orig_configure(self, _cmd, titleView, patchedLeft, rightButtons, titleIsCentered);
+    } @catch (__unused NSException *exception) {
+        ix_orig_configure(self, _cmd, titleView, leftButtons, rightButtons, titleIsCentered);
+    }
 }
 
 %ctor {
@@ -111,6 +116,13 @@ static void IXConfigureHeader(id self, SEL _cmd, id titleView, id leftButtons, i
     SEL sel = @selector(configureWithTitleView:leftButtons:rightButtons:titleIsCentered:);
     Method method = class_getInstanceMethod(cls, sel);
     if (!method) return;
+    const char *types = method_getTypeEncoding(method);
+    // Instagram 436 does not put this selector in a relative method list, so
+    // refuse any signature other than (title, left, right, centered BOOL).
+    if (!types || (strcmp(types, "v36@0:8@16@24@32B36") != 0 && strcmp(types, "v36@0:8@16@24@32c36") != 0)) {
+        NSLog(@"[InstagramX] profile header hook skipped, encoding %s", types ?: "?");
+        return;
+    }
     ix_orig_configure = (void (*)(id, SEL, id, id, id, BOOL))method_getImplementation(method);
     method_setImplementation(method, (IMP)IXConfigureHeader);
 }

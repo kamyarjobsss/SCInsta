@@ -155,6 +155,7 @@ static NSArray *IXScriptUnion(NSArray *original, id template) {
 
 static NSArray *IXMergeFormats(NSArray *original) {
     if (original && ![original isKindOfClass:[NSArray class]]) return original;
+    @try {
     Class formatClass = IXFormatClass();
     id template = nil;
     CGFloat pointSize = 24;
@@ -183,13 +184,11 @@ static NSArray *IXMergeFormats(NSArray *original) {
         [rest addObject:item];
     }
     [leading addObjectsFromArray:rest];
-    if ([original isKindOfClass:[NSMutableArray class]]) {
-        NSMutableArray *mutable = (NSMutableArray *)original;
-        [mutable removeAllObjects];
-        [mutable addObjectsFromArray:leading];
-        return mutable;
+    // Never rewrite a list Instagram still owns. Callers keep their array.
+    return [leading copy];
+    } @catch (__unused NSException *exception) {
+        return original;
     }
-    return leading;
 }
 
 static NSArray *IXMergePresets(NSArray *original) {

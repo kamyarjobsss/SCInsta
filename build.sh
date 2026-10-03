@@ -238,10 +238,6 @@ then
 
     echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/$IPA_OUT"
 
-    # The sideload entry point builds the full IPA, then the lite IPA.
-    if [[ "${IX_LITE:-}" != "1" && "$2" != "--dev" && "$2" != "--buildonly" && "$2" != "--devquick" ]]; then
-        IX_LITE=1 IX_DISPLAY_NAME="Instagram X Lite" ./build.sh sideload
-    fi
     if [[ -n "${IX_BUNDLE_ID:-}" ]]; then
         echo "Bundle id: ${IX_BUNDLE_ID} (installs next to the App Store app)"
     else
