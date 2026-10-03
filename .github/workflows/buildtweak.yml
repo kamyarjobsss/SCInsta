@@ -1,24 +1,25 @@
-name: Build SCInsta tweak for Rootless
+name: Build Instagram X tweak for Rootless
 
 on:
     push:
         branches:
             - 'main'
             - 'dev'
+    pull_request:
     workflow_dispatch:
-  
+
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 jobs:
     build:
-        name: Build SCInsta Rootless
+        name: Build Instagram X Rootless
         runs-on: macos-latest
         permissions:
             contents: write
 
         steps:
-            - name: Checkout Main
+            - name: Checkout
               uses: actions/checkout@v4
               with:
                 path: main
@@ -28,7 +29,12 @@ jobs:
               run: brew install ldid dpkg make
 
             - name: Set PATH environment variable
-              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH 
+              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: '1.26.x'
 
             - name: Setup Theos
               uses: actions/checkout@v4
@@ -51,7 +57,7 @@ jobs:
                 git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
               env:
                 THEOS: ${{ github.workspace }}/theos
-        
+
             - name: SDK Caching
               id: SDK
               uses: actions/cache@v4
@@ -73,38 +79,32 @@ jobs:
               env:
                 THEOS: ${{ github.workspace }}/theos
 
-            - name: Get SCInsta Version
-              id: scinsta_version
+            - name: Get Instagram X Version
+              id: tweak_version
               run: |
                 SCINSTA_VERSION=$(awk '/Version:/ {print $2}' main/control)
-
                 echo "SCINSTA_VERSION=${SCINSTA_VERSION}" >> "$GITHUB_ENV"
                 echo "version=${SCINSTA_VERSION}" >> "$GITHUB_OUTPUT"
-            
-            - name: Build SCInsta tweak for Rootless
-              run: |                
-                cd main
-                ls -la
 
+            - name: Build Instagram X tweak for Rootless
+              run: |
+                cd main
+                chmod +x build.sh scripts/build_ixray.sh
                 ./build.sh rootless
                 ls -la packages
-                
               env:
                 THEOS: ${{ github.workspace }}/theos
 
             - name: Rename deb to include version info
               run: |
                 cd main/packages
-                mv "$(ls -t | head -n1)" "com.socuul.scinsta_${SCINSTA_VERSION}+debug-rootless.deb"
-
-            - name: Pass package name to upload action
-              id: package_name
-              run: |
-                echo "package=$(ls -t main/packages | head -n1)" >> "$GITHUB_OUTPUT"
+                deb="$(ls -1 com.kamyar.instagramx_*.deb | head -n1)"
+                test -n "$deb"
+                mv "$deb" "com.kamyar.instagramx_${SCINSTA_VERSION}+debug-rootless.deb"
 
             - name: Upload Artifact
               uses: actions/upload-artifact@v4
               with:
-                name: ${{ steps.package_name.outputs.package }}
-                path: ${{ github.workspace }}/main/packages/${{ steps.package_name.outputs.package }}
+                name: com.kamyar.instagramx_${{ steps.tweak_version.outputs.version }}+debug-rootless.deb
+                path: ${{ github.workspace }}/main/packages/com.kamyar.instagramx_${{ steps.tweak_version.outputs.version }}+debug-rootless.deb
                 if-no-files-found: error

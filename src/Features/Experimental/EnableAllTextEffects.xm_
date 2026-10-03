@@ -1,3 +1,6 @@
+// DISABLED. The trailing underscore keeps this file out of the Theos build.
+// Expanding text-effect indexes past the build's real range crashes story editing,
+// so this stays unwired instead of shipping behind a toggle.
 #import "../../Utils.h"
 #import "../../InstagramHeaders.h"
 

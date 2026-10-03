@@ -4,24 +4,38 @@
 
 // Confirmation handlers
 
+static BOOL ix_likeArmed = NO;
+
 #define CONFIRMPOSTLIKE(orig)                             \
-    if ([SCIUtils getBoolPref:@"like_confirm"]) {           \
+    if (ix_likeArmed) {                                   \
+        orig;                                             \
+    }                                                     \
+    else if ([SCIUtils getBoolPref:@"like_confirm"]) {    \
         NSLog(@"[SCInsta] Confirm post like triggered");  \
-                                                          \
-        [SCIUtils showConfirmation:^(void) { orig; }];    \
+        [SCIUtils showConfirmation:^{                     \
+            ix_likeArmed = YES;                           \
+            orig;                                         \
+            ix_likeArmed = NO;                            \
+        } title:@"Like this?"];                           \
     }                                                     \
     else {                                                \
-        return orig;                                      \
+        orig;                                             \
     }                                                     \
 
 #define CONFIRMREELSLIKE(orig)                            \
-    if ([SCIUtils getBoolPref:@"like_confirm_reels"]) {     \
+    if (ix_likeArmed) {                                   \
+        orig;                                             \
+    }                                                     \
+    else if ([SCIUtils getBoolPref:@"like_confirm_reels"]) { \
         NSLog(@"[SCInsta] Confirm reels like triggered"); \
-                                                          \
-        [SCIUtils showConfirmation:^(void) { orig; }];    \
+        [SCIUtils showConfirmation:^{                     \
+            ix_likeArmed = YES;                           \
+            orig;                                         \
+            ix_likeArmed = NO;                            \
+        } title:@"Like this reel?"];                      \
     }                                                     \
     else {                                                \
-        return orig;                                      \
+        orig;                                             \
     }                                                     \
 
 ///////////////////////////////////////////////////////////
@@ -108,37 +122,83 @@
     CONFIRMPOSTLIKE(%orig);
 }
 
-// For some stupid reason they removed the "liketapped" methods on newer Instagram versions
-// Now we have to do a shitty workaround instead :(
-// Works 99% of the time, but sometimes clicks get through directly to the like button (somehow)
+// The heart control is not always reached through _handleLikeTapped / _likeTapped.
+// Cover it on every layout and swallow touches that would otherwise send immediately.
 - (void)layoutSubviews {
     %orig;
 
-    if (![SCIUtils getBoolPref:@"like_confirm"]) return;
+    UIView *likeButton = nil;
+    @try { likeButton = [self valueForKey:@"likeButton"]; } @catch (NSException *exception) { likeButton = nil; }
+    if (![likeButton isKindOfClass:[UIView class]]) {
+        @try { likeButton = [self valueForKey:@"_likeButton"]; } @catch (NSException *exception) { likeButton = nil; }
+    }
+    if (![likeButton isKindOfClass:[UIView class]]) return;
 
-    UIButton *likeButton = [self valueForKey:@"likeButton"];
-    if (!likeButton) return;
-
-    // 129115 = L(12) I(9) K(11) E(5)
     static NSInteger kOverlayTag = 129115;
-    if ([likeButton viewWithTag:kOverlayTag]) return;
+    UIButton *overlay = (UIButton *)[likeButton viewWithTag:kOverlayTag];
+    if (![SCIUtils getBoolPref:@"like_confirm"]) {
+        [overlay removeFromSuperview];
+        return;
+    }
 
-    UIButton *overlay = [UIButton buttonWithType:UIButtonTypeCustom];
-    overlay.tag = kOverlayTag;
+    if (![overlay isKindOfClass:[UIButton class]]) {
+        overlay = [UIButton buttonWithType:UIButtonTypeCustom];
+        overlay.tag = kOverlayTag;
+        overlay.backgroundColor = [UIColor clearColor];
+        [overlay addTarget:self action:@selector(ix_overlayTapped:) forControlEvents:UIControlEventTouchUpInside];
+        [likeButton addSubview:overlay];
+    }
     overlay.frame = likeButton.bounds;
     overlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [overlay addTarget:self action:@selector(overlayTapped:) forControlEvents:UIControlEventTouchUpInside];
-    [likeButton addSubview:overlay];
+    [likeButton bringSubviewToFront:overlay];
+    for (UIGestureRecognizer *gesture in likeButton.gestureRecognizers) {
+        gesture.enabled = NO;
+    }
 }
 
-%new - (void)overlayTapped:(UIButton *)overlay {
-    UIButton *likeButton = (UIButton *)overlay.superview;
-
+%new - (void)ix_overlayTapped:(UIButton *)overlay {
+    UIControl *likeButton = (UIControl *)overlay.superview;
     [SCIUtils showConfirmation:^{
-        dispatch_async(dispatch_get_main_queue(), ^{
+        ix_likeArmed = YES;
+        if ([likeButton isKindOfClass:[UIControl class]]) {
             [likeButton sendActionsForControlEvents:UIControlEventTouchUpInside];
-        });
-    }];
+        } else if ([self respondsToSelector:@selector(_handleLikeTapped)]) {
+            [self performSelector:@selector(_handleLikeTapped)];
+        } else if ([self respondsToSelector:@selector(_likeTapped)]) {
+            [self performSelector:@selector(_likeTapped)];
+        }
+        ix_likeArmed = NO;
+    } title:@"Like this?"];
+}
+%end
+
+%hook UIControl
+- (void)sendAction:(SEL)action to:(id)target forEvent:(UIEvent *)event {
+    if (!ix_likeArmed && [SCIUtils getBoolPref:@"like_confirm"] && [self ix_isStoryLikeControl]) {
+        UIControl *control = self;
+        SEL savedAction = action;
+        id savedTarget = target;
+        UIEvent *savedEvent = event;
+        [SCIUtils showConfirmation:^{
+            ix_likeArmed = YES;
+            [control sendAction:savedAction to:savedTarget forEvent:savedEvent];
+            ix_likeArmed = NO;
+        } title:@"Like this?"];
+        return;
+    }
+    %orig;
+}
+%new - (BOOL)ix_isStoryLikeControl {
+    BOOL inFooter = NO;
+    BOOL mentionsLike = NO;
+    UIView *view = self;
+    for (int i = 0; view && i < 8; i++) {
+        if ([NSStringFromClass(view.class) containsString:@"IGStoryFullscreenDefaultFooterView"]) inFooter = YES;
+        NSString *blob = [NSString stringWithFormat:@"%@ %@", view.accessibilityIdentifier ?: @"", view.accessibilityLabel ?: @""].lowercaseString;
+        if ([blob containsString:@"like"]) mentionsLike = YES;
+        view = view.superview;
+    }
+    return inFooter && mentionsLike;
 }
 %end
 

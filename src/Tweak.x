@@ -2,6 +2,8 @@
 #import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Utils.h"
+#import "Proxy/IXProxyManager.h"
+#import "Location/IXLocationStore.h"
 
 ///////////////////////////////////////////////////////////
 
@@ -13,7 +15,7 @@
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v1.1.1";
+NSString *SCIVersionString = @"v1.2.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -41,7 +43,13 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
         @"enable_notes_customization": @(YES),
         @"custom_note_themes": @(YES),
         @"disable_auto_unmuting_reels": @(YES),
-        @"doom_scrolling_reel_count": @(1)
+        @"doom_scrolling_reel_count": @(1),
+        @"ix_killswitch": @(YES),
+        @"ix_block_udp": @(YES),
+        @"ix_vless_enabled": @(NO),
+        @"ix_fake_location_enabled": @(NO),
+        @"ix_spoof_timezone": @(NO),
+        @"ix_spoof_locale": @(NO)
     };
     [[NSUserDefaults standardUserDefaults] registerDefaults:sciDefaults];
     
@@ -76,6 +84,7 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 
     NSLog(@"[SCInsta] Cleaning cache...");
     [SCIUtils cleanCache];
+    [IXProxyManager.shared restoreOnLaunch];
 
     if ([SCIUtils getBoolPref:@"flex_app_launch"]) {
         [[objc_getClass("FLEXManager") sharedManager] showExplorer];
