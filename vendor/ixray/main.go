@@ -84,3 +84,6 @@ func ixray_version() *C.char {
 
 // Silence unused in case the compiler drops the header import path.
 var _ = unsafe.Sizeof(0)
+
+// c-archive still requires a main function. The exported C symbols are the API.
+func main() {}
