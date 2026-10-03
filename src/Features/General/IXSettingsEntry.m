@@ -1,6 +1,8 @@
 #import "IXSettingsEntry.h"
 #import "../../Brand/IXBrand.h"
+#if !IX_ADDON_LITE
 #import "../../Proxy/IXProxyManager.h"
+#endif
 #if IX_ADDON
 #import "../../../addon/IXAddonSettings.h"
 #else
@@ -110,7 +112,11 @@ static char kIXBaseInsetKey;
     mask.path = path.CGPath;
     mask.fillRule = kCAFillRuleEvenOdd;
     self.glow.mask = mask;
+#if IX_ADDON_LITE
+    self.detailLabel.text = @"Settings and safe mode";
+#else
     self.detailLabel.text = [IXProxyManager statusSubtitle];
+#endif
 }
 
 - (void)open {

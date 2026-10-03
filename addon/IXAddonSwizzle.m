@@ -1,12 +1,16 @@
 #import "../src/Features/General/IXSettingsEntry.h"
+#if !IX_ADDON_LITE
 #import "../src/Location/IXLocationHooks.h"
 #import "../src/Location/IXLocationStore.h"
 #import "../src/Proxy/IXTrafficGuard.h"
 
 #import <CoreLocation/CoreLocation.h>
+#endif
 #import <objc/runtime.h>
 
+#if !IX_ADDON_LITE
 static char kIXLocationTimerKey;
+#endif
 
 static IMP IXReplace(Class cls, SEL sel, IMP next, BOOL classMethod) {
     Method method = classMethod ? class_getClassMethod(cls, sel) : class_getInstanceMethod(cls, sel);
@@ -48,6 +52,7 @@ void IXSettingsEntryInstall(void) {
     ix_origLayout = (void *)IXReplace([UIScrollView class], @selector(layoutSubviews), (IMP)ix_layout, NO);
 }
 
+#if !IX_ADDON_LITE
 #pragma mark - Session proxy
 
 static NSURLSessionConfiguration *(*ix_origDefault)(id, SEL);
@@ -309,3 +314,4 @@ void IXLocationHooksInstall(void) {
         NSLog(@"[InstagramX] optional location hook failed: %@", exception.reason);
     }
 }
+#endif

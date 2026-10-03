@@ -25,10 +25,24 @@ $(TWEAK_NAME)_FILES = \
 	IXAddonSettings.m \
 	IXAddonSwizzle.m
 
+$(TWEAK_NAME)_CFLAGS = -fobjc-arc -DIX_ADDON=1 -Wno-deprecated-declarations -Wno-unused-function -Wno-nullability-completeness -Wno-unused-variable
+
+ifeq ($(IX_ADDON_LITE),1)
+# Crash-isolation fallback: settings row and launch safe mode only.
+$(TWEAK_NAME)_FILES = \
+	../src/Launch/IXLaunchGuard.m \
+	../src/Brand/IXBrand.m \
+	../src/Features/General/IXSettingsEntry.m \
+	IXAddon.m \
+	IXAddonSettings.m \
+	IXAddonSwizzle.m
+$(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore
+$(TWEAK_NAME)_CFLAGS += -DIX_ADDON_LITE=1
+else
 $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation CoreGraphics QuartzCore CoreLocation MapKit Security SystemConfiguration
-$(TWEAK_NAME)_CFLAGS = -fobjc-arc -DIX_ADDON=1 -Wno-deprecated-declarations -Wno-unused-function
 ifeq ($(IX_HAS_XRAY),1)
   $(TWEAK_NAME)_CFLAGS += -DIX_HAS_XRAY=1
+endif
 endif
 
 include $(THEOS_MAKE_PATH)/tweak.mk

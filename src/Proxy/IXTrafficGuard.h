@@ -26,7 +26,7 @@ uint16_t IXTrafficGuardHTTPPort(void);
 
 /// Original libc symbols (never re-enter the hooks).
 int IXOrigConnect(int fd, const struct sockaddr *addr, socklen_t len);
-int IXOrigGetaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
+int IXOrigGetaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo *_Nullable *_Nonnull res);
 
 NSDictionary *IXTrafficGuardProxyDictionary(void);
 

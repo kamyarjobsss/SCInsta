@@ -1,10 +1,12 @@
 #import "IXAddonSettings.h"
 #import "../src/Launch/IXLaunchGuard.h"
+#if !IX_ADDON_LITE
 #import "../src/Location/IXLocationHooks.h"
 #import "../src/Location/IXLocationPickerViewController.h"
 #import "../src/Location/IXLocationStore.h"
 #import "../src/Proxy/IXProxyManager.h"
 #import "../src/Proxy/IXProxyViewController.h"
+#endif
 
 @interface IXAddonSettingsViewController : UITableViewController
 @end
@@ -25,6 +27,44 @@
 - (void)close {
     [self dismissViewControllerAnimated:YES completion:nil];
 }
+
+#if IX_ADDON_LITE
+
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    (void)tableView;
+    return 1;
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    (void)tableView;
+    (void)section;
+    return 1;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    (void)tableView;
+    (void)section;
+    return @"This build";
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    (void)tableView;
+    (void)section;
+    // The marker stays in the binary so the IPA check can tell the builds apart.
+    return @"IX_ADDON_LITE_BUILD. This IPA has the settings row and launch safe mode. The proxy and Xray are not included.";
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    (void)indexPath;
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+    cell.backgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
+    cell.textLabel.text = @"Launch safe mode";
+    cell.detailTextLabel.text = IXLaunchGuardIsSafeMode() ? @"On for this launch" : @"Off";
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    return cell;
+}
+
+#else
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
     (void)tableView;
@@ -106,6 +146,8 @@
     if (next) [self.navigationController pushViewController:next animated:YES];
 }
 
+#endif
+
 @end
 
 static UIViewController *IXTopPresenter(UIView *from) {
@@ -126,7 +168,11 @@ static UIViewController *IXTopPresenter(UIView *from) {
 void IXAddonPresentSettings(UIView *from) {
     IXAddonSettingsViewController *root = [IXAddonSettingsViewController new];
     if (IXLaunchGuardIsSafeMode()) {
+#if IX_ADDON_LITE
+        root.navigationItem.prompt = @"Safe mode: the settings row stayed off until you opened this page.";
+#else
         root.navigationItem.prompt = @"Safe mode: extras stayed off until you opened this page.";
+#endif
     }
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:root];
     nav.modalPresentationStyle = UIModalPresentationFormSheet;

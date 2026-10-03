@@ -98,32 +98,64 @@ jobs:
                 cd main
                 chmod +x scripts/build_ixray.sh
                 ./scripts/build_ixray.sh
-                export IX_HAS_XRAY=1
-                make -C addon
-                DYLIB="addon/.theos/obj/debug/InstagramXAddon.dylib"
-                test -f "$DYLIB"
-                install_name_tool -id @rpath/InstagramXAddon.dylib "$DYLIB"
-                if otool -L "$DYLIB" | grep -E 'CydiaSubstrate|substrate'; then
-                  echo "add-on must not link CydiaSubstrate"
-                  exit 1
-                fi
-                if strings "$DYLIB" | grep -F MSHookFunction; then
-                  echo "add-on contains MSHookFunction"
-                  exit 1
-                fi
+                check_dylib() {
+                  local dylib="$1"
+                  local mode="$2"
+                  if otool -L "$dylib" | grep -E 'CydiaSubstrate|substrate'; then
+                    echo "add-on must not link CydiaSubstrate"
+                    exit 1
+                  fi
+                  if strings "$dylib" | grep -F MSHookFunction; then
+                    echo "add-on contains MSHookFunction"
+                    exit 1
+                  fi
+                  if [[ "$mode" == full ]]; then
+                    strings "$dylib" | grep -F ixray_start >/dev/null
+                    if strings "$dylib" | grep -F IX_ADDON_LITE_BUILD; then
+                      echo "full add-on contains the lite marker"
+                      exit 1
+                    fi
+                  else
+                    if strings "$dylib" | grep -F ixray_start; then
+                      echo "lite add-on references ixray_start"
+                      exit 1
+                    fi
+                    strings "$dylib" | grep -F IX_ADDON_LITE_BUILD >/dev/null
+                  fi
+                }
+                make -C addon clean
+                make -C addon IX_HAS_XRAY=1
+                FULL="addon/.theos/obj/debug/InstagramXAddon.dylib"
+                test -f "$FULL"
+                install_name_tool -id @rpath/InstagramXAddon.dylib "$FULL"
+                cp "$FULL" packages/InstagramXAddon.full.dylib
+                check_dylib packages/InstagramXAddon.full.dylib full
+                make -C addon clean
+                make -C addon IX_ADDON_LITE=1
+                LITE="addon/.theos/obj/debug/InstagramXAddon.dylib"
+                test -f "$LITE"
+                install_name_tool -id @rpath/InstagramXAddon.dylib "$LITE"
+                cp "$LITE" packages/InstagramXAddon.lite.dylib
+                check_dylib packages/InstagramXAddon.lite.dylib lite
               env:
                 THEOS: ${{ github.workspace }}/theos
 
             - name: Inject into the 436 IPA
               run: |
                 cd main
+                cp packages/com.burbn.instagram.ipa packages/InstagramX_addon_436_v1.0.0.ipa
+                cp packages/com.burbn.instagram.ipa packages/InstagramX_addon_436_lite_v1.0.0.ipa
                 python3 scripts/inject_addon.py \
-                  packages/com.burbn.instagram.ipa \
-                  addon/.theos/obj/debug/InstagramXAddon.dylib \
+                  packages/InstagramX_addon_436_v1.0.0.ipa \
+                  packages/InstagramXAddon.full.dylib \
                   vendor/ixray/IXRayCore.dylib
-                python3 scripts/check_addon_ipa.py packages/com.burbn.instagram.ipa
-                mv packages/com.burbn.instagram.ipa packages/InstagramX_addon_436_v1.0.0.ipa
-                ls -lh packages
+                python3 scripts/check_addon_ipa.py packages/InstagramX_addon_436_v1.0.0.ipa
+                python3 scripts/inject_addon.py \
+                  packages/InstagramX_addon_436_lite_v1.0.0.ipa \
+                  packages/InstagramXAddon.lite.dylib \
+                  --display "Instagram X Lite"
+                python3 scripts/check_addon_ipa.py --lite packages/InstagramX_addon_436_lite_v1.0.0.ipa
+                ls -lh packages/*.ipa
 
             - name: Publish prerelease
               uses: softprops/action-gh-release@v2.0.6
@@ -136,12 +168,16 @@ jobs:
                 make_latest: false
                 generate_release_notes: false
                 body: |
-                  Instagram X Add-on for the owner's Instagram 436.0.0 IPA.
+                  Instagram X Add-on for the owner's Instagram 436.0.0 IPA. The two IPAs share a bundle id, so install one at a time.
 
-                  RyukGram.dylib, RyukGram.bundle, and the rest of that IPA are unchanged. This adds InstagramXAddon.dylib, one weak load command, IXRayCore.dylib with no load command, and the Instagram X icon and display name.
+                  - `InstagramX_addon_436_v1.0.0.ipa` adds the settings row, the VLESS proxy, fake location, and launch safe mode. IXRayCore.dylib is copied with no load command.
+                  - `InstagramX_addon_436_lite_v1.0.0.ipa` is the crash-isolation fallback. It has the settings row and launch safe mode only. The proxy and Xray are not included.
 
-                  The add-on is the settings row under Accounts Center, a page with the VLESS proxy and fake location, and launch safe mode. It does not include SCInsta. Socket hooks are data-pointer rebinds and run only while the proxy is on. There is no MSHookFunction.
+                  RyukGram.dylib, RyukGram.bundle, and the rest of that IPA are unchanged. Each build adds InstagramXAddon.dylib, one weak load command, and the Instagram X icon and display name. The changed binaries are ad-hoc signed with `ldid -S`. Every Mach-O in the IPA has cryptid 0.
+
+                  The add-on does not include SCInsta. Socket hooks are data-pointer rebinds and run only while the proxy is on. There is no MSHookFunction.
 
                   Not tested on a device. The other tweak in the IPA is left as it was shipped.
                 files: |
                   ${{ github.workspace }}/main/packages/InstagramX_addon_436_v1.0.0.ipa
+                  ${{ github.workspace }}/main/packages/InstagramX_addon_436_lite_v1.0.0.ipa

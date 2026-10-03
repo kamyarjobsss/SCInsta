@@ -1,8 +1,10 @@
 #import "../src/Launch/IXLaunchGuard.h"
+#import "../src/Features/General/IXSettingsEntry.h"
+#if !IX_ADDON_LITE
 #import "../src/Location/IXLocationHooks.h"
 #import "../src/Location/IXLocationStore.h"
 #import "../src/Proxy/IXProxyManager.h"
-#import "../src/Features/General/IXSettingsEntry.h"
+#endif
 
 #import <UIKit/UIKit.h>
 
@@ -18,8 +20,13 @@ static void IXAddonShowSafeAlert(void) {
         UIViewController *presenter = window.rootViewController;
         if (!presenter) return;
         while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+#if IX_ADDON_LITE
+        NSString *message = @"The last launch closed before Instagram X was ready, so the settings row stayed off. Open Instagram X settings from Accounts Center on the next launch.";
+#else
+        NSString *message = @"The last launch closed before Instagram X was ready, so the settings row, proxy, and fake location stayed off. Open Instagram X settings from Accounts Center on the next launch, or turn a feature on after this one stays open.";
+#endif
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
-                                                                       message:@"The last launch closed before Instagram X was ready, so the settings row, proxy, and fake location stayed off. Open Instagram X settings from Accounts Center on the next launch, or turn a feature on after this one stays open."
+                                                                       message:message
                                                                 preferredStyle:UIAlertControllerStyleAlert];
         [alert addAction:[UIAlertAction actionWithTitle:@"Show settings row" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
             (void)action;
@@ -34,8 +41,10 @@ static void IXAddonDidLaunch(void) {
     BOOL safe = IXLaunchGuardIsSafeMode();
     if (!safe) {
         IXSettingsEntryInstall();
+#if !IX_ADDON_LITE
         if ([IXLocationStore isEnabled]) IXLocationHooksInstall();
         [IXProxyManager.shared restoreOnLaunch];
+#endif
     } else {
         IXAddonShowSafeAlert();
     }

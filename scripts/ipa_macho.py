@@ -22,6 +22,14 @@ LC_REEXPORT_DYLIB = 0x1F
 LC_LOAD_UPWARD_DYLIB = 0x23 | 0x80000000
 LC_RPATH = 0x1C | 0x80000000
 LC_LOAD_DYLINKER = 0xE
+LC_CODE_SIGNATURE = 0x1D
+LC_ENCRYPTION_INFO = 0x21
+LC_ENCRYPTION_INFO_64 = 0x2C
+
+MH_MAGIC = 0xFEEDFACE
+CS_LINKER_SIGNED = 0x20000
+CSMAGIC_EMBEDDED_SIGNATURE = 0xFADE0CC0
+CSMAGIC_CODEDIRECTORY = 0xFADE0C02
 
 DYLIB_CMDS = {
     LC_LOAD_DYLIB,
@@ -170,3 +178,116 @@ def strip_dylibs(path: Path, basenames: set[str]) -> list[str]:
     if edited:
         path.write_bytes(data)
     return removed
+
+
+def _slice_starts(data: bytes) -> list[int]:
+    if len(data) < 8:
+        raise MachOError("file is too small to be a Mach-O")
+    magic_le = struct.unpack_from("<I", data, 0)[0]
+    if magic_le in (MH_MAGIC_64, MH_MAGIC):
+        return [0]
+    magic_be = struct.unpack_from(">I", data, 0)[0]
+    if magic_be in (FAT_MAGIC, FAT_CIGAM):
+        return [offset for offset, _size in iter_slices(data)]
+    raise MachOError(f"unsupported Mach-O magic {magic_le:#x}")
+
+
+def _walk_commands(data: bytes, start: int):
+    magic = struct.unpack_from("<I", data, start)[0]
+    if magic == MH_MAGIC_64:
+        ncmds, sizeofcmds, cmds_off = header(data, start)
+    elif magic == MH_MAGIC:
+        _magic, _cpu, _sub, _filetype, ncmds, sizeofcmds, _flags = struct.unpack_from("<7I", data, start)
+        cmds_off = start + 28
+        if sizeofcmds < 8 or cmds_off + sizeofcmds > len(data):
+            raise MachOError("32-bit load commands extend past the file")
+    else:
+        raise MachOError(f"slice at {start:#x} is not a little-endian Mach-O ({magic:#x})")
+    off = 0
+    seen = 0
+    while off < sizeofcmds and seen < ncmds:
+        cmd, cmdsize = struct.unpack_from("<II", data, cmds_off + off)
+        if cmdsize < 8 or off + cmdsize > sizeofcmds:
+            raise MachOError(f"bad cmdsize {cmdsize} for command {cmd:#x}")
+        yield cmd, data[cmds_off + off : cmds_off + off + cmdsize]
+        off += cmdsize
+        seen += 1
+
+
+def is_macho(data: bytes) -> bool:
+    if len(data) < 4:
+        return False
+    prefix = data[:4]
+    return prefix in (
+        b"\xcf\xfa\xed\xfe",
+        b"\xce\xfa\xed\xfe",
+        b"\xca\xfe\xba\xbe",
+        b"\xbe\xba\xfe\xca",
+        b"\xfe\xed\xfa\xcf",
+        b"\xfe\xed\xfa\xce",
+    )
+
+
+def cryptids(data: bytes) -> list[int]:
+    """Every FairPlay cryptid in the file. Missing encryption commands mean 0."""
+    found: list[int] = []
+    for start in _slice_starts(data):
+        for cmd, blob in _walk_commands(data, start):
+            if cmd in (LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64) and len(blob) >= 20:
+                found.append(struct.unpack_from("<I", blob, 16)[0])
+    return found
+
+
+def _blob_signature_status(blob: bytes) -> str:
+    if len(blob) < 12:
+        return "unrecognized code signature"
+    magic, length, count = struct.unpack_from(">III", blob, 0)
+    if magic != CSMAGIC_EMBEDDED_SIGNATURE or length > len(blob) or 12 + count * 8 > len(blob):
+        return "unrecognized code signature"
+    saw_directory = False
+    for index in range(count):
+        slot, offset = struct.unpack_from(">II", blob, 12 + index * 8)
+        if slot != 0 or offset + 40 > len(blob):
+            continue
+        cd_magic, _cd_len, version, flags = struct.unpack_from(">IIII", blob, offset)
+        if cd_magic != CSMAGIC_CODEDIRECTORY:
+            continue
+        saw_directory = True
+        if flags & CS_LINKER_SIGNED:
+            return "linker-signed"
+        if version >= 0x20200:
+            if offset + 52 > len(blob):
+                return "truncated code directory"
+            team_off = struct.unpack_from(">I", blob, offset + 48)[0]
+            if team_off:
+                team_at = offset + team_off
+                if team_at >= len(blob):
+                    return "truncated code directory"
+                team = _cstring(blob, team_at)
+                if team:
+                    return f"team {team}"
+    if not saw_directory:
+        return "unrecognized code signature"
+    return "adhoc"
+
+
+def signature_status(data: bytes) -> str:
+    """`unsigned` or `adhoc` when Sideloadly can re-sign the binary.
+
+    A developer team id or a linker signature is returned as a short reason.
+    """
+    status = "unsigned"
+    for start in _slice_starts(data):
+        for cmd, blob in _walk_commands(data, start):
+            if cmd != LC_CODE_SIGNATURE or len(blob) < 16:
+                continue
+            dataoff, datasize = struct.unpack_from("<II", blob, 8)
+            begin = start + dataoff
+            end = begin + datasize
+            if dataoff == 0 or datasize < 12 or end > len(data):
+                return "code signature is out of range"
+            kind = _blob_signature_status(data[begin:end])
+            if kind != "adhoc":
+                return kind
+            status = "adhoc"
+    return status

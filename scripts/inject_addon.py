@@ -105,14 +105,31 @@ def _run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-def main() -> int:
-    if len(sys.argv) < 3:
-        print("usage: inject_addon.py <ipa> <InstagramXAddon.dylib> [IXRayCore.dylib]", file=sys.stderr)
-        return 2
-    ipa = Path(sys.argv[1]).resolve()
-    dylib = Path(sys.argv[2]).resolve()
-    xray = Path(sys.argv[3]).resolve() if len(sys.argv) > 3 else None
+def _parse_args(argv: list[str]) -> tuple[Path, Path, Path | None, str]:
     display = "Instagram X"
+    positionals: list[str] = []
+    index = 0
+    while index < len(argv):
+        if argv[index] == "--display":
+            if index + 1 >= len(argv):
+                raise SystemExit("usage: inject_addon.py <ipa> <InstagramXAddon.dylib> [IXRayCore.dylib] [--display NAME]")
+            display = argv[index + 1]
+            index += 2
+            continue
+        positionals.append(argv[index])
+        index += 1
+    if len(positionals) < 2:
+        raise SystemExit("usage: inject_addon.py <ipa> <InstagramXAddon.dylib> [IXRayCore.dylib] [--display NAME]")
+    xray = Path(positionals[2]).resolve() if len(positionals) > 2 else None
+    return Path(positionals[0]).resolve(), Path(positionals[1]).resolve(), xray, display
+
+
+def main() -> int:
+    try:
+        ipa, dylib, xray, display = _parse_args(sys.argv[1:])
+    except SystemExit as exc:
+        print(exc, file=sys.stderr)
+        return 2
     if not ipa.is_file() or not dylib.is_file():
         print("IPA or add-on dylib is missing", file=sys.stderr)
         return 1
@@ -168,12 +185,14 @@ def main() -> int:
         for icon in ICONS.glob("IXAppIcon*.png"):
             shutil.copy2(icon, app / icon.name)
 
-        if shutil.which("ldid"):
-            print("[*] ad-hoc signing the changed binaries")
-            _run(["ldid", "-S", str(exe)])
-            _run(["ldid", "-S", str(dest)])
-            if xray and xray.is_file():
-                _run(["ldid", "-S", str(app / "Frameworks" / "IXRayCore.dylib")])
+        if not shutil.which("ldid"):
+            print("ldid is required so Sideloadly receives an ad-hoc signature", file=sys.stderr)
+            return 1
+        print("[*] ad-hoc signing the changed binaries with ldid -S")
+        _run(["ldid", "-S", str(exe)])
+        _run(["ldid", "-S", str(dest)])
+        if xray and xray.is_file():
+            _run(["ldid", "-S", str(app / "Frameworks" / "IXRayCore.dylib")])
 
         rels = [
             exe.relative_to(work).as_posix(),
