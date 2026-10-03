@@ -46,8 +46,10 @@ xcrun --sdk iphoneos clang -dynamiclib \
     -isysroot "$SDK" \
     -miphoneos-version-min=15.0 \
     -Wl,-force_load,"$OUT" \
-    -Wl,-no_dead_strip_inits_and_terms \
     -lz -lresolv -liconv -lc++ \
+    -framework CoreFoundation \
+    -framework Security \
+    -framework Foundation \
     -install_name @rpath/IXRayCore.dylib \
     -o "$DYLIB"
 
