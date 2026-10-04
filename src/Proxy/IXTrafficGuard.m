@@ -10,6 +10,7 @@
 #import <stdlib.h>
 #import <string.h>
 #import <unistd.h>
+#import "IXPathHooks.h"
 #import "IXSymbolRebind.h"
 
 static _Atomic int ix_vpn_on = 0;
@@ -89,7 +90,7 @@ static BOOL IXLookupToken(uint32_t token, char *out, size_t outLen) {
     return NO;
 }
 
-static BOOL IXCallerIsSelf(void) {
+BOOL IXTrafficGuardCallerIsSelf(void) {
     void *ra = __builtin_return_address(0);
     Dl_info info;
     if (ra && dladdr(ra, &info) && info.dli_fname) {
@@ -103,14 +104,6 @@ static BOOL IXIsNumericHost(const char *node) {
     struct in_addr v4;
     struct in6_addr v6;
     return inet_pton(AF_INET, node, &v4) == 1 || inet_pton(AF_INET6, node, &v6) == 1;
-}
-
-static BOOL IXHostIsProxy(const char *host) {
-    if (!host) return NO;
-    pthread_mutex_lock(&ix_host_mu);
-    BOOL match = ix_proxy_host[0] && strcasecmp(host, ix_proxy_host) == 0;
-    pthread_mutex_unlock(&ix_host_mu);
-    return match;
 }
 
 // 198.18.0.0/15, the fake-ip range used by Clash and Surge.
@@ -166,6 +159,15 @@ void IXTrafficGuardSetProxyHost(const char *host, uint16_t port) {
     atomic_store(&ix_proxy_port, port);
 }
 
+NSString *IXTrafficGuardProxyHost(void) {
+    pthread_mutex_lock(&ix_host_mu);
+    NSString *host = ix_proxy_host[0] ? [NSString stringWithUTF8String:ix_proxy_host] : @"";
+    pthread_mutex_unlock(&ix_host_mu);
+    uint16_t port = atomic_load(&ix_proxy_port);
+    if (host.length && port) return [NSString stringWithFormat:@"%@:%u", host, port];
+    return host;
+}
+
 BOOL IXTrafficGuardVPNOn(void) { return atomic_load(&ix_vpn_on) != 0; }
 BOOL IXTrafficGuardProxyUp(void) { return atomic_load(&ix_proxy_up) != 0; }
 BOOL IXTrafficGuardKillSwitch(void) { return atomic_load(&ix_kill) != 0; }
@@ -184,7 +186,8 @@ int IXOrigGetaddrinfo(const char *node, const char *service, const struct addrin
 }
 
 NSDictionary *IXTrafficGuardProxyDictionary(void) {
-    uint16_t http = IXTrafficGuardHTTPPort();
+    // Port 9 is closed. Callers use it to fail closed while the tunnel is down.
+    uint16_t http = IXTrafficGuardProxyUp() ? IXTrafficGuardHTTPPort() : 9;
     NSNumber *port = @(http);
     // HTTPSProxy / HTTPSPort are kCFStreamPropertyHTTPSProxyHost / Port.
     // SOCKS stays off so CFNetwork does not mix a SOCKS proxy with this HTTP proxy.
@@ -209,7 +212,34 @@ NSString *IXTrafficGuardLookupHost(NSString *host) {
             return [NSString stringWithUTF8String:name];
         }
     }
+    struct in6_addr v6;
+    if (inet_pton(AF_INET6, host.UTF8String, &v6) == 1) {
+        uint32_t token = IXTokenFromV6(&v6);
+        char name[256];
+        if (token && IXLookupToken(token, name, sizeof(name))) {
+            return [NSString stringWithUTF8String:name];
+        }
+    }
     return nil;
+}
+
+BOOL IXTrafficGuardFakeSockaddrs(const char *host, struct sockaddr_in *v4, struct sockaddr_in6 *v6) {
+    if (!host || !host[0] || IXIsNumericHost(host)) return NO;
+    uint32_t token = IXRememberHost(host);
+    if (!token) return NO;
+    if (v4) {
+        memset(v4, 0, sizeof(*v4));
+        v4->sin_family = AF_INET;
+        v4->sin_len = sizeof(*v4);
+        v4->sin_addr.s_addr = IXFakeIPv4(token);
+    }
+    if (v6) {
+        memset(v6, 0, sizeof(*v6));
+        v6->sin6_family = AF_INET6;
+        v6->sin6_len = sizeof(*v6);
+        IXFillFakeV6(&v6->sin6_addr, token);
+    }
+    return YES;
 }
 
 static BOOL IXAddrIsLoopback(const struct sockaddr *addr) {
@@ -270,7 +300,7 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
 }
 
 #define IX_FD_MAX 4096
-#define IX_LOG_MAX 48
+#define IX_LOG_MAX 80
 
 typedef struct {
     _Atomic int on;
@@ -350,7 +380,7 @@ static void IXUntrackFD(int fd, const char *reason) {
     uint64_t down = atomic_load(&slot->down);
     atomic_store(&slot->on, 0);
     pthread_mutex_unlock(&ix_fd_mu);
-    IXPushLog("socket", host, port, up, down, reason ?: "closed by app");
+    IXPushLog("socket", host, port, up, down, reason ?: "tunneled · closed by app");
 }
 
 static ssize_t IXOrigSendBytes(int fd, const void *buf, size_t len) {
@@ -457,13 +487,12 @@ static BOOL IXSOCKSHandshake(int fd, const char *host, uint16_t port) {
 
 static BOOL IXShouldRedirect(int fd, const struct sockaddr *addr) {
     if (!IXTrafficGuardVPNOn() || !addr) return NO;
-    if (IXCallerIsSelf()) return NO;
+    if (IXTrafficGuardCallerIsSelf()) return NO;
     if (IXAddrIsLoopback(addr)) return NO;
     if (IXSocketType(fd) != SOCK_STREAM) return NO;
     char host[256];
     uint16_t port = 0;
     if (!IXDescribe(addr, host, sizeof(host), &port)) return NO;
-    if (IXHostIsProxy(host) && port == atomic_load(&ix_proxy_port)) return NO;
     return YES;
 }
 
@@ -543,13 +572,16 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr) {
     return 0;
 }
 
+static void IXNoteAddr(const char *path, const struct sockaddr *addr, const char *reason);
+
 static int IXConnect(int fd, const struct sockaddr *addr, socklen_t len) {
     if (!ix_orig_connect) {
         errno = ENOSYS;
         return -1;
     }
     if (IXSocketType(fd) == SOCK_DGRAM) {
-        if (IXTrafficGuardVPNOn() && IXTrafficGuardBlockUDP() && !IXCallerIsSelf() && !IXAddrIsLoopback(addr)) {
+        if (IXTrafficGuardVPNOn() && IXTrafficGuardBlockUDP() && !IXTrafficGuardCallerIsSelf() && !IXAddrIsLoopback(addr)) {
+            IXNoteAddr("udp", addr, "blocked");
             errno = EPERM;
             return -1;
         }
@@ -558,9 +590,11 @@ static int IXConnect(int fd, const struct sockaddr *addr, socklen_t len) {
     if (!IXShouldRedirect(fd, addr)) return ix_orig_connect(fd, addr, len);
     if (!IXTrafficGuardProxyUp()) {
         if (IXTrafficGuardKillSwitch()) {
+            IXNoteAddr("socket", addr, "blocked by kill switch");
             errno = ENETUNREACH;
             return -1;
         }
+        IXNoteAddr("socket", addr, "direct");
         return ix_orig_connect(fd, addr, len);
     }
     return IXProxiedConnect(fd, addr);
@@ -577,9 +611,11 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
         // then write those bytes, so they are not mistaken for the SOCKS greeting.
         if (!IXTrafficGuardProxyUp()) {
             if (IXTrafficGuardKillSwitch()) {
+                IXNoteAddr("socket", dest, "blocked by kill switch");
                 errno = ENETUNREACH;
                 return -1;
             }
+            IXNoteAddr("socket", dest, "direct");
             return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
         }
         int rc = IXProxiedConnect(fd, dest);
@@ -599,7 +635,8 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
         if (connid) *connid = SAE_CONNID_ANY;
         return 0;
     }
-    if (dest && IXSocketType(fd) == SOCK_DGRAM && IXTrafficGuardVPNOn() && IXTrafficGuardBlockUDP() && !IXCallerIsSelf() && !IXAddrIsLoopback(dest)) {
+    if (dest && IXSocketType(fd) == SOCK_DGRAM && IXTrafficGuardVPNOn() && IXTrafficGuardBlockUDP() && !IXTrafficGuardCallerIsSelf() && !IXAddrIsLoopback(dest)) {
+        IXNoteAddr("udp", dest, "blocked");
         errno = EPERM;
         return -1;
     }
@@ -609,7 +646,7 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
 static int IXGetAddrInfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
     if (!ix_orig_getaddrinfo) return EAI_FAIL;
     BOOL vpn = IXTrafficGuardVPNOn();
-    if (!vpn || !node || IXCallerIsSelf() || IXHostIsProxy(node) || IXIsNumericHost(node)) {
+    if (!vpn || !node || IXTrafficGuardCallerIsSelf() || IXIsNumericHost(node)) {
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     int family = hints ? hints->ai_family : AF_UNSPEC;
@@ -680,7 +717,7 @@ static struct hostent *IXGetHostByName(const char *name) {
         h_errno = HOST_NOT_FOUND;
         return NULL;
     }
-    if (!IXTrafficGuardVPNOn() || !name || IXCallerIsSelf() || IXHostIsProxy(name) || IXIsNumericHost(name)) {
+    if (!IXTrafficGuardVPNOn() || !name || IXTrafficGuardCallerIsSelf() || IXIsNumericHost(name)) {
         return ix_orig_gethostbyname(name);
     }
     uint32_t token = IXRememberHost(name);
@@ -706,9 +743,16 @@ static struct hostent *IXGetHostByName(const char *name) {
     return &ent;
 }
 
+static void IXNoteAddr(const char *path, const struct sockaddr *addr, const char *reason) {
+    char host[256];
+    uint16_t port = 0;
+    if (!addr || IXAddrIsLoopback(addr) || !IXDescribe(addr, host, sizeof(host), &port)) return;
+    IXPushLog(path, host, port, 0, 0, reason);
+}
+
 static BOOL IXUDPShouldBlock(int fd, const struct sockaddr *dest) {
     if (!IXTrafficGuardVPNOn() || !IXTrafficGuardBlockUDP()) return NO;
-    if (IXCallerIsSelf()) return NO;
+    if (IXTrafficGuardCallerIsSelf()) return NO;
     if (!dest || IXAddrIsLoopback(dest)) return NO;
     return IXSocketType(fd) == SOCK_DGRAM;
 }
@@ -733,13 +777,28 @@ static int IXGetPeerName(int fd, struct sockaddr *addr, socklen_t *len) {
     return ix_orig_getpeername(fd, addr, len);
 }
 
+static BOOL IXDatagramBlocked(int fd) {
+    if (!IXTrafficGuardVPNOn() || !IXTrafficGuardBlockUDP()) return NO;
+    if (IXTrafficGuardCallerIsSelf()) return NO;
+    if (IXSocketType(fd) != SOCK_DGRAM) return NO;
+    struct sockaddr_storage peer;
+    socklen_t len = sizeof(peer);
+    if (getpeername(fd, (struct sockaddr *)&peer, &len) == 0 && IXAddrIsLoopback((struct sockaddr *)&peer)) return NO;
+    return YES;
+}
+
 static int IXClose(int fd) {
-    IXUntrackFD(fd, "closed by app");
+    IXUntrackFD(fd, "tunneled · closed by app");
     if (!ix_orig_close) return close(fd);
     return ix_orig_close(fd);
 }
 
 static ssize_t IXRead(int fd, void *buf, size_t len) {
+    if (IXDatagramBlocked(fd)) {
+        IXPushLog("udp", "", 0, 0, 0, "blocked");
+        errno = EPERM;
+        return -1;
+    }
     if (!ix_orig_read) {
         errno = ENOSYS;
         return -1;
@@ -750,6 +809,11 @@ static ssize_t IXRead(int fd, void *buf, size_t len) {
 }
 
 static ssize_t IXRecv(int fd, void *buf, size_t len, int flags) {
+    if (IXDatagramBlocked(fd)) {
+        IXPushLog("udp", "", 0, 0, 0, "blocked");
+        errno = EPERM;
+        return -1;
+    }
     if (!ix_orig_recv) {
         errno = ENOSYS;
         return -1;
@@ -760,6 +824,11 @@ static ssize_t IXRecv(int fd, void *buf, size_t len, int flags) {
 }
 
 static ssize_t IXWrite(int fd, const void *buf, size_t len) {
+    if (IXDatagramBlocked(fd)) {
+        IXPushLog("udp", "", 0, 0, 0, "blocked");
+        errno = EPERM;
+        return -1;
+    }
     if (!ix_orig_write) {
         errno = ENOSYS;
         return -1;
@@ -770,6 +839,11 @@ static ssize_t IXWrite(int fd, const void *buf, size_t len) {
 }
 
 static ssize_t IXSend(int fd, const void *buf, size_t len, int flags) {
+    if (IXDatagramBlocked(fd)) {
+        IXPushLog("udp", "", 0, 0, 0, "blocked");
+        errno = EPERM;
+        return -1;
+    }
     if (!ix_orig_send) {
         errno = ENOSYS;
         return -1;
@@ -781,6 +855,7 @@ static ssize_t IXSend(int fd, const void *buf, size_t len, int flags) {
 
 static ssize_t IXSendTo(int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t destLen) {
     if (IXUDPShouldBlock(fd, dest)) {
+        IXNoteAddr("udp", dest, "blocked");
         errno = EPERM;
         return -1;
     }
@@ -794,6 +869,7 @@ static ssize_t IXSendTo(int fd, const void *buf, size_t len, int flags, const st
 static ssize_t IXSendMsg(int fd, const struct msghdr *msg, int flags) {
     const struct sockaddr *dest = msg ? msg->msg_name : NULL;
     if (IXUDPShouldBlock(fd, dest)) {
+        IXNoteAddr("udp", dest, "blocked");
         errno = EPERM;
         return -1;
     }
@@ -831,11 +907,14 @@ BOOL IXTrafficGuardInstall(void) {
     IXCapture("send", (void **)&ix_orig_send);
     if (!ix_orig_connect) return NO;
 
-    const char *names[] = {
+    IXPathHookPrepare();
+    const char *names[32];
+    void *replacements[32];
+    const char *baseNames[] = {
         "connect", "connectx", "getaddrinfo", "gethostbyname", "sendto", "sendmsg",
         "getpeername", "close", "read", "recv", "write", "send"
     };
-    void *replacements[] = {
+    void *baseReplacements[] = {
         (void *)IXConnect,
         (void *)IXConnectX,
         (void *)IXGetAddrInfo,
@@ -849,7 +928,14 @@ BOOL IXTrafficGuardInstall(void) {
         (void *)IXWrite,
         (void *)IXSend
     };
-    int patched = IXSymbolRebindSlots(names, replacements, 12);
+    unsigned count = 0;
+    for (unsigned i = 0; i < sizeof(baseNames) / sizeof(baseNames[0]) && count < 32; i++) {
+        names[count] = baseNames[i];
+        replacements[count] = baseReplacements[i];
+        count++;
+    }
+    count += IXPathHookFill(names + count, replacements + count, 32 - count);
+    int patched = IXSymbolRebindSlots(names, replacements, count);
     if (patched <= 0) {
         NSLog(@"[InstagramX] traffic rebind found no symbol pointers");
         return NO;
@@ -872,6 +958,10 @@ void IXTrafficGuardNoteSession(NSString *host, uint16_t port, uint64_t up, uint6
     IXPushLog("NSURLSession", host.UTF8String, port, up, down, reason.UTF8String ?: "completed");
 }
 
+void IXTrafficGuardNote(NSString *path, NSString *host, uint16_t port, NSString *reason) {
+    IXPushLog(path.UTF8String ?: "path", host.UTF8String, port, 0, 0, reason.UTF8String ?: "");
+}
+
 NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void) {
     NSMutableArray *rows = [NSMutableArray array];
     pthread_mutex_lock(&ix_fd_mu);
@@ -883,7 +973,7 @@ NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void) {
             @"port": @(ix_live[fd].port),
             @"up": @(atomic_load(&ix_live[fd].up)),
             @"down": @(atomic_load(&ix_live[fd].down)),
-            @"reason": @"open"
+            @"reason": @"tunneled"
         }];
     }
     int start = ix_log_count == IX_LOG_MAX ? ix_log_next : 0;

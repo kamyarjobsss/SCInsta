@@ -2,6 +2,7 @@
 #import "IXProxyManager.h"
 #import "IXTrafficGuard.h"
 #import "../Localization/SCILocalization.h"
+#import "../Tweak.h"
 
 typedef NS_ENUM(NSInteger, IXProxySection) {
     IXProxySectionStatus = 0,
@@ -14,6 +15,39 @@ typedef NS_ENUM(NSInteger, IXProxySection) {
 
 static NSString *IXT(NSString *en, NSString *fa) {
     return [SCIResolvedLanguageCode() hasPrefix:@"fa"] ? fa : en;
+}
+
+static NSString *IXDiagnosticsReport(void) {
+    IXProxyManager *manager = IXProxyManager.shared;
+    NSMutableString *text = [NSMutableString string];
+    [text appendFormat:@"Instagram X %@\n", SCIVersionString ?: @""];
+    [text appendFormat:@"status: %@\n", manager.statusText ?: @""];
+    if (manager.lastError.length) [text appendFormat:@"error: %@\n", manager.lastError];
+    [text appendFormat:@"server: %@\n", IXTrafficGuardProxyHost() ?: @""];
+    [text appendFormat:@"killSwitch: %@\n", manager.killSwitch ? @"on" : @"off"];
+    [text appendFormat:@"blockUDP: %@\n", manager.blockUDP ? @"on" : @"off"];
+    [text appendFormat:@"vpnOn: %@\n", IXTrafficGuardVPNOn() ? @"yes" : @"no"];
+    [text appendFormat:@"proxyUp: %@\n", IXTrafficGuardProxyUp() ? @"yes" : @"no"];
+    [text appendFormat:@"nwProxy: %@\n", IXTrafficGuardNWProxyReady() ? @"yes" : @"no"];
+    NSArray<NSDictionary *> *rows = IXTrafficGuardRecentConnections() ?: @[];
+    [text appendFormat:@"connections: %lu\n", (unsigned long)rows.count];
+    for (NSDictionary *row in rows) {
+        [text appendFormat:@"%@ %@:%@ up=%@ down=%@ %@\n",
+            row[@"path"] ?: @"",
+            row[@"host"] ?: @"",
+            row[@"port"] ?: @0,
+            row[@"up"] ?: @0,
+            row[@"down"] ?: @0,
+            row[@"reason"] ?: @""];
+    }
+    return text;
+}
+
+static void IXCopyDiagnostics(UIViewController *presenter) {
+    [UIPasteboard generalPasteboard].string = IXDiagnosticsReport();
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Copied", @"کپی شد") message:IXT(@"Diagnostics are on the clipboard. They list which connections were tunneled, blocked, or direct.", @"گزارش در کلیپبورد است. معلوم است کدام اتصال از تونل رفته، بسته شده، یا مستقیم بوده.") preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:IXT(@"OK", @"باشه") style:UIAlertActionStyleDefault handler:nil]];
+    [presenter presentViewController:alert animated:YES completion:nil];
 }
 
 static NSString *IXBytes(uint64_t n) {
@@ -34,6 +68,11 @@ static NSString *IXBytes(uint64_t n) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = IXT(@"Connections", @"اتصال‌ها");
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:IXT(@"Copy", @"کپی") style:UIBarButtonItemStylePlain target:self action:@selector(copyDiagnostics)];
+    self.navigationItem.rightBarButtonItem.accessibilityLabel = IXT(@"Copy diagnostics", @"کپی گزارش");
+}
+- (void)copyDiagnostics {
+    IXCopyDiagnostics(self);
 }
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
@@ -54,7 +93,7 @@ static NSString *IXBytes(uint64_t n) {
     return MAX(self.rows.count, 1);
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
-    return IXT(@"Socket rows were redirected with a SOCKS handshake. NSURLSession rows used the HTTP proxy. A broken pipe in the Xray log is this screen's close reason.", @"ردیف سوکت با دست‌داد SOCKS هدایت شده است. ردیف NSURLSession از پروکسی HTTP گذشته است. broken pipe در گزارش Xray همان دلیل بسته‌شدن اینجاست.");
+    return IXT(@"tunneled went through the in-app proxy. blocked was refused by the kill switch or the UDP block. direct left the phone on your real route. Copy sends this list.", @"tunneled از پروکسی داخل برنامه گذشته است. blocked را قطع اضطراری یا بستن UDP رد کرده است. direct از مسیر واقعی گوشی بیرون رفته. کپی همین فهرست را می‌فرستد.");
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
@@ -106,6 +145,8 @@ static NSString *IXBytes(uint64_t n) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = IXT(@"VPN", @"فیلترشکن");
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:IXT(@"Copy", @"کپی") style:UIBarButtonItemStylePlain target:self action:@selector(copyDiagnostics)];
+    self.navigationItem.rightBarButtonItem.accessibilityLabel = IXT(@"Copy diagnostics", @"کپی گزارش");
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 52;
 }
@@ -152,7 +193,7 @@ static NSString *IXBytes(uint64_t n) {
 
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     if (section != IXProxySectionAdd) return nil;
-    return [NSString stringWithFormat:IXT(@"Engine: %@.\n\nConnected means a request through the tunnel reached generate_204. This is an in-app proxy, not the phone's VPN switch. UDP stays blocked so calls cannot skip the tunnel. A stack that never uses connect, connectx, or NSURLSession can still bypass it.", @"موتور: %@.\n\n«متصل» یعنی یک درخواست واقعی از تونل به generate_204 رسیده است. این فیلترشکن داخل خود اینستاگرام است و با VPN سیستم فرق دارد. UDP به‌طور پیش‌فرض بسته است تا تماس از تونل رد نشود."), IXProxyManager.shared.engineName];
+    return [NSString stringWithFormat:IXT(@"Engine: %@.\n\nConnected means a request through the tunnel reached generate_204. This is an in-app proxy, not the phone's VPN switch. With the kill switch on, every other path fails until the tunnel is up. UDP stays blocked so QUIC falls back to TCP. Copy sends tunneled, blocked, and direct connections.", @"موتور: %@.\n\n«متصل» یعنی یک درخواست واقعی از تونل به generate_204 رسیده است. این فیلترشکن داخل خود اینستاگرام است و با VPN سیستم فرق دارد. با قطع اضطراری، تا وقتی تونل بالا نیامده هیچ مسیر دیگری وصل نمی‌شود. UDP بسته است تا QUIC به TCP برگردد. کپی فهرست تونل، بسته‌شده و مستقیم را می‌فرستد."), IXProxyManager.shared.engineName];
 }
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
@@ -170,7 +211,8 @@ static NSString *IXBytes(uint64_t n) {
             else status = @"خاموش";
         }
         cell.textLabel.text = status;
-        cell.detailTextLabel.text = manager.engineName;
+        NSString *kill = manager.killSwitch ? IXT(@"Kill switch on", @"قطع اضطراری روشن") : IXT(@"Kill switch off", @"قطع اضطراری خاموش");
+        cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · %@", manager.engineName, kill];
         cell.selectionStyle = UITableViewCellSelectionStyleNone;
         UIColor *color = [UIColor systemGrayColor];
         if (manager.status == IXProxyStatusConnected) color = [UIColor systemGreenColor];
@@ -275,6 +317,10 @@ static NSString *IXBytes(uint64_t n) {
         [color setFill];
         [[UIBezierPath bezierPathWithOvalInRect:CGRectMake(1, 1, 12, 12)] fill];
     }];
+}
+
+- (void)copyDiagnostics {
+    IXCopyDiagnostics(self);
 }
 
 - (void)switchChanged:(UISwitch *)sender {

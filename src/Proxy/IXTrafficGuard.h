@@ -16,6 +16,7 @@ void IXTrafficHooksInstall(void);
 void IXTrafficGuardSetRuntime(BOOL vpnOn, BOOL proxyUp, BOOL killSwitch, BOOL blockUDP);
 void IXTrafficGuardSetPorts(uint16_t socksPort, uint16_t httpPort);
 void IXTrafficGuardSetProxyHost(const char *host, uint16_t port);
+NSString * _Nullable IXTrafficGuardProxyHost(void);
 
 BOOL IXTrafficGuardVPNOn(void);
 BOOL IXTrafficGuardProxyUp(void);
@@ -33,8 +34,14 @@ NSDictionary *IXTrafficGuardProxyDictionary(void);
 /// If `host` is a fake address minted by the DNS hook, the original hostname.
 NSString * _Nullable IXTrafficGuardLookupHost(NSString * _Nullable host);
 
+/// Mint the same fake addresses getaddrinfo returns, without calling the system resolver.
+BOOL IXTrafficGuardFakeSockaddrs(const char * _Nullable host, struct sockaddr_in * _Nullable v4, struct sockaddr_in6 * _Nullable v6);
+
 /// Newest last. Keys: path (socket or NSURLSession), host, port, up, down, reason.
 NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void);
 void IXTrafficGuardNoteSession(NSString * _Nullable host, uint16_t port, uint64_t up, uint64_t down, NSString * _Nullable reason);
+void IXTrafficGuardNote(NSString * _Nullable path, NSString * _Nullable host, uint16_t port, NSString * _Nullable reason);
+BOOL IXTrafficGuardCallerIsSelf(void);
+BOOL IXTrafficGuardNWProxyReady(void);
 
 NS_ASSUME_NONNULL_END

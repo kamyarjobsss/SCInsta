@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.7"
+                description: "Publish a prerelease tagged instagram-x-v2.1.8"
                 default: true
                 required: false
                 type: boolean
@@ -221,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.7
+                tag_name: instagram-x-v2.1.8
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.7
+                name: Instagram X 2.1.8
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -237,9 +237,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.6 could reach generate_204, then Instagram closed the local socket. Resolved addresses were in 240.0.0.0/4, which iOS rejects before connect, and the SOCKS handshake did not finish on a non-blocking socket. v2.1.7 uses the 198.18.0.0/15 fake-ip range, completes the SOCKS handshake with poll, and answers getpeername with the original destination. xhttp defaults to stream-one unless the link sets a mode. Sniffing stays routeOnly.
-
-                  The profile mark is drawn in the same box as the + glyph. A connection list shows whether a request used the HTTP proxy or a hooked socket.
+                  v2.1.7 tunneled connect and connectx, but Instagram 436 also opens Network.framework connections, resolves with CFHost, and loads video and web content outside those hooks. v2.1.8 stamps the local SOCKS proxy onto nw_connection, answers CFHost with the fake addresses, configures WKWebView's proxy, and loads http(s) video through the HTTP proxy. QUIC stays blocked so it falls back to TCP. With the kill switch on, those paths fail immediately while the tunnel is down. The VPN screen can copy a diagnostics report. The profile mark keeps the + glyph's size and gains a brand-colored tint.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -248,4 +246,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.7"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.8"

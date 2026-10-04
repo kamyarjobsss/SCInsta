@@ -44,7 +44,7 @@ static UIImage *IXMarkImage(void) {
 }
 
 static UIView *IXMarkButton(void) {
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
     UIImage *mark = IXMarkImage();
     if (mark) {
         [button setImage:mark forState:UIControlStateNormal];
@@ -342,9 +342,24 @@ static UIImage *IXMarkMatchedToPlus(UIImage *plus, CGSize glyph) {
     format.scale = screenScale >= 1 ? screenScale : 3;
     UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:glyph format:format];
     UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        CGContextRef ctx = context.CGContext;
+        CGContextSaveGState(ctx);
+        CGContextSetShadowWithColor(ctx, CGSizeZero, 2.0, [UIColor colorWithRed:0.48 green:0.28 blue:0.98 alpha:0.22].CGColor);
         [[mark imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:ourBox];
+        CGContextSetShadowWithColor(ctx, CGSizeZero, 0, NULL);
+        CGContextBeginTransparencyLayer(ctx, NULL);
+        [[mark imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:ourBox];
+        CGContextSetBlendMode(ctx, kCGBlendModeSourceIn);
+        CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+        CGFloat colors[] = {0.48f, 0.28f, 0.98f, 1.f, 1.f, 0.45f, 0.35f, 1.f};
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, colors, NULL, 2);
+        CGContextDrawLinearGradient(ctx, gradient, CGPointMake(CGRectGetMinX(ourBox), CGRectGetMaxY(ourBox)), CGPointMake(CGRectGetMaxX(ourBox), CGRectGetMinY(ourBox)), 0);
+        CGGradientRelease(gradient);
+        CGColorSpaceRelease(space);
+        CGContextEndTransparencyLayer(ctx);
+        CGContextRestoreGState(ctx);
     }];
-    cached = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    cached = [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
     cachedGlyph = glyph;
     cachedHadPlus = hadPlus;
     return cached;
@@ -382,7 +397,6 @@ static void IXPlaceMenuBesideAddButton(UIView *addButton) {
     UIImage *plus = [add imageForState:UIControlStateNormal];
     UIImage *matched = IXMarkMatchedToPlus(plus, glyph.size);
     if (matched) [button setImage:matched forState:UIControlStateNormal];
-    button.tintColor = add.tintColor ?: [UIColor labelColor];
     button.contentEdgeInsets = UIEdgeInsetsZero;
     button.imageEdgeInsets = UIEdgeInsetsZero;
     button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
