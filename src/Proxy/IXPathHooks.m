@@ -1,11 +1,12 @@
 #import "IXPathHooks.h"
 #import "IXTrafficGuard.h"
 
-#import <Block.h>
 #import <dlfcn.h>
 #import <dispatch/dispatch.h>
 #import <netinet/in.h>
 #import <arpa/inet.h>
+#import <objc/message.h>
+#import <objc/runtime.h>
 #import <pthread.h>
 #import <stdio.h>
 #import <string.h>
@@ -87,8 +88,6 @@ typedef struct {
     uint16_t port;
     int blocked;
     int failed;
-    void *handler;
-    dispatch_queue_t queue;
 } IXNWSlot;
 
 typedef struct {
@@ -102,6 +101,8 @@ typedef struct {
 } IXHostSlot;
 
 static IXNWSlot ix_nw[IX_NW_MAX];
+static id ix_nw_handlers[IX_NW_MAX];
+static dispatch_queue_t ix_nw_queues[IX_NW_MAX];
 static IXHostSlot ix_hosts[IX_HOST_MAX];
 static pthread_mutex_t ix_nw_mu = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t ix_host_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -162,82 +163,62 @@ static BOOL IXDescribeEndpoint(ix_nw_t endpoint, char *host, size_t hostLen, uin
     return NO;
 }
 
-static void IXReleaseHandler(void *handler) {
-    if (handler) Block_release(handler);
+static int IXNWIndex(ix_nw_t conn, BOOL create) {
+    int freeIndex = -1;
+    for (int i = 0; i < IX_NW_MAX; i++) {
+        if (ix_nw[i].conn == conn) return i;
+        if (freeIndex < 0 && !ix_nw[i].conn) freeIndex = i;
+    }
+    if (!create) return -1;
+    return freeIndex >= 0 ? freeIndex : 0;
 }
 
 static void IXNWRemember(ix_nw_t conn, const char *host, uint16_t port, int blocked) {
     if (!conn) return;
     pthread_mutex_lock(&ix_nw_mu);
-    IXNWSlot *slot = NULL;
-    for (int i = 0; i < IX_NW_MAX; i++) {
-        if (ix_nw[i].conn == conn) {
-            slot = &ix_nw[i];
-            break;
-        }
-    }
-    if (!slot) {
-        for (int i = 0; i < IX_NW_MAX; i++) {
-            if (!ix_nw[i].conn) {
-                slot = &ix_nw[i];
-                break;
-            }
-        }
-    }
-    if (!slot) slot = &ix_nw[0];
-    if (slot->queue && slot->conn != conn) {
-        dispatch_release(slot->queue);
-        slot->queue = NULL;
-    }
-    IXReleaseHandler(slot->handler);
-    dispatch_queue_t kept = (slot->conn == conn) ? slot->queue : NULL;
-    memset(slot, 0, sizeof(*slot));
-    slot->conn = conn;
-    slot->queue = kept;
-    strlcpy(slot->host, host ?: "", sizeof(slot->host));
-    slot->port = port;
-    slot->blocked = blocked;
+    int index = IXNWIndex(conn, YES);
+    BOOL same = ix_nw[index].conn == conn;
+    id keptQueue = same ? ix_nw_queues[index] : nil;
+    ix_nw_handlers[index] = nil;
+    ix_nw_queues[index] = nil;
+    memset(&ix_nw[index], 0, sizeof(ix_nw[index]));
+    ix_nw[index].conn = conn;
+    ix_nw_queues[index] = keptQueue;
+    strlcpy(ix_nw[index].host, host ?: "", sizeof(ix_nw[index].host));
+    ix_nw[index].port = port;
+    ix_nw[index].blocked = blocked;
     pthread_mutex_unlock(&ix_nw_mu);
 }
 
 static void IXNWForget(ix_nw_t conn) {
     if (!conn) return;
     pthread_mutex_lock(&ix_nw_mu);
-    for (int i = 0; i < IX_NW_MAX; i++) {
-        if (ix_nw[i].conn != conn) continue;
-        if (ix_nw[i].queue) dispatch_release(ix_nw[i].queue);
-        IXReleaseHandler(ix_nw[i].handler);
-        memset(&ix_nw[i], 0, sizeof(ix_nw[i]));
-        break;
+    int index = IXNWIndex(conn, NO);
+    if (index >= 0) {
+        ix_nw_handlers[index] = nil;
+        ix_nw_queues[index] = nil;
+        memset(&ix_nw[index], 0, sizeof(ix_nw[index]));
     }
     pthread_mutex_unlock(&ix_nw_mu);
 }
 
 static void IXFailBlocked(ix_nw_t connection) {
     pthread_mutex_lock(&ix_nw_mu);
-    IXNWSlot *slot = NULL;
-    for (int i = 0; i < IX_NW_MAX; i++) {
-        if (ix_nw[i].conn == connection) {
-            slot = &ix_nw[i];
-            break;
-        }
-    }
-    if (!slot || !slot->blocked || slot->failed || !slot->handler) {
+    int index = IXNWIndex(connection, NO);
+    if (index < 0 || !ix_nw[index].blocked || ix_nw[index].failed || !ix_nw_handlers[index]) {
         pthread_mutex_unlock(&ix_nw_mu);
         return;
     }
-    slot->failed = 1;
-    void *handler = Block_copy(slot->handler);
-    dispatch_queue_t queue = slot->queue;
-    if (queue) dispatch_retain(queue);
+    ix_nw[index].failed = 1;
+    id handler = ix_nw_handlers[index];
+    dispatch_queue_t queue = ix_nw_queues[index];
     pthread_mutex_unlock(&ix_nw_mu);
     dispatch_queue_t target = queue ?: dispatch_get_global_queue(QOS_CLASS_UTILITY, 0);
     dispatch_async(target, ^{
-        IXNWStateBlock block = (IXNWStateBlock)handler;
+        IXNWStateBlock block = (__bridge IXNWStateBlock)(__bridge void *)handler;
+        if (!block) return;
         void *nwError = ix_error_posix ? ix_error_posix(51) : NULL;
         block(4, nwError);
-        Block_release(handler);
-        if (queue) dispatch_release(queue);
     });
 }
 
@@ -257,8 +238,10 @@ static BOOL IXApplyProxyPort(ix_nw_t params, uint16_t port) {
         ix_set_proxies(params, list);
         return YES;
     }
-    if ([(id)params respondsToSelector:@selector(setProxyConfigurations:)]) {
-        [(id)params setProxyConfigurations:list];
+    id parameters = (__bridge id)params;
+    SEL setter = NSSelectorFromString(@"setProxyConfigurations:");
+    if ([parameters respondsToSelector:setter]) {
+        ((void (*)(id, SEL, id))objc_msgSend)(parameters, setter, list);
         return YES;
     }
     return NO;
@@ -267,8 +250,9 @@ static BOOL IXApplyProxyPort(ix_nw_t params, uint16_t port) {
 static ix_nw_t IXCopyParams(ix_nw_t parameters) {
     if (!parameters) return NULL;
     if (ix_params_copy) return ix_params_copy(parameters);
-    if ([(id)parameters respondsToSelector:@selector(copy)]) {
-        id copied = [(id)parameters copy];
+    id object = (__bridge id)parameters;
+    if ([object respondsToSelector:@selector(copy)]) {
+        id copied = [object copy];
         if (!copied) return NULL;
         return (__bridge_retained ix_nw_t)copied;
     }
@@ -346,15 +330,12 @@ static void IXNWStart(ix_nw_t connection) {
 
 static void IXNWSetHandler(ix_nw_t connection, void *handler) {
     pthread_mutex_lock(&ix_nw_mu);
-    int blocked = 0;
-    for (int i = 0; i < IX_NW_MAX; i++) {
-        if (ix_nw[i].conn != connection) continue;
-        blocked = ix_nw[i].blocked;
-        IXReleaseHandler(ix_nw[i].handler);
-        ix_nw[i].handler = NULL;
-        ix_nw[i].failed = 0;
-        if (blocked && handler) ix_nw[i].handler = (void *)Block_copy(handler);
-        break;
+    int index = IXNWIndex(connection, NO);
+    int blocked = index >= 0 && ix_nw[index].blocked;
+    if (index >= 0) {
+        ix_nw[index].failed = 0;
+        ix_nw_handlers[index] = nil;
+        if (blocked && handler) ix_nw_handlers[index] = [(__bridge id)handler copy];
     }
     pthread_mutex_unlock(&ix_nw_mu);
     if (blocked) {
@@ -366,13 +347,8 @@ static void IXNWSetHandler(ix_nw_t connection, void *handler) {
 
 static void IXNWSetQueue(ix_nw_t connection, dispatch_queue_t queue) {
     pthread_mutex_lock(&ix_nw_mu);
-    for (int i = 0; i < IX_NW_MAX; i++) {
-        if (ix_nw[i].conn != connection) continue;
-        if (ix_nw[i].queue) dispatch_release(ix_nw[i].queue);
-        ix_nw[i].queue = queue;
-        if (queue) dispatch_retain(queue);
-        break;
-    }
+    int index = IXNWIndex(connection, NO);
+    if (index >= 0) ix_nw_queues[index] = queue;
     pthread_mutex_unlock(&ix_nw_mu);
     if (ix_orig_queue) ix_orig_queue(connection, queue);
 }
@@ -455,8 +431,13 @@ static IXHostSlot *IXHostFind(void *host, BOOL create) {
     if (freeSlot->addresses) CFRelease(freeSlot->addresses);
     if (freeSlot->runLoop) CFRelease(freeSlot->runLoop);
     if (freeSlot->mode) CFRelease(freeSlot->mode);
-    memset(freeSlot, 0, sizeof(*freeSlot));
     freeSlot->host = host;
+    freeSlot->name[0] = 0;
+    freeSlot->callback = NULL;
+    freeSlot->info = NULL;
+    freeSlot->runLoop = NULL;
+    freeSlot->mode = NULL;
+    freeSlot->addresses = NULL;
     return freeSlot;
 }
 
@@ -467,7 +448,13 @@ static void IXHostClear(void *host) {
         if (slot->addresses) CFRelease(slot->addresses);
         if (slot->runLoop) CFRelease(slot->runLoop);
         if (slot->mode) CFRelease(slot->mode);
-        memset(slot, 0, sizeof(*slot));
+        slot->host = NULL;
+        slot->name[0] = 0;
+        slot->callback = NULL;
+        slot->info = NULL;
+        slot->runLoop = NULL;
+        slot->mode = NULL;
+        slot->addresses = NULL;
     }
     pthread_mutex_unlock(&ix_host_mu);
 }
