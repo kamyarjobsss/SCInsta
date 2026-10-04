@@ -23,6 +23,11 @@ static NSString *IXDiagnosticsReport(void) {
     [text appendFormat:@"Instagram X %@\n", SCIVersionString ?: @""];
     [text appendFormat:@"status: %@\n", manager.statusText ?: @""];
     if (manager.lastError.length) [text appendFormat:@"error: %@\n", manager.lastError];
+    IXVLESSProfile *profile = manager.selectedProfile;
+    NSString *picked = [manager xhttpModeForProfile:profile];
+    NSString *rawMode = picked.length ? picked : profile.mode;
+    BOOL xhttp = [profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"];
+    [text appendFormat:@"xhttpMode: %@\n", xhttp ? [IXVLESSProfile xrayXHTTPModeFrom:rawMode] : @"n/a"];
     [text appendFormat:@"server: %@\n", IXTrafficGuardProxyHost() ?: @""];
     [text appendFormat:@"killSwitch: %@\n", manager.killSwitch ? @"on" : @"off"];
     [text appendFormat:@"blockUDP: %@\n", manager.blockUDP ? @"on" : @"off"];
@@ -276,10 +281,12 @@ static NSString *IXBytes(uint64_t n) {
             IXVLESSProfile *selected = manager.selectedProfile;
             BOOL xhttp = [selected.network isEqualToString:@"xhttp"] || [selected.network isEqualToString:@"splithttp"];
             NSString *override = [manager xhttpModeForProfile:selected];
-            NSString *effective = override.length ? override : (selected.mode.length ? selected.mode : @"stream-one");
+            NSString *rawMode = override.length ? override : selected.mode;
+            NSString *effective = [IXVLESSProfile xrayXHTTPModeFrom:rawMode];
             NSString *suffix = @"";
             if (xhttp && override.length == 0) {
-                suffix = selected.mode.length ? IXT(@" (from the link)", @" (از لینک)") : IXT(@" (link omitted it)", @" (لینک حالت نداشت)");
+                if ([selected.mode.lowercaseString isEqualToString:@"auto"]) suffix = IXT(@" (link said auto)", @" (لینک auto بود)");
+                else suffix = selected.mode.length ? IXT(@" (from the link)", @" (از لینک)") : IXT(@" (link omitted it)", @" (لینک حالت نداشت)");
             }
             cell.textLabel.text = IXT(@"XHTTP mode", @"حالت XHTTP");
             cell.detailTextLabel.text = xhttp
@@ -368,14 +375,13 @@ static NSString *IXBytes(uint64_t n) {
     if (indexPath.section == IXProxySectionControls && indexPath.row == 3) {
         IXVLESSProfile *selected = manager.selectedProfile;
         if (!selected) return;
-        UIAlertController *sheet = [UIAlertController alertControllerWithTitle:IXT(@"XHTTP mode", @"حالت XHTTP") message:IXT(@"stream-one and stream-up work through Fastly. packet-up is what produced PROTOCOL_ERROR.", @"stream-one و stream-up از فستلی رد می‌شوند. packet-up همان حالتی است که PROTOCOL_ERROR می‌داد.") preferredStyle:UIAlertControllerStyleActionSheet];
-        NSArray *modes = @[@"", @"stream-one", @"stream-up", @"packet-up", @"auto"];
+        UIAlertController *sheet = [UIAlertController alertControllerWithTitle:IXT(@"XHTTP mode", @"حالت XHTTP") message:IXT(@"stream-one and stream-up work through Fastly. auto and a missing mode are sent as stream-one. packet-up is what produced PROTOCOL_ERROR.", @"stream-one و stream-up از فستلی رد می‌شوند. auto و حالت خالی به صورت stream-one فرستاده می‌شوند. packet-up همان حالتی است که PROTOCOL_ERROR می‌داد.") preferredStyle:UIAlertControllerStyleActionSheet];
+        NSArray *modes = @[@"", @"stream-one", @"stream-up", @"packet-up"];
         NSArray *titles = @[
             IXT(@"Link default", @"پیش‌فرض لینک"),
             @"stream-one",
             @"stream-up",
-            @"packet-up",
-            @"auto"
+            @"packet-up"
         ];
         for (NSUInteger i = 0; i < modes.count; i++) {
             NSString *mode = modes[i];

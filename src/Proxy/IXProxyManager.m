@@ -4,6 +4,7 @@
 #import "IXRayLoader.h"
 #import "../Launch/IXLaunchGuard.h"
 #import "../Localization/SCILocalization.h"
+#import "../Tweak.h"
 
 #import <Security/Security.h>
 #import <QuartzCore/QuartzCore.h>
@@ -435,7 +436,7 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSString *picked = [self xhttpModeForProfile:profile];
     BOOL xhttp = [profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"];
     if (picked.length) profile.mode = picked;
-    else if (xhttp && profile.mode.length == 0) profile.mode = @"stream-one";
+    if (xhttp) profile.mode = [IXVLESSProfile xrayXHTTPModeFrom:profile.mode];
     if (!IXTrafficGuardInstall()) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;
@@ -584,6 +585,12 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 
 - (NSString *)recentLog {
+    IXVLESSProfile *profile = [self selectedProfile];
+    BOOL xhttp = [profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"];
+    NSString *picked = [self xhttpModeForProfile:profile];
+    NSString *rawMode = picked.length ? picked : profile.mode;
+    NSString *mode = xhttp ? [IXVLESSProfile xrayXHTTPModeFrom:rawMode] : @"n/a";
+    NSString *header = [NSString stringWithFormat:@"Instagram X %@\nxhttp mode: %@", SCIVersionString ?: @"", mode];
     NSMutableArray *lines = [_logLines mutableCopy] ?: [NSMutableArray array];
     char *raw = IXRayCopyLog();
     if (raw) {
@@ -591,8 +598,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         free(raw);
         if (text.length) [lines addObject:text];
     }
-    if (lines.count == 0) return @"No log yet.";
-    return [lines componentsJoinedByString:@"\n"];
+    NSString *body = lines.count ? [lines componentsJoinedByString:@"\n"] : @"No log yet.";
+    return [header stringByAppendingFormat:@"\n%@", body];
 }
 
 - (void)sampleStats {
@@ -753,15 +760,30 @@ static dispatch_queue_t IXProxyQueue(void) {
         }
         sent += (size_t)n;
     }
-    char buf[512];
-    ssize_t got = recv(fd, buf, sizeof(buf) - 1, 0);
+    // Read until the proxy closes. Closing after the first packet made Xray's
+    // next write fail with "broken pipe" even though the status line said 204.
+    NSMutableData *received = [NSMutableData data];
+    char buf[1024];
+    while (received.length < 16384) {
+        ssize_t got = recv(fd, buf, sizeof(buf), 0);
+        if (got == 0) break;
+        if (got < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        [received appendBytes:buf length:(NSUInteger)got];
+        NSData *marker = [NSData dataWithBytes:"\r\n\r\n" length:4];
+        if ([received rangeOfData:marker options:0 range:NSMakeRange(0, received.length)].location != NSNotFound) {
+            struct timeval drain = {.tv_sec = 1, .tv_usec = 0};
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &drain, sizeof(drain));
+        }
+    }
     close(fd);
-    if (got <= 0) {
+    if (received.length == 0) {
         if (errorOut) *errorOut = @"The tunnel did not answer the connectivity test. The server may be blocked, or the VLESS link was not accepted.";
         return -1;
     }
-    buf[got] = 0;
-    NSString *head = [NSString stringWithUTF8String:buf] ?: @"";
+    NSString *head = [[NSString alloc] initWithData:received encoding:NSUTF8StringEncoding] ?: @"";
     NSRange lineEnd = [head rangeOfString:@"\r\n"];
     NSString *status = lineEnd.location == NSNotFound ? head : [head substringToIndex:lineEnd.location];
     if ([status containsString:@" 204"]) {

@@ -202,6 +202,13 @@ static NSError *IXURIError(NSString *message) {
     return [NSString stringWithFormat:@"%@:%u · %@/%@", self.host, self.port, self.security ?: @"none", self.network ?: @"tcp"];
 }
 
++ (NSString *)xrayXHTTPModeFrom:(NSString *)mode {
+    NSString *lower = mode.lowercaseString;
+    // Xray treats auto as packet-up. Fastly answers that with PROTOCOL_ERROR.
+    if (lower.length == 0 || [lower isEqualToString:@"auto"]) return @"stream-one";
+    return lower;
+}
+
 - (id)copyWithZone:(NSZone *)zone {
     return [IXVLESSProfile profileFromURI:self.uri error:nil] ?: self;
 }
@@ -237,9 +244,9 @@ static NSError *IXURIError(NSString *message) {
             @"path": self.path.length ? self.path : @"/"
         } mutableCopy];
         if (self.wsHost.length) xhttp[@"host"] = self.wsHost;
-        // packet-up is Xray's default and Fastly answers it with PROTOCOL_ERROR.
-        // Keep an explicit link mode. Otherwise use stream-one, which CDNs accept.
-        xhttp[@"mode"] = self.mode.length ? self.mode : @"stream-one";
+        // A link or saved override of "auto" is not an explicit transport.
+        // Xray's auto dials packet-up, which Fastly rejects.
+        xhttp[@"mode"] = [IXVLESSProfile xrayXHTTPModeFrom:self.mode];
         if (self.xhttpExtra.length) {
             NSData *extraData = [self.xhttpExtra dataUsingEncoding:NSUTF8StringEncoding];
             id extra = extraData ? [NSJSONSerialization JSONObjectWithData:extraData options:0 error:nil] : nil;

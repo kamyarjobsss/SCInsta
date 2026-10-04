@@ -38,6 +38,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSString *)displayName;
 - (NSString *)endpointSummary;
+/// Mode written into xhttpSettings. Empty and "auto" become stream-one; Xray's auto dials packet-up.
++ (NSString *)xrayXHTTPModeFrom:(NSString * _Nullable)mode;
 - (NSDictionary *)xrayOutbound;
 - (NSString *)xrayJSONWithSocksPort:(uint16_t)socksPort httpPort:(uint16_t)httpPort;
 

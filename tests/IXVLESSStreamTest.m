@@ -139,6 +139,13 @@ int main(void) {
             @"?security=tls&type=xhttp&host=cdn.example&sni=ssl.fastly.com&path=%2F";
         IXVLESSProfile *bare = [IXVLESSProfile profileFromURI:xhttpBare error:nil];
         IXExpect([[bare xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"stream-one"], @"xhttp without mode uses stream-one");
+        NSString *autoLink =
+            @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
+            @"?security=tls&type=xhttp&mode=auto&path=%2F";
+        IXVLESSProfile *autoProfile = [IXVLESSProfile profileFromURI:autoLink error:nil];
+        IXExpect([autoProfile.mode isEqualToString:@"auto"], @"link mode auto is parsed");
+        IXExpect([[autoProfile xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"stream-one"], @"xhttp mode auto is sent as stream-one");
+        IXExpect([[IXVLESSProfile xrayXHTTPModeFrom:@"AUTO"] isEqualToString:@"stream-one"], @"AUTO is stream-one");
         NSString *packet =
             @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
             @"?security=tls&type=xhttp&mode=packet-up&path=%2F";

@@ -237,7 +237,9 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.7 tunneled connect and connectx, but Instagram 436 also opens Network.framework connections, resolves with CFHost, and loads video and web content outside those hooks. v2.1.8 stamps the local SOCKS proxy onto nw_connection, answers CFHost with the fake addresses, configures WKWebView's proxy, and loads http(s) video through the HTTP proxy. QUIC stays blocked so it falls back to TCP. With the kill switch on, those paths fail immediately while the tunnel is down. The VPN screen can copy a diagnostics report. The profile mark keeps the + glyph's size and gains a brand-colored tint.
+                  v2.1.7 tunneled connect and connectx, but a link mode of auto was copied into xhttpSettings. Xray treats auto as packet-up, which is the PROTOCOL_ERROR on Fastly. v2.1.8 sends auto as stream-one. The connectivity check also read the whole proxy response before closing, so Xray no longer logs a broken pipe for its own generate_204 request.
+
+                  Instagram 436 also opens Network.framework connections, resolves with CFHost, and loads video and web content outside connect. v2.1.8 stamps the local SOCKS proxy onto nw_connection, answers CFHost with the fake addresses, configures WKWebView's proxy, and loads http(s) video through the HTTP proxy. QUIC stays blocked so it falls back to TCP. With the kill switch on, those paths fail immediately while the tunnel is down. The VPN log starts with the app version and the xhttp mode. Copy sends a diagnostics report. The profile mark keeps the + glyph's size and gains a brand-colored tint.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
