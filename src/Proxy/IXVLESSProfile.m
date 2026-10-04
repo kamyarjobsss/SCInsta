@@ -237,7 +237,9 @@ static NSError *IXURIError(NSString *message) {
             @"path": self.path.length ? self.path : @"/"
         } mutableCopy];
         if (self.wsHost.length) xhttp[@"host"] = self.wsHost;
-        if (self.mode.length) xhttp[@"mode"] = self.mode;
+        // packet-up is Xray's default and Fastly answers it with PROTOCOL_ERROR.
+        // Keep an explicit link mode. Otherwise use stream-one, which CDNs accept.
+        xhttp[@"mode"] = self.mode.length ? self.mode : @"stream-one";
         if (self.xhttpExtra.length) {
             NSData *extraData = [self.xhttpExtra dataUsingEncoding:NSUTF8StringEncoding];
             id extra = extraData ? [NSJSONSerialization JSONObjectWithData:extraData options:0 error:nil] : nil;
@@ -332,6 +334,12 @@ static NSError *IXURIError(NSString *message) {
         @"metadataOnly": @NO,
         @"routeOnly": @YES
     };
+    NSDictionary *httpSniff = @{
+        @"enabled": @YES,
+        @"destOverride": @[@"http", @"tls"],
+        @"metadataOnly": @NO,
+        @"routeOnly": @YES
+    };
     NSDictionary *config = @{
         @"log": @{@"loglevel": @"warning"},
         @"dns": dns,
@@ -345,17 +353,28 @@ static NSError *IXURIError(NSString *message) {
                 @"sniffing": sniff
             },
             @{
+                @"listen": @"::1",
+                @"port": @(socksPort),
+                @"protocol": @"socks",
+                @"settings": @{@"auth": @"noauth", @"udp": @YES},
+                @"tag": @"socks-in6",
+                @"sniffing": sniff
+            },
+            @{
                 @"tag": @"http-in",
                 @"listen": @"127.0.0.1",
                 @"port": @(httpPort),
                 @"protocol": @"http",
                 @"settings": @{},
-                @"sniffing": @{
-                    @"enabled": @YES,
-                    @"destOverride": @[@"http", @"tls"],
-                    @"metadataOnly": @NO,
-                    @"routeOnly": @YES
-                }
+                @"sniffing": httpSniff
+            },
+            @{
+                @"tag": @"http-in6",
+                @"listen": @"::1",
+                @"port": @(httpPort),
+                @"protocol": @"http",
+                @"settings": @{},
+                @"sniffing": httpSniff
             }
         ],
         @"outbounds": @[

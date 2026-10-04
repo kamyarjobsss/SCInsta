@@ -21,6 +21,7 @@ NSString *const IXProxyKillSwitchKey = @"ix_killswitch";
 NSString *const IXProxyBlockUDPKey = @"ix_block_udp";
 NSString *const IXProxyProfilesKey = @"ix_vless_profiles";
 NSString *const IXProxySelectedKey = @"ix_vless_selected";
+static NSString *const IXProxyXHTTPModeKey = @"ix_xhttp_mode";
 
 static const uint16_t kSocksPort = 61850;
 static const uint16_t kHTTPPort = 61851;
@@ -221,6 +222,10 @@ static dispatch_queue_t IXProxyQueue(void) {
         [suite setBool:on forKey:IXProxyBlockUDPKey];
         [standard setBool:on forKey:IXProxyBlockUDPKey];
     }
+    if ([payload[@"xhttpModes"] isKindOfClass:[NSDictionary class]]) {
+        [suite setObject:payload[@"xhttpModes"] forKey:IXProxyXHTTPModeKey];
+        [standard setObject:payload[@"xhttpModes"] forKey:IXProxyXHTTPModeKey];
+    }
     [suite synchronize];
     [standard synchronize];
 }
@@ -239,6 +244,8 @@ static dispatch_queue_t IXProxyQueue(void) {
     [standard setBool:enabled forKey:IXProxyEnabledKey];
     [standard setBool:kill forKey:IXProxyKillSwitchKey];
     [standard setBool:block forKey:IXProxyBlockUDPKey];
+    NSDictionary *modes = [suite dictionaryForKey:IXProxyXHTTPModeKey] ?: @{};
+    [standard setObject:modes forKey:IXProxyXHTTPModeKey];
     [suite synchronize];
     [standard synchronize];
     IXProxyKeychainWrite(@{
@@ -246,7 +253,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         @"selected": selected,
         @"enabled": @(enabled),
         @"killswitch": @(kill),
-        @"blockudp": @(block)
+        @"blockudp": @(block),
+        @"xhttpModes": modes
     });
 }
 
@@ -298,6 +306,25 @@ static dispatch_queue_t IXProxyQueue(void) {
 
 - (BOOL)isEnabled {
     return [[self settingsStore] boolForKey:IXProxyEnabledKey];
+}
+
+- (NSString *)xhttpModeForProfile:(IXVLESSProfile *)profile {
+    if (profile.uri.length == 0) return @"";
+    NSDictionary *map = [[self settingsStore] dictionaryForKey:IXProxyXHTTPModeKey];
+    NSString *mode = map[profile.uri];
+    return [mode isKindOfClass:[NSString class]] ? mode : @"";
+}
+
+- (void)setXHTTPMode:(NSString *)mode forProfile:(IXVLESSProfile *)profile {
+    if (profile.uri.length == 0) return;
+    NSMutableDictionary *map = [[[self settingsStore] dictionaryForKey:IXProxyXHTTPModeKey] mutableCopy] ?: [NSMutableDictionary dictionary];
+    if (mode.length == 0) [map removeObjectForKey:profile.uri];
+    else map[profile.uri] = mode;
+    [[self settingsStore] setObject:map forKey:IXProxyXHTTPModeKey];
+    [self persistSettings];
+    if ([self isEnabled] && [profile.uri isEqualToString:[self selectedProfile].uri]) {
+        [self setEnabled:YES completion:nil];
+    }
 }
 
 - (void)setKillSwitch:(BOOL)on {
@@ -405,6 +432,10 @@ static dispatch_queue_t IXProxyQueue(void) {
     // connection, and the IP is only written into dns.hosts. vnext stays the domain.
     if ([self hostIsAddress:profile.host]) profile.dialAddress = nil;
     else profile.dialAddress = [self resolveHost:profile.host];
+    NSString *picked = [self xhttpModeForProfile:profile];
+    BOOL xhttp = [profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"];
+    if (picked.length) profile.mode = picked;
+    else if (xhttp && profile.mode.length == 0) profile.mode = @"stream-one";
     if (!IXTrafficGuardInstall()) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;

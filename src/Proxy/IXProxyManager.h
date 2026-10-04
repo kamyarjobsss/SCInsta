@@ -37,6 +37,9 @@ typedef NS_ENUM(NSInteger, IXProxyStatus) {
 - (void)setBlockUDP:(BOOL)on;
 - (BOOL)killSwitch;
 - (BOOL)blockUDP;
+/// Empty string means the link's mode (stream-one when the link omits it).
+- (NSString *)xhttpModeForProfile:(IXVLESSProfile *)profile;
+- (void)setXHTTPMode:(nullable NSString *)mode forProfile:(IXVLESSProfile *)profile;
 - (BOOL)isEnabled;
 
 - (void)restoreOnLaunch;

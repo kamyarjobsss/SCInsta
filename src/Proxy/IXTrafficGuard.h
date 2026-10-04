@@ -33,4 +33,8 @@ NSDictionary *IXTrafficGuardProxyDictionary(void);
 /// If `host` is a fake address minted by the DNS hook, the original hostname.
 NSString * _Nullable IXTrafficGuardLookupHost(NSString * _Nullable host);
 
+/// Newest last. Keys: path (socket or NSURLSession), host, port, up, down, reason.
+NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void);
+void IXTrafficGuardNoteSession(NSString * _Nullable host, uint16_t port, uint64_t up, uint64_t down, NSString * _Nullable reason);
+
 NS_ASSUME_NONNULL_END

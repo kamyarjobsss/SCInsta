@@ -1,5 +1,6 @@
 #import "IXProxyViewController.h"
 #import "IXProxyManager.h"
+#import "IXTrafficGuard.h"
 #import "../Localization/SCILocalization.h"
 
 typedef NS_ENUM(NSInteger, IXProxySection) {
@@ -20,6 +21,59 @@ static NSString *IXBytes(uint64_t n) {
     if (n < 1024 * 1024) return [NSString stringWithFormat:@"%.1f KB", n / 1024.0];
     return [NSString stringWithFormat:@"%.2f MB", n / (1024.0 * 1024.0)];
 }
+
+@interface IXProxyConnectionsController : UITableViewController
+@property (nonatomic, copy) NSArray<NSDictionary *> *rows;
+@property (nonatomic, strong) NSTimer *timer;
+@end
+
+@implementation IXProxyConnectionsController
+- (instancetype)init {
+    return [super initWithStyle:UITableViewStyleInsetGrouped];
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = IXT(@"Connections", @"اتصال‌ها");
+}
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self reloadRows];
+    [self.timer invalidate];
+    self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0 target:self selector:@selector(reloadRows) userInfo:nil repeats:YES];
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [self.timer invalidate];
+    self.timer = nil;
+}
+- (void)reloadRows {
+    self.rows = IXTrafficGuardRecentConnections() ?: @[];
+    [self.tableView reloadData];
+}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return MAX(self.rows.count, 1);
+}
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    return IXT(@"Socket rows were redirected with a SOCKS handshake. NSURLSession rows used the HTTP proxy. A broken pipe in the Xray log is this screen's close reason.", @"ردیف سوکت با دست‌داد SOCKS هدایت شده است. ردیف NSURLSession از پروکسی HTTP گذشته است. broken pipe در گزارش Xray همان دلیل بسته‌شدن اینجاست.");
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+    cell.textLabel.numberOfLines = 0;
+    cell.detailTextLabel.numberOfLines = 0;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    if (self.rows.count == 0) {
+        cell.textLabel.text = IXT(@"No connections yet", @"هنوز اتصالی نیست");
+        cell.detailTextLabel.text = IXT(@"Open the feed with the VPN on.", @"با فیلترشکن روشن، فید را باز کنید.");
+        return cell;
+    }
+    NSDictionary *row = self.rows[self.rows.count - 1 - indexPath.row];
+    NSString *host = row[@"host"] ?: @"";
+    NSNumber *port = row[@"port"];
+    cell.textLabel.text = port.unsignedIntegerValue ? [NSString stringWithFormat:@"%@:%@", host, port] : host;
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · ↑%@ · ↓%@ · %@", row[@"path"] ?: @"", IXBytes([row[@"up"] unsignedLongLongValue]), IXBytes([row[@"down"] unsignedLongLongValue]), row[@"reason"] ?: @""];
+    return cell;
+}
+@end
 
 @interface IXProxyLogController : UIViewController
 @end
@@ -80,9 +134,9 @@ static NSString *IXBytes(uint64_t n) {
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == IXProxySectionProfiles) return MAX([IXProxyManager.shared profiles].count, 1);
-    if (section == IXProxySectionControls) return 3;
+    if (section == IXProxySectionControls) return 4;
     if (section == IXProxySectionAdd) return 2;
-    if (section == IXProxySectionTraffic) return 4;
+    if (section == IXProxySectionTraffic) return 5;
     return 1;
 }
 
@@ -141,9 +195,14 @@ static NSString *IXBytes(uint64_t n) {
                 : IXT(@"Sends generate_204 through the tunnel.", @"یک درخواست generate_204 از داخل تونل می‌فرستد.");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        } else {
+        } else if (indexPath.row == 3) {
             cell.textLabel.text = IXT(@"View log", @"دیدن گزارش");
             cell.detailTextLabel.text = IXT(@"Xray messages and the connectivity check.", @"پیام‌های Xray و نتیجهٔ آزمایش اتصال.");
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else {
+            cell.textLabel.text = IXT(@"Connections", @"اتصال‌ها");
+            cell.detailTextLabel.text = IXT(@"Which path each request took, the bytes, and why it closed.", @"هر درخواست از کدام مسیر رفته، حجمش، و چرا بسته شده است.");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         }
@@ -164,10 +223,26 @@ static NSString *IXBytes(uint64_t n) {
             cell.textLabel.text = IXT(@"Kill switch", @"قطع اضطراری");
             cell.detailTextLabel.text = IXT(@"If the proxy is down, block Instagram instead of leaking the real IP.", @"اگر پروکسی قطع باشد، به‌جای لو رفتن IP واقعی، اینستاگرام بسته می‌شود.");
             toggle.on = manager.killSwitch;
-        } else {
+        } else if (indexPath.row == 2) {
             cell.textLabel.text = IXT(@"Block UDP and calls", @"بستن UDP و تماس");
             cell.detailTextLabel.text = IXT(@"Stops call media from bypassing the tunnel. Turning this off can reveal your IP.", @"نمی‌گذارد صدای تماس از کنار تونل رد شود. خاموش کردنش می‌تواند IP را لو بدهد.");
             toggle.on = manager.blockUDP;
+        } else {
+            cell.accessoryView = nil;
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+            IXVLESSProfile *selected = manager.selectedProfile;
+            BOOL xhttp = [selected.network isEqualToString:@"xhttp"] || [selected.network isEqualToString:@"splithttp"];
+            NSString *override = [manager xhttpModeForProfile:selected];
+            NSString *effective = override.length ? override : (selected.mode.length ? selected.mode : @"stream-one");
+            NSString *suffix = @"";
+            if (xhttp && override.length == 0) {
+                suffix = selected.mode.length ? IXT(@" (from the link)", @" (از لینک)") : IXT(@" (link omitted it)", @" (لینک حالت نداشت)");
+            }
+            cell.textLabel.text = IXT(@"XHTTP mode", @"حالت XHTTP");
+            cell.detailTextLabel.text = xhttp
+                ? [effective stringByAppendingString:suffix]
+                : IXT(@"Applies when the selected server is xhttp. stream-one avoids Fastly PROTOCOL_ERROR.", @"وقتی سرور انتخاب‌شده xhttp باشد اثر دارد. stream-one خطای PROTOCOL_ERROR فستلی را کم می‌کند.");
         }
         return cell;
     }
@@ -239,7 +314,32 @@ static NSString *IXBytes(uint64_t n) {
             }];
         } else if (indexPath.row == 3) {
             [self.navigationController pushViewController:[IXProxyLogController new] animated:YES];
+        } else if (indexPath.row == 4) {
+            [self.navigationController pushViewController:[IXProxyConnectionsController new] animated:YES];
         }
+        return;
+    }
+    if (indexPath.section == IXProxySectionControls && indexPath.row == 3) {
+        IXVLESSProfile *selected = manager.selectedProfile;
+        if (!selected) return;
+        UIAlertController *sheet = [UIAlertController alertControllerWithTitle:IXT(@"XHTTP mode", @"حالت XHTTP") message:IXT(@"stream-one and stream-up work through Fastly. packet-up is what produced PROTOCOL_ERROR.", @"stream-one و stream-up از فستلی رد می‌شوند. packet-up همان حالتی است که PROTOCOL_ERROR می‌داد.") preferredStyle:UIAlertControllerStyleActionSheet];
+        NSArray *modes = @[@"", @"stream-one", @"stream-up", @"packet-up", @"auto"];
+        NSArray *titles = @[
+            IXT(@"Link default", @"پیش‌فرض لینک"),
+            @"stream-one",
+            @"stream-up",
+            @"packet-up",
+            @"auto"
+        ];
+        for (NSUInteger i = 0; i < modes.count; i++) {
+            NSString *mode = modes[i];
+            [sheet addAction:[UIAlertAction actionWithTitle:titles[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                [manager setXHTTPMode:mode forProfile:selected];
+                [self.tableView reloadData];
+            }]];
+        }
+        [sheet addAction:[UIAlertAction actionWithTitle:IXT(@"Cancel", @"انصراف") style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:sheet animated:YES completion:nil];
         return;
     }
     if (indexPath.section == IXProxySectionProfiles) {

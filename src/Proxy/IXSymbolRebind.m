@@ -170,8 +170,8 @@ static int IXRebindImage(const struct mach_header *header, intptr_t slide, const
     return patched;
 }
 
-static const char *ix_saved_names[8];
-static void *ix_saved_repl[8];
+static const char *ix_saved_names[16];
+static void *ix_saved_repl[16];
 static unsigned ix_saved_count = 0;
 static int ix_rebind_live = 0;
 static int ix_image_callback = 0;
@@ -201,7 +201,7 @@ static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
 int IXSymbolRebindSlots(const char *const *names, void *const *replacements, unsigned count) {
     if (!names || !replacements || count == 0) return 0;
     pthread_mutex_lock(&ix_rebind_mu);
-    ix_saved_count = count > 8 ? 8 : count;
+    ix_saved_count = count > 16 ? 16 : count;
     for (unsigned i = 0; i < ix_saved_count; i++) {
         ix_saved_names[i] = names[i];
         ix_saved_repl[i] = replacements[i];

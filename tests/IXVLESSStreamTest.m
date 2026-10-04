@@ -134,6 +134,22 @@ int main(void) {
         NSDictionary *xNext = [[xhttp xrayOutbound][@"settings"][@"vnext"] firstObject];
         IXExpect([xNext[@"address"] isEqualToString:@"fs.koomeh.net"], @"xhttp dials the address domain");
 
+        NSString *xhttpBare =
+            @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
+            @"?security=tls&type=xhttp&host=cdn.example&sni=ssl.fastly.com&path=%2F";
+        IXVLESSProfile *bare = [IXVLESSProfile profileFromURI:xhttpBare error:nil];
+        IXExpect([[bare xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"stream-one"], @"xhttp without mode uses stream-one");
+        NSString *packet =
+            @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
+            @"?security=tls&type=xhttp&mode=packet-up&path=%2F";
+        IXVLESSProfile *packetProfile = [IXVLESSProfile profileFromURI:packet error:nil];
+        IXExpect([[packetProfile xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"packet-up"], @"explicit packet-up is kept");
+        BOOL v6Socks = NO;
+        for (NSDictionary *inbound in config[@"inbounds"]) {
+            if ([inbound[@"tag"] isEqualToString:@"socks-in6"] && [inbound[@"listen"] isEqualToString:@"::1"]) v6Socks = YES;
+        }
+        IXExpect(v6Socks, @"ipv6 sockets have a loopback SOCKS inbound");
+
         if (gFailures) {
             fprintf(stderr, "%d failure(s)\n%s\n", gFailures, [outbound description].UTF8String);
             return 1;

@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.6"
+                description: "Publish a prerelease tagged instagram-x-v2.1.7"
                 default: true
                 required: false
                 type: boolean
@@ -221,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.6
+                tag_name: instagram-x-v2.1.7
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.6
+                name: Instagram X 2.1.7
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -237,9 +237,9 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.5 sent Xray's DNS-over-HTTPS for the proxy domain through the proxy, so the lookup timed out before the tunnel existed. v2.1.6 resolves that domain on the device, stores the address in dns.hosts, and routes the DoH server IPs to a freedom outbound named direct. xhttp keeps the link's mode, alpn, and extra. Sniffing uses routeOnly. Switching servers restarts Xray on one queue.
+                  v2.1.6 could reach generate_204, then Instagram closed the local socket. Resolved addresses were in 240.0.0.0/4, which iOS rejects before connect, and the SOCKS handshake did not finish on a non-blocking socket. v2.1.7 uses the 198.18.0.0/15 fake-ip range, completes the SOCKS handshake with poll, and answers getpeername with the original destination. xhttp defaults to stream-one unless the link sets a mode. Sniffing stays routeOnly.
 
-                  Story font selection follows the chip the user tapped. The type search no longer jumps to the first of the four prepended fonts. The settings logo is a transparent template glyph, and Instagram: @K8myar opens that profile through Instagram's URL handler.
+                  The profile mark is drawn in the same box as the + glyph. A connection list shows whether a request used the HTTP proxy or a hooked socket.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -248,4 +248,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.6"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.7"

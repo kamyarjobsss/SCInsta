@@ -267,6 +267,89 @@ static UIButton *IXMenuBeside(UIView *addButton) {
     return button;
 }
 
+static CGRect IXInkNorm(UIImage *image) {
+    if (!image || image.size.width < 1 || image.size.height < 1) return CGRectZero;
+    CGFloat scale = image.scale > 0 ? image.scale : 1;
+    size_t w = (size_t)lrint(image.size.width * scale);
+    size_t h = (size_t)lrint(image.size.height * scale);
+    if (w < 1 || h < 1 || w > 400 || h > 400) return CGRectZero;
+    uint8_t *pixels = calloc(w * h, 4);
+    if (!pixels) return CGRectZero;
+    CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGContextRef ctx = CGBitmapContextCreate(pixels, w, h, 8, w * 4, space, kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(space);
+    if (!ctx) {
+        free(pixels);
+        return CGRectZero;
+    }
+    CGContextTranslateCTM(ctx, 0, (CGFloat)h);
+    CGContextScaleCTM(ctx, scale, -scale);
+    UIGraphicsPushContext(ctx);
+    [[image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:CGRectMake(0, 0, image.size.width, image.size.height)];
+    UIGraphicsPopContext();
+    CGContextRelease(ctx);
+    size_t minX = w, minY = h, maxX = 0, maxY = 0;
+    BOOL any = NO;
+    for (size_t y = 0; y < h; y++) {
+        for (size_t x = 0; x < w; x++) {
+            if (pixels[(y * w + x) * 4 + 3] < 24) continue;
+            any = YES;
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+    }
+    free(pixels);
+    if (!any) return CGRectZero;
+    return CGRectMake((CGFloat)minX / (CGFloat)w, (CGFloat)minY / (CGFloat)h,
+                      (CGFloat)(maxX - minX + 1) / (CGFloat)w, (CGFloat)(maxY - minY + 1) / (CGFloat)h);
+}
+
+static UIImage *IXMarkMatchedToPlus(UIImage *plus, CGSize glyph) {
+    static UIImage *cached;
+    static CGSize cachedGlyph;
+    static BOOL cachedHadPlus;
+    BOOL hadPlus = plus != nil;
+    if (cached && cachedHadPlus == hadPlus && CGSizeEqualToSize(cachedGlyph, glyph)) return cached;
+    UIImage *mark = IXMarkImage();
+    if (!mark || glyph.width < 8 || glyph.height < 8) return mark;
+    CGRect plusInk = IXInkNorm(plus);
+    if (CGRectIsEmpty(plusInk)) plusInk = CGRectMake(0.15, 0.15, 0.7, 0.7);
+    CGRect ourInk = IXInkNorm(mark);
+    if (CGRectIsEmpty(ourInk)) ourInk = CGRectMake(0, 0, 1, 1);
+    CGRect plusBox;
+    if (plus.size.width < 1 || plus.size.height < 1) {
+        plusBox = CGRectInset((CGRect){CGPointZero, glyph}, glyph.width * 0.15, glyph.height * 0.15);
+    } else {
+        CGFloat fit = MIN(glyph.width / plus.size.width, glyph.height / plus.size.height);
+        CGSize drawnPlus = CGSizeMake(plus.size.width * fit, plus.size.height * fit);
+        plusBox = CGRectMake((glyph.width - drawnPlus.width) / 2.0, (glyph.height - drawnPlus.height) / 2.0, drawnPlus.width, drawnPlus.height);
+    }
+    CGRect target = CGRectMake(plusBox.origin.x + plusInk.origin.x * plusBox.size.width,
+                               plusBox.origin.y + plusInk.origin.y * plusBox.size.height,
+                               plusInk.size.width * plusBox.size.width,
+                               plusInk.size.height * plusBox.size.height);
+    CGFloat scale = MIN(target.size.width / MAX(ourInk.size.width * mark.size.width, 0.01),
+                        target.size.height / MAX(ourInk.size.height * mark.size.height, 0.01));
+    CGSize drawn = CGSizeMake(mark.size.width * scale, mark.size.height * scale);
+    CGRect ourBox = CGRectMake(CGRectGetMidX(target) - (ourInk.origin.x * drawn.width + ourInk.size.width * drawn.width / 2.0),
+                               CGRectGetMidY(target) - (ourInk.origin.y * drawn.height + ourInk.size.height * drawn.height / 2.0),
+                               drawn.width, drawn.height);
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
+    format.opaque = NO;
+    CGFloat screenScale = UIScreen.mainScreen.scale;
+    format.scale = screenScale >= 1 ? screenScale : 3;
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:glyph format:format];
+    UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        [[mark imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:ourBox];
+    }];
+    cached = [image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    cachedGlyph = glyph;
+    cachedHadPlus = hadPlus;
+    return cached;
+}
+
 static void IXPlaceMenuBesideAddButton(UIView *addButton) {
     static __thread int placing = 0;
     if (placing) return;
@@ -289,21 +372,27 @@ static void IXPlaceMenuBesideAddButton(UIView *addButton) {
         [host insertSubview:button aboveSubview:addButton];
     }
     CGRect addFrame = addButton.frame;
-    CGFloat glyph = 28;
-    CGFloat side = MIN(addFrame.size.width, addFrame.size.height);
-    if (side >= 24 && side <= 36) glyph = side;
-    if ([addButton isKindOfClass:[UIButton class]]) {
-        button.tintColor = ((UIButton *)addButton).tintColor ?: [UIColor labelColor];
-    } else if ([addButton respondsToSelector:@selector(tintColor)] && addButton.tintColor) {
-        button.tintColor = addButton.tintColor;
+    UIButton *add = [addButton isKindOfClass:[UIButton class]] ? (UIButton *)addButton : nil;
+    CGRect glyph = add.imageView ? [add.imageView convertRect:add.imageView.bounds toView:host] : CGRectZero;
+    if (glyph.size.width < 8 || glyph.size.height < 8) {
+        CGFloat side = MIN(addFrame.size.width, addFrame.size.height);
+        if (side < 16 || side > 44) side = 22;
+        glyph = CGRectMake(0, CGRectGetMidY(addFrame) - side / 2.0, side, side);
     }
-    CGFloat x = CGRectGetMidX(addFrame) <= CGRectGetMidX(host.bounds)
-        ? CGRectGetMaxX(addFrame) + 4
-        : CGRectGetMinX(addFrame) - 4 - glyph;
-    CGFloat y = CGRectGetMidY(addFrame) - glyph / 2.0;
-    button.translatesAutoresizingMaskIntoConstraints = YES;
+    UIImage *plus = [add imageForState:UIControlStateNormal];
+    UIImage *matched = IXMarkMatchedToPlus(plus, glyph.size);
+    if (matched) [button setImage:matched forState:UIControlStateNormal];
+    button.tintColor = add.tintColor ?: [UIColor labelColor];
     button.contentEdgeInsets = UIEdgeInsetsZero;
-    button.frame = CGRectMake(x, y, glyph, glyph);
+    button.imageEdgeInsets = UIEdgeInsetsZero;
+    button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;
+    button.contentVerticalAlignment = UIControlContentVerticalAlignmentFill;
+    button.imageView.contentMode = UIViewContentModeScaleAspectFit;
+    CGFloat x = CGRectGetMidX(addFrame) <= CGRectGetMidX(host.bounds)
+        ? CGRectGetMaxX(addFrame) + 2
+        : CGRectGetMinX(addFrame) - 2 - glyph.size.width;
+    button.translatesAutoresizingMaskIntoConstraints = YES;
+    button.frame = CGRectMake(x, glyph.origin.y, glyph.size.width, glyph.size.height);
     placing = 0;
 }
 

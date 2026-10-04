@@ -4,6 +4,7 @@
 #import <errno.h>
 #import <fcntl.h>
 #import <netinet/in.h>
+#import <poll.h>
 #import <pthread.h>
 #import <stdatomic.h>
 #import <stdlib.h>
@@ -28,6 +29,12 @@ static struct hostent *(*ix_orig_gethostbyname)(const char *) = NULL;
 static ssize_t (*ix_orig_sendto)(int, const void *, size_t, int, const struct sockaddr *, socklen_t) = NULL;
 static ssize_t (*ix_orig_sendmsg)(int, const struct msghdr *, int) = NULL;
 static int (*ix_orig_connectx)(int, const sa_endpoints_t *, sae_associd_t, unsigned int, const struct iovec *, unsigned int, size_t *, sae_connid_t *) = NULL;
+static int (*ix_orig_getpeername)(int, struct sockaddr *, socklen_t *) = NULL;
+static int (*ix_orig_close)(int) = NULL;
+static ssize_t (*ix_orig_read)(int, void *, size_t) = NULL;
+static ssize_t (*ix_orig_recv)(int, void *, size_t, int) = NULL;
+static ssize_t (*ix_orig_write)(int, const void *, size_t) = NULL;
+static ssize_t (*ix_orig_send)(int, const void *, size_t, int) = NULL;
 
 static BOOL ix_installed = NO;
 
@@ -55,8 +62,11 @@ static uint32_t IXRememberHost(const char *host) {
     }
     if (ix_map_count >= IX_MAP_MAX) ix_map_count = 0;
     uint32_t token = ix_next_token++;
-    if (token == 0 || token > 0x00FFFFFFu) {
-        token = ix_next_token = 1;
+    // 198.18.0.0/15 has 17 host bits. Wrapping forgets the old map.
+    if (token == 0 || token > 0x0001FFFFu) {
+        token = 1;
+        ix_next_token = 2;
+        ix_map_count = 0;
     }
     ix_map[ix_map_count].token = token;
     strlcpy(ix_map[ix_map_count].host, host, sizeof(ix_map[ix_map_count].host));
@@ -103,14 +113,17 @@ static BOOL IXHostIsProxy(const char *host) {
     return match;
 }
 
+// 198.18.0.0/15, the fake-ip range used by Clash and Surge.
+// 240.0.0.0/4 is IN_BADCLASS. iOS refuses it before connect(), then cancels
+// the HTTP CONNECT that was already open, which is the broken pipe on http-in.
 static uint32_t IXFakeIPv4(uint32_t token) {
-    return htonl(0xF0000000u | (token & 0x00FFFFFFu));
+    return htonl(0xC6120000u | (token & 0x0001FFFFu));
 }
 
 static uint32_t IXTokenFromIPv4(uint32_t addrNetwork) {
     uint32_t host = ntohl(addrNetwork);
-    if ((host & 0xF0000000u) != 0xF0000000u) return 0;
-    return host & 0x00FFFFFFu;
+    if ((host & 0xFFFE0000u) != 0xC6120000u) return 0;
+    return host & 0x0001FFFFu;
 }
 
 // fd00:9::/64, token in the last 32 bits. Not a public route, so a missed hook
@@ -172,13 +185,17 @@ int IXOrigGetaddrinfo(const char *node, const char *service, const struct addrin
 
 NSDictionary *IXTrafficGuardProxyDictionary(void) {
     uint16_t http = IXTrafficGuardHTTPPort();
+    NSNumber *port = @(http);
+    // HTTPSProxy / HTTPSPort are kCFStreamPropertyHTTPSProxyHost / Port.
+    // SOCKS stays off so CFNetwork does not mix a SOCKS proxy with this HTTP proxy.
     return @{
         @"HTTPEnable": @YES,
         @"HTTPProxy": @"127.0.0.1",
-        @"HTTPPort": @(http),
+        @"HTTPPort": port,
         @"HTTPSEnable": @YES,
         @"HTTPSProxy": @"127.0.0.1",
-        @"HTTPSPort": @(http)
+        @"HTTPSPort": port,
+        @"SOCKSEnable": @NO
     };
 }
 
@@ -252,13 +269,119 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
     return NO;
 }
 
+#define IX_FD_MAX 4096
+#define IX_LOG_MAX 48
+
+typedef struct {
+    _Atomic int on;
+    _Atomic uint64_t up;
+    _Atomic uint64_t down;
+    char host[96];
+    uint16_t port;
+    struct sockaddr_storage addr;
+    socklen_t addrLen;
+} IXLiveFD;
+
+typedef struct {
+    char path[16];
+    char host[96];
+    char reason[96];
+    uint16_t port;
+    uint64_t up;
+    uint64_t down;
+} IXLoggedConn;
+
+static IXLiveFD ix_live[IX_FD_MAX];
+static IXLoggedConn ix_log[IX_LOG_MAX];
+static int ix_log_count = 0;
+static int ix_log_next = 0;
+static pthread_mutex_t ix_fd_mu = PTHREAD_MUTEX_INITIALIZER;
+
+static void IXAddBytes(int fd, uint64_t up, uint64_t down) {
+    if ((unsigned)fd >= IX_FD_MAX) return;
+    if (!atomic_load_explicit(&ix_live[fd].on, memory_order_relaxed)) return;
+    if (up) atomic_fetch_add_explicit(&ix_live[fd].up, up, memory_order_relaxed);
+    if (down) atomic_fetch_add_explicit(&ix_live[fd].down, down, memory_order_relaxed);
+}
+
+static void IXPushLog(const char *path, const char *host, uint16_t port, uint64_t up, uint64_t down, const char *reason) {
+    pthread_mutex_lock(&ix_fd_mu);
+    IXLoggedConn *row = &ix_log[ix_log_next];
+    strlcpy(row->path, path ?: "", sizeof(row->path));
+    strlcpy(row->host, host ?: "", sizeof(row->host));
+    strlcpy(row->reason, reason ?: "", sizeof(row->reason));
+    row->port = port;
+    row->up = up;
+    row->down = down;
+    ix_log_next = (ix_log_next + 1) % IX_LOG_MAX;
+    if (ix_log_count < IX_LOG_MAX) ix_log_count++;
+    pthread_mutex_unlock(&ix_fd_mu);
+}
+
+static void IXTrackFD(int fd, const struct sockaddr *addr, socklen_t len, const char *host, uint16_t port) {
+    if ((unsigned)fd >= IX_FD_MAX || !addr || len == 0) return;
+    pthread_mutex_lock(&ix_fd_mu);
+    IXLiveFD *slot = &ix_live[fd];
+    atomic_store(&slot->on, 0);
+    slot->addrLen = len < sizeof(slot->addr) ? len : (socklen_t)sizeof(slot->addr);
+    memcpy(&slot->addr, addr, slot->addrLen);
+    strlcpy(slot->host, host ?: "", sizeof(slot->host));
+    slot->port = port;
+    atomic_store(&slot->up, 0);
+    atomic_store(&slot->down, 0);
+    atomic_store(&slot->on, 1);
+    pthread_mutex_unlock(&ix_fd_mu);
+    NSLog(@"[InstagramX] socket %s:%u via SOCKS", host ?: "?", port);
+}
+
+static void IXUntrackFD(int fd, const char *reason) {
+    if ((unsigned)fd >= IX_FD_MAX) return;
+    if (!atomic_load_explicit(&ix_live[fd].on, memory_order_acquire)) return;
+    pthread_mutex_lock(&ix_fd_mu);
+    IXLiveFD *slot = &ix_live[fd];
+    if (!atomic_load(&slot->on)) {
+        pthread_mutex_unlock(&ix_fd_mu);
+        return;
+    }
+    char host[96];
+    strlcpy(host, slot->host, sizeof(host));
+    uint16_t port = slot->port;
+    uint64_t up = atomic_load(&slot->up);
+    uint64_t down = atomic_load(&slot->down);
+    atomic_store(&slot->on, 0);
+    pthread_mutex_unlock(&ix_fd_mu);
+    IXPushLog("socket", host, port, up, down, reason ?: "closed by app");
+}
+
+static ssize_t IXOrigSendBytes(int fd, const void *buf, size_t len) {
+    if (ix_orig_send) return ix_orig_send(fd, buf, len, 0);
+    return send(fd, buf, len, 0);
+}
+
+static ssize_t IXOrigRecvBytes(int fd, void *buf, size_t len) {
+    if (ix_orig_recv) return ix_orig_recv(fd, buf, len, 0);
+    return recv(fd, buf, len, 0);
+}
+
+static BOOL IXWaitSocket(int fd, short events) {
+    for (;;) {
+        struct pollfd pfd = {.fd = fd, .events = events};
+        int rc = poll(&pfd, 1, 5000);
+        if (rc > 0) return YES;
+        if (rc == 0) return NO;
+        if (errno == EINTR) continue;
+        return NO;
+    }
+}
+
 static BOOL IXWriteFull(int fd, const void *buf, size_t len) {
     const uint8_t *p = buf;
     size_t sent = 0;
     while (sent < len) {
-        ssize_t n = send(fd, p + sent, len - sent, 0);
+        if (!IXWaitSocket(fd, POLLOUT)) return NO;
+        ssize_t n = IXOrigSendBytes(fd, p + sent, len - sent);
         if (n < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return NO;
         }
         if (n == 0) return NO;
@@ -271,10 +394,11 @@ static BOOL IXReadFull(int fd, void *buf, size_t len) {
     uint8_t *p = buf;
     size_t got = 0;
     while (got < len) {
-        ssize_t n = recv(fd, p + got, len - got, 0);
+        if (!IXWaitSocket(fd, POLLIN)) return NO;
+        ssize_t n = IXOrigRecvBytes(fd, p + got, len - got);
         if (n == 0) return NO;
         if (n < 0) {
-            if (errno == EINTR) continue;
+            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
             return NO;
         }
         got += (size_t)n;
@@ -356,18 +480,29 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr) {
     }
 
     int flags = fcntl(fd, F_GETFL, 0);
-    BOOL nonblock = (flags & O_NONBLOCK) != 0;
-    if (nonblock) fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+    BOOL nonblock = flags >= 0 && (flags & O_NONBLOCK) != 0;
+    struct timeval savedRecv = {0}, savedSend = {0};
+    socklen_t timeLen = sizeof(savedRecv);
+    getsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &savedRecv, &timeLen);
+    timeLen = sizeof(savedSend);
+    getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &savedSend, &timeLen);
+    struct timeval five = {.tv_sec = 5, .tv_usec = 0};
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &five, sizeof(five));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &five, sizeof(five));
+    int nosig = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosig, sizeof(nosig));
+    if (nonblock && flags >= 0) fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 
     int domain = IXSocketDomain(fd);
     int rc = -1;
     if (domain == AF_INET6) {
+        // iOS sockets are IPV6_V6ONLY, so an IPv4-mapped 127.0.0.1 never connects.
         struct sockaddr_in6 local;
         memset(&local, 0, sizeof(local));
         local.sin6_family = AF_INET6;
         local.sin6_len = sizeof(local);
         local.sin6_port = htons(IXTrafficGuardSocksPort());
-        inet_pton(AF_INET6, "::ffff:127.0.0.1", &local.sin6_addr);
+        local.sin6_addr = in6addr_loopback;
         rc = ix_orig_connect(fd, (struct sockaddr *)&local, sizeof(local));
     } else {
         struct sockaddr_in local;
@@ -378,17 +513,33 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr) {
         local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
         rc = ix_orig_connect(fd, (struct sockaddr *)&local, sizeof(local));
     }
-    if (rc != 0) {
-        if (nonblock) fcntl(fd, F_SETFL, flags);
-        errno = ENETUNREACH;
-        return -1;
+    if (rc != 0 && errno == EINPROGRESS) {
+        rc = IXWaitSocket(fd, POLLOUT) ? 0 : -1;
+        if (rc == 0) {
+            int soerr = 0;
+            socklen_t sl = sizeof(soerr);
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &sl);
+            if (soerr != 0) {
+                errno = soerr;
+                rc = -1;
+            }
+        }
     }
-    BOOL ok = IXSOCKSHandshake(fd, host, port);
-    if (nonblock) fcntl(fd, F_SETFL, flags);
+    BOOL ok = rc == 0 && IXSOCKSHandshake(fd, host, port);
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &savedRecv, sizeof(savedRecv));
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &savedSend, sizeof(savedSend));
+    if (nonblock && flags >= 0) fcntl(fd, F_SETFL, flags);
     if (!ok) {
-        errno = ECONNREFUSED;
+        IXPushLog("socket", host, port, 0, 0, rc != 0 ? "could not reach the local SOCKS port" : "SOCKS handshake failed");
+        NSLog(@"[InstagramX] socket %s:%u SOCKS failed (%s)", host, port, rc != 0 ? "connect" : "handshake");
+        shutdown(fd, SHUT_RDWR);
+        errno = rc != 0 ? ENETUNREACH : ECONNREFUSED;
         return -1;
     }
+    socklen_t trackedLen = domain == AF_INET6 ? (socklen_t)sizeof(struct sockaddr_in6) : (socklen_t)sizeof(struct sockaddr_in);
+    if (addr->sa_family == AF_INET) trackedLen = (socklen_t)sizeof(struct sockaddr_in);
+    else if (addr->sa_family == AF_INET6) trackedLen = (socklen_t)sizeof(struct sockaddr_in6);
+    IXTrackFD(fd, addr, trackedLen, host, port);
     return 0;
 }
 
@@ -443,6 +594,7 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
                 wrote += iov[i].iov_len;
             }
             *len = wrote;
+            IXAddBytes(fd, wrote, 0);
         }
         if (connid) *connid = SAE_CONNID_ANY;
         return 0;
@@ -561,6 +713,72 @@ static BOOL IXUDPShouldBlock(int fd, const struct sockaddr *dest) {
     return IXSocketType(fd) == SOCK_DGRAM;
 }
 
+static int IXGetPeerName(int fd, struct sockaddr *addr, socklen_t *len) {
+    if ((unsigned)fd < IX_FD_MAX && addr && len && atomic_load(&ix_live[fd].on)) {
+        pthread_mutex_lock(&ix_fd_mu);
+        socklen_t have = ix_live[fd].addrLen;
+        if (atomic_load(&ix_live[fd].on) && have > 0) {
+            socklen_t copy = have < *len ? have : *len;
+            memcpy(addr, &ix_live[fd].addr, copy);
+            *len = have;
+            pthread_mutex_unlock(&ix_fd_mu);
+            return 0;
+        }
+        pthread_mutex_unlock(&ix_fd_mu);
+    }
+    if (!ix_orig_getpeername) {
+        errno = ENOSYS;
+        return -1;
+    }
+    return ix_orig_getpeername(fd, addr, len);
+}
+
+static int IXClose(int fd) {
+    IXUntrackFD(fd, "closed by app");
+    if (!ix_orig_close) return close(fd);
+    return ix_orig_close(fd);
+}
+
+static ssize_t IXRead(int fd, void *buf, size_t len) {
+    if (!ix_orig_read) {
+        errno = ENOSYS;
+        return -1;
+    }
+    ssize_t n = ix_orig_read(fd, buf, len);
+    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
+    return n;
+}
+
+static ssize_t IXRecv(int fd, void *buf, size_t len, int flags) {
+    if (!ix_orig_recv) {
+        errno = ENOSYS;
+        return -1;
+    }
+    ssize_t n = ix_orig_recv(fd, buf, len, flags);
+    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
+    return n;
+}
+
+static ssize_t IXWrite(int fd, const void *buf, size_t len) {
+    if (!ix_orig_write) {
+        errno = ENOSYS;
+        return -1;
+    }
+    ssize_t n = ix_orig_write(fd, buf, len);
+    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
+    return n;
+}
+
+static ssize_t IXSend(int fd, const void *buf, size_t len, int flags) {
+    if (!ix_orig_send) {
+        errno = ENOSYS;
+        return -1;
+    }
+    ssize_t n = ix_orig_send(fd, buf, len, flags);
+    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
+    return n;
+}
+
 static ssize_t IXSendTo(int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t destLen) {
     if (IXUDPShouldBlock(fd, dest)) {
         errno = EPERM;
@@ -583,7 +801,9 @@ static ssize_t IXSendMsg(int fd, const struct msghdr *msg, int flags) {
         errno = ENOSYS;
         return -1;
     }
-    return ix_orig_sendmsg(fd, msg, flags);
+    ssize_t n = ix_orig_sendmsg(fd, msg, flags);
+    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
+    return n;
 }
 
 static void IXCapture(const char *name, void **slot) {
@@ -603,18 +823,33 @@ BOOL IXTrafficGuardInstall(void) {
     IXCapture("gethostbyname", (void **)&ix_orig_gethostbyname);
     IXCapture("sendto", (void **)&ix_orig_sendto);
     IXCapture("sendmsg", (void **)&ix_orig_sendmsg);
+    IXCapture("getpeername", (void **)&ix_orig_getpeername);
+    IXCapture("close", (void **)&ix_orig_close);
+    IXCapture("read", (void **)&ix_orig_read);
+    IXCapture("recv", (void **)&ix_orig_recv);
+    IXCapture("write", (void **)&ix_orig_write);
+    IXCapture("send", (void **)&ix_orig_send);
     if (!ix_orig_connect) return NO;
 
-    const char *names[] = {"connect", "connectx", "getaddrinfo", "gethostbyname", "sendto", "sendmsg"};
+    const char *names[] = {
+        "connect", "connectx", "getaddrinfo", "gethostbyname", "sendto", "sendmsg",
+        "getpeername", "close", "read", "recv", "write", "send"
+    };
     void *replacements[] = {
         (void *)IXConnect,
         (void *)IXConnectX,
         (void *)IXGetAddrInfo,
         (void *)IXGetHostByName,
         (void *)IXSendTo,
-        (void *)IXSendMsg
+        (void *)IXSendMsg,
+        (void *)IXGetPeerName,
+        (void *)IXClose,
+        (void *)IXRead,
+        (void *)IXRecv,
+        (void *)IXWrite,
+        (void *)IXSend
     };
-    int patched = IXSymbolRebindSlots(names, replacements, 6);
+    int patched = IXSymbolRebindSlots(names, replacements, 12);
     if (patched <= 0) {
         NSLog(@"[InstagramX] traffic rebind found no symbol pointers");
         return NO;
@@ -630,4 +865,39 @@ void IXTrafficGuardUninstall(void) {
     if (!ix_installed) return;
     IXSymbolRebindRestore();
     ix_installed = NO;
+    for (int fd = 0; fd < IX_FD_MAX; fd++) atomic_store(&ix_live[fd].on, 0);
+}
+
+void IXTrafficGuardNoteSession(NSString *host, uint16_t port, uint64_t up, uint64_t down, NSString *reason) {
+    IXPushLog("NSURLSession", host.UTF8String, port, up, down, reason.UTF8String ?: "completed");
+}
+
+NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void) {
+    NSMutableArray *rows = [NSMutableArray array];
+    pthread_mutex_lock(&ix_fd_mu);
+    for (int fd = 0; fd < IX_FD_MAX; fd++) {
+        if (!atomic_load(&ix_live[fd].on)) continue;
+        [rows addObject:@{
+            @"path": @"socket",
+            @"host": [NSString stringWithUTF8String:ix_live[fd].host] ?: @"",
+            @"port": @(ix_live[fd].port),
+            @"up": @(atomic_load(&ix_live[fd].up)),
+            @"down": @(atomic_load(&ix_live[fd].down)),
+            @"reason": @"open"
+        }];
+    }
+    int start = ix_log_count == IX_LOG_MAX ? ix_log_next : 0;
+    for (int i = 0; i < ix_log_count; i++) {
+        IXLoggedConn *row = &ix_log[(start + i) % IX_LOG_MAX];
+        [rows addObject:@{
+            @"path": [NSString stringWithUTF8String:row->path] ?: @"",
+            @"host": [NSString stringWithUTF8String:row->host] ?: @"",
+            @"port": @(row->port),
+            @"up": @(row->up),
+            @"down": @(row->down),
+            @"reason": [NSString stringWithUTF8String:row->reason] ?: @""
+        }];
+    }
+    pthread_mutex_unlock(&ix_fd_mu);
+    return rows;
 }
