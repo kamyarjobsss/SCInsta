@@ -204,9 +204,11 @@ static NSError *IXURIError(NSString *message) {
 
 + (NSString *)xrayXHTTPModeFrom:(NSString *)mode {
     NSString *lower = mode.lowercaseString;
-    // Xray treats auto as packet-up. Fastly answers that with PROTOCOL_ERROR.
-    if (lower.length == 0 || [lower isEqualToString:@"auto"]) return @"stream-one";
-    return lower;
+    if ([lower isEqualToString:@"packet-up"] || [lower isEqualToString:@"stream-up"] || [lower isEqualToString:@"stream-one"] || [lower isEqualToString:@"auto"]) {
+        return lower;
+    }
+    // v2Box and Xray leave a missing mode as auto. Xray then picks packet-up on TLS.
+    return @"auto";
 }
 
 - (id)copyWithZone:(NSZone *)zone {
@@ -244,14 +246,19 @@ static NSError *IXURIError(NSString *message) {
             @"path": self.path.length ? self.path : @"/"
         } mutableCopy];
         if (self.wsHost.length) xhttp[@"host"] = self.wsHost;
-        // A link or saved override of "auto" is not an explicit transport.
-        // Xray's auto dials packet-up, which Fastly rejects.
         xhttp[@"mode"] = [IXVLESSProfile xrayXHTTPModeFrom:self.mode];
+        NSMutableDictionary *extra = [NSMutableDictionary dictionary];
         if (self.xhttpExtra.length) {
             NSData *extraData = [self.xhttpExtra dataUsingEncoding:NSUTF8StringEncoding];
-            id extra = extraData ? [NSJSONSerialization JSONObjectWithData:extraData options:0 error:nil] : nil;
-            if ([extra isKindOfClass:[NSDictionary class]]) xhttp[@"extra"] = extra;
+            id parsed = extraData ? [NSJSONSerialization JSONObjectWithData:extraData options:0 error:nil] : nil;
+            if ([parsed isKindOfClass:[NSDictionary class]]) [extra addEntriesFromDictionary:parsed];
         }
+        // Same client defaults v2rayNG documents and v2Box's XHTTP optimize uses.
+        // noGRPCHeader keeps Fastly from treating stream-up/stream-one as gRPC.
+        if (!extra[@"xPaddingBytes"]) extra[@"xPaddingBytes"] = @"100-1000";
+        if (extra[@"noGRPCHeader"] == nil) extra[@"noGRPCHeader"] = @YES;
+        if (extra[@"scMaxEachPostBytes"] == nil) extra[@"scMaxEachPostBytes"] = @1000000;
+        xhttp[@"extra"] = extra;
         stream[@"xhttpSettings"] = xhttp;
     } else if ([self.network isEqualToString:@"h2"] || [self.network isEqualToString:@"http"]) {
         stream[@"network"] = @"h2";
@@ -283,11 +290,15 @@ static NSError *IXURIError(NSString *message) {
         stream[@"realitySettings"] = reality;
     }
 
-    stream[@"sockopt"] = @{
+    NSMutableDictionary *sockopt = [@{
         @"domainStrategy": @"UseIPv4",
         @"tcpKeepAliveIdle": @30,
         @"tcpKeepAliveInterval": @15
-    };
+    } mutableCopy];
+    // Darwin applies this with IP_BOUND_IF / IPV6_BOUND_IF, so the dial does not
+    // use a utun address when the phone's VPN is on.
+    if (self.outboundInterface.length) sockopt[@"interface"] = self.outboundInterface;
+    stream[@"sockopt"] = sockopt;
 
     return @{
         @"tag": @"proxy",
@@ -389,7 +400,10 @@ static NSError *IXURIError(NSString *message) {
             @{
                 @"tag": @"direct",
                 @"protocol": @"freedom",
-                @"settings": @{@"domainStrategy": @"UseIP"}
+                @"settings": @{@"domainStrategy": @"UseIP"},
+                @"streamSettings": @{
+                    @"sockopt": self.outboundInterface.length ? @{@"interface": self.outboundInterface} : @{}
+                }
             },
             @{
                 @"tag": @"dns-out",

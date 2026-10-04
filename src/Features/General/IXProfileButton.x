@@ -2,6 +2,7 @@
 #import "../../Localization/SCILocalization.h"
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import <math.h>
 #import <string.h>
 
 // Own-profile header button.
@@ -306,12 +307,28 @@ static CGRect IXInkNorm(UIImage *image) {
                       (CGFloat)(maxX - minX + 1) / (CGFloat)w, (CGFloat)(maxY - minY + 1) / (CGFloat)h);
 }
 
-static UIImage *IXMarkMatchedToPlus(UIImage *plus, CGSize glyph) {
-    static UIImage *cached;
-    static CGSize cachedGlyph;
-    static BOOL cachedHadPlus;
-    BOOL hadPlus = plus != nil;
-    if (cached && cachedHadPlus == hadPlus && CGSizeEqualToSize(cachedGlyph, glyph)) return cached;
+static void IXInstaRGB(CGFloat t, CGFloat out[3]) {
+    static const CGFloat pal[5][3] = {
+        {254.f / 255.f, 218.f / 255.f, 117.f / 255.f},
+        {250.f / 255.f, 126.f / 255.f, 30.f / 255.f},
+        {214.f / 255.f, 41.f / 255.f, 118.f / 255.f},
+        {150.f / 255.f, 47.f / 255.f, 191.f / 255.f},
+        {79.f / 255.f, 91.f / 255.f, 213.f / 255.f}
+    };
+    t -= floor(t);
+    CGFloat scaled = t * 5.f;
+    int index = (int)scaled;
+    if (index < 0) index = 0;
+    if (index > 4) index = 4;
+    int next = (index + 1) % 5;
+    CGFloat blend = scaled - (CGFloat)index;
+    blend = blend * blend * (3.f - 2.f * blend);
+    for (int channel = 0; channel < 3; channel++) {
+        out[channel] = pal[index][channel] + (pal[next][channel] - pal[index][channel]) * blend;
+    }
+}
+
+static UIImage *IXMarkMatchedToPlus(UIImage *plus, CGSize glyph, CGFloat phase) {
     UIImage *mark = IXMarkImage();
     if (!mark || glyph.width < 8 || glyph.height < 8) return mark;
     CGRect plusInk = IXInkNorm(plus);
@@ -344,26 +361,56 @@ static UIImage *IXMarkMatchedToPlus(UIImage *plus, CGSize glyph) {
     UIImage *image = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
         CGContextRef ctx = context.CGContext;
         CGContextSaveGState(ctx);
-        CGContextSetShadowWithColor(ctx, CGSizeZero, 2.0, [UIColor colorWithRed:0.48 green:0.28 blue:0.98 alpha:0.22].CGColor);
+        CGFloat mid[3];
+        IXInstaRGB(phase + 0.12f, mid);
+        CGContextSetShadowWithColor(ctx, CGSizeZero, 2.0, [UIColor colorWithRed:mid[0] green:mid[1] blue:mid[2] alpha:0.22].CGColor);
         [[mark imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:ourBox];
         CGContextSetShadowWithColor(ctx, CGSizeZero, 0, NULL);
         CGContextBeginTransparencyLayer(ctx, NULL);
         [[mark imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal] drawInRect:ourBox];
         CGContextSetBlendMode(ctx, kCGBlendModeSourceIn);
         CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-        CGFloat colors[] = {0.48f, 0.28f, 0.98f, 1.f, 1.f, 0.45f, 0.35f, 1.f};
-        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, colors, NULL, 2);
+        CGFloat stops[3][3];
+        IXInstaRGB(phase, stops[0]);
+        IXInstaRGB(phase + 0.12f, stops[1]);
+        IXInstaRGB(phase + 0.24f, stops[2]);
+        CGFloat colors[] = {
+            stops[0][0], stops[0][1], stops[0][2], 1.f,
+            stops[1][0], stops[1][1], stops[1][2], 1.f,
+            stops[2][0], stops[2][1], stops[2][2], 1.f
+        };
+        CGFloat locations[] = {0.f, 0.5f, 1.f};
+        CGGradientRef gradient = CGGradientCreateWithColorComponents(space, colors, locations, 3);
         CGContextDrawLinearGradient(ctx, gradient, CGPointMake(CGRectGetMinX(ourBox), CGRectGetMaxY(ourBox)), CGPointMake(CGRectGetMaxX(ourBox), CGRectGetMinY(ourBox)), 0);
         CGGradientRelease(gradient);
         CGColorSpaceRelease(space);
         CGContextEndTransparencyLayer(ctx);
         CGContextRestoreGState(ctx);
     }];
-    cached = [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
-    cachedGlyph = glyph;
-    cachedHadPlus = hadPlus;
-    return cached;
+    return [image imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
 }
+
+static char kIXGlyph;
+static char kIXPlusImage;
+static NSHashTable *ix_marks;
+static CADisplayLink *ix_markLink;
+
+@interface IXMarkPulse : NSObject
+@end
+
+@implementation IXMarkPulse
++ (void)tick {
+    CGFloat phase = fmod(CACurrentMediaTime(), 10.0) / 10.0;
+    for (UIButton *button in ix_marks.allObjects) {
+        if (![button isKindOfClass:[UIButton class]] || button.window == nil) continue;
+        NSValue *glyph = objc_getAssociatedObject(button, &kIXGlyph);
+        if (![glyph isKindOfClass:[NSValue class]]) continue;
+        id plus = objc_getAssociatedObject(button, &kIXPlusImage);
+        UIImage *image = IXMarkMatchedToPlus([plus isKindOfClass:[UIImage class]] ? plus : nil, glyph.CGSizeValue, phase);
+        if (image) [button setImage:image forState:UIControlStateNormal];
+    }
+}
+@end
 
 static void IXPlaceMenuBesideAddButton(UIView *addButton) {
     static __thread int placing = 0;
@@ -395,8 +442,21 @@ static void IXPlaceMenuBesideAddButton(UIView *addButton) {
         glyph = CGRectMake(0, CGRectGetMidY(addFrame) - side / 2.0, side, side);
     }
     UIImage *plus = [add imageForState:UIControlStateNormal];
-    UIImage *matched = IXMarkMatchedToPlus(plus, glyph.size);
-    if (matched) [button setImage:matched forState:UIControlStateNormal];
+    if (!ix_marks) ix_marks = [NSHashTable weakObjectsHashTable];
+    [ix_marks addObject:button];
+    NSValue *previous = objc_getAssociatedObject(button, &kIXGlyph);
+    BOOL sameGlyph = [previous isKindOfClass:[NSValue class]] && CGSizeEqualToSize(previous.CGSizeValue, glyph.size);
+    objc_setAssociatedObject(button, &kIXGlyph, [NSValue valueWithCGSize:glyph.size], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(button, &kIXPlusImage, plus, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (!ix_markLink) {
+        ix_markLink = [CADisplayLink displayLinkWithTarget:[IXMarkPulse class] selector:@selector(tick)];
+        if ([ix_markLink respondsToSelector:@selector(setPreferredFramesPerSecond:)]) ix_markLink.preferredFramesPerSecond = 30;
+        [ix_markLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+    }
+    if (!sameGlyph || button.currentImage == nil) {
+        UIImage *matched = IXMarkMatchedToPlus(plus, glyph.size, fmod(CACurrentMediaTime(), 10.0) / 10.0);
+        if (matched) [button setImage:matched forState:UIControlStateNormal];
+    }
     button.contentEdgeInsets = UIEdgeInsetsZero;
     button.imageEdgeInsets = UIEdgeInsetsZero;
     button.contentHorizontalAlignment = UIControlContentHorizontalAlignmentFill;

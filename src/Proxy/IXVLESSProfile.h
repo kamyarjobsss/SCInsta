@@ -32,13 +32,15 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) BOOL needsXray;
 /// Resolved address for `dns.hosts` only. `vnext.address` stays the domain.
 @property (nonatomic, copy, nullable) NSString *dialAddress;
+/// Physical interface (en0, pdp_ip0) Xray binds with IP_BOUND_IF. Not part of the link.
+@property (nonatomic, copy, nullable) NSString *outboundInterface;
 
 + (nullable instancetype)profileFromURI:(NSString *)uri error:(NSError * _Nullable * _Nullable)error;
 + (NSArray<IXVLESSProfile *> *)profilesFromPaste:(NSString *)text;
 
 - (NSString *)displayName;
 - (NSString *)endpointSummary;
-/// Mode written into xhttpSettings. Empty and "auto" become stream-one; Xray's auto dials packet-up.
+/// Mode written into xhttpSettings. Empty becomes auto, which is what v2Box sends. Explicit modes stay.
 + (NSString *)xrayXHTTPModeFrom:(NSString * _Nullable)mode;
 - (NSDictionary *)xrayOutbound;
 - (NSString *)xrayJSONWithSocksPort:(uint16_t)socksPort httpPort:(uint16_t)httpPort;

@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.8"
+                description: "Publish a prerelease tagged instagram-x-v2.1.9"
                 default: true
                 required: false
                 type: boolean
@@ -221,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.8
+                tag_name: instagram-x-v2.1.9
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.8
+                name: Instagram X 2.1.9
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -237,9 +237,13 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.7 tunneled connect and connectx, but a link mode of auto was copied into xhttpSettings. Xray treats auto as packet-up, which is the PROTOCOL_ERROR on Fastly. v2.1.8 sends auto as stream-one. The connectivity check also read the whole proxy response before closing, so Xray no longer logs a broken pipe for its own generate_204 request.
+                  v2.1.8 forced xhttp mode auto to stream-one. On this Fastly link stream-one never answered, and packet-up returned PROTOCOL_ERROR. v2.1.9 sends auto the way v2Box does, with xPaddingBytes 100-1000, noGRPCHeader, and scMaxEachPostBytes 1000000. If a mode does not answer within a few seconds it tries packet-up, then stream-up, then stream-one, and saves the mode that answered.
 
-                  Instagram 436 also opens Network.framework connections, resolves with CFHost, and loads video and web content outside connect. v2.1.8 stamps the local SOCKS proxy onto nw_connection, answers CFHost with the fake addresses, configures WKWebView's proxy, and loads http(s) video through the HTTP proxy. QUIC stays blocked so it falls back to TCP. With the kill switch on, those paths fail immediately while the tunnel is down. The VPN log starts with the app version and the xhttp mode. Copy sends a diagnostics report. The profile mark keeps the + glyph's size and gains a brand-colored tint.
+                  generate_204 can succeed while the status stayed Disconnected because a later callback tore the listener down, and the probe sometimes ran before the inbound was accepting. v2.1.9 keeps Connected once the probe succeeds and retries the listener after a restart.
+
+                  Xray was dialing from 100.64.100.2, the phone VPN address, which failed with "can't assign requested address". Outbound sockets now bind to en0 or pdp_ip0 with IP_BOUND_IF, including after a network change. With the kill switch on, Instagram still cannot leave through the system VPN or a direct route.
+
+                  The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
 
                   Not tested on a device. Do not install over an account you cannot recover.
                 files: |
@@ -248,4 +252,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.8"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.9"

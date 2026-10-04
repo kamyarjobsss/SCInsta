@@ -107,12 +107,13 @@ func ixray_start(configJSON *C.char) *C.char {
 	if inst != nil {
 		_ = inst.Close()
 		inst = nil
-		// The previous listeners release the ports after Close returns.
-		time.Sleep(50 * time.Millisecond)
+		// Listeners drop the ports after Close. 50ms was not always enough,
+		// so the next start failed and the probe saw a closed port.
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	var last error
-	for attempt := 0; attempt < 5; attempt++ {
+	for attempt := 0; attempt < 8; attempt++ {
 		cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
 		if err != nil {
 			return C.CString(err.Error())
@@ -126,7 +127,7 @@ func ixray_start(configJSON *C.char) *C.char {
 			last = err
 			msg := err.Error()
 			if strings.Contains(msg, "address already in use") || strings.Contains(msg, "bind") {
-				time.Sleep(80 * time.Millisecond)
+				time.Sleep(150 * time.Millisecond)
 				continue
 			}
 			return C.CString(msg)

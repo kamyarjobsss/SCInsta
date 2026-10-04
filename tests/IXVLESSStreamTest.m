@@ -128,6 +128,8 @@ int main(void) {
         IXExpect([xSettings[@"mode"] isEqualToString:@"stream-one"], @"xhttp mode");
         IXExpect([xSettings[@"path"] isEqualToString:@"/"], @"xhttp path");
         IXExpect([xSettings[@"extra"][@"xPaddingBytes"] isEqualToString:@"100-1000"], @"xhttp extra");
+        IXExpect([xSettings[@"extra"][@"noGRPCHeader"] isEqual:@YES], @"xhttp noGRPCHeader default");
+        IXExpect([xSettings[@"extra"][@"scMaxEachPostBytes"] isEqual:@1000000], @"xhttp scMaxEachPostBytes default");
         IXExpect([xStream[@"tlsSettings"][@"serverName"] isEqualToString:@"ssl.fastly.com"], @"xhttp sni");
         IXExpect([xStream[@"tlsSettings"][@"fingerprint"] isEqualToString:@"chrome"], @"xhttp fingerprint");
         IXExpect([xStream[@"tlsSettings"][@"alpn"] isEqual:@[@"h2"]], @"xhttp alpn");
@@ -138,14 +140,24 @@ int main(void) {
             @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
             @"?security=tls&type=xhttp&host=cdn.example&sni=ssl.fastly.com&path=%2F";
         IXVLESSProfile *bare = [IXVLESSProfile profileFromURI:xhttpBare error:nil];
-        IXExpect([[bare xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"stream-one"], @"xhttp without mode uses stream-one");
+        IXExpect([[bare xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"auto"], @"xhttp without mode is sent as auto");
         NSString *autoLink =
             @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
             @"?security=tls&type=xhttp&mode=auto&path=%2F";
         IXVLESSProfile *autoProfile = [IXVLESSProfile profileFromURI:autoLink error:nil];
         IXExpect([autoProfile.mode isEqualToString:@"auto"], @"link mode auto is parsed");
-        IXExpect([[autoProfile xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"stream-one"], @"xhttp mode auto is sent as stream-one");
-        IXExpect([[IXVLESSProfile xrayXHTTPModeFrom:@"AUTO"] isEqualToString:@"stream-one"], @"AUTO is stream-one");
+        IXExpect([[autoProfile xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"mode"] isEqualToString:@"auto"], @"xhttp mode auto is sent as auto");
+        IXExpect([[IXVLESSProfile xrayXHTTPModeFrom:@"AUTO"] isEqualToString:@"auto"], @"AUTO stays auto");
+        autoProfile.outboundInterface = @"en0";
+        NSDictionary *bound = [autoProfile xrayOutbound][@"streamSettings"][@"sockopt"];
+        IXExpect([bound[@"interface"] isEqualToString:@"en0"], @"proxy dial binds the physical interface");
+        NSString *boundJSON = [autoProfile xrayJSONWithSocksPort:1080 httpPort:1081];
+        NSDictionary *boundConfig = [NSJSONSerialization JSONObjectWithData:[boundJSON dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+        BOOL directBound = NO;
+        for (NSDictionary *outbound in boundConfig[@"outbounds"]) {
+            if ([outbound[@"tag"] isEqualToString:@"direct"] && [outbound[@"streamSettings"][@"sockopt"][@"interface"] isEqualToString:@"en0"]) directBound = YES;
+        }
+        IXExpect(directBound, @"direct outbound binds the same interface");
         NSString *packet =
             @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
             @"?security=tls&type=xhttp&mode=packet-up&path=%2F";
