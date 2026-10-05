@@ -124,11 +124,9 @@ BOOL IXTrafficGuardCallerIsSelf(void) {
     return IXTrafficGuardAddressIsSelf(__builtin_return_address(0));
 }
 
-static void IXCopyCallerImage(char *out, size_t outLen) __attribute__((noinline));
-static void IXCopyCallerImage(char *out, size_t outLen) {
+static void IXCopyCallerImage(char *out, size_t outLen, const void *ra) {
     if (!out || outLen == 0) return;
     out[0] = 0;
-    void *ra = __builtin_return_address(1);
     Dl_info info;
     if (!ra || !dladdr(ra, &info) || !info.dli_fname) {
         strlcpy(out, "unknown", outLen);
@@ -560,15 +558,6 @@ static BOOL IXSOCKSHandshake(int fd, const char *host, uint16_t port) {
     return YES;
 }
 
-static BOOL IXCallerOfHookIsSelf(void) __attribute__((noinline));
-static BOOL IXCallerOfHookIsSelf(void) {
-    // return_address(0) here is this file. The hooked API's caller is one frame up.
-    // Checking frame 0 marks every socket as ours, which is why 2.1.9 never saw Instagram.
-    if (ix_tls_bypass) return YES;
-    void *ra = __builtin_return_address(1);
-    Dl_info info;
-    return ra && dladdr(ra, &info) && IXImageIsOurs(info.dli_fname);
-}
 
 static BOOL IXFDBypass(int fd) {
     if (ix_tls_bypass) return YES;
@@ -897,9 +886,10 @@ static int IXConnect(int fd, const struct sockaddr *addr, socklen_t len) {
         errno = ENOSYS;
         return -1;
     }
-    if (IXCallerOfHookIsSelf() || IXFDBypass(fd)) return ix_orig_connect(fd, addr, len);
+    const void *caller = __builtin_return_address(0);
+    if (IXTrafficGuardAddressIsSelf(caller) || IXFDBypass(fd)) return ix_orig_connect(fd, addr, len);
     char image[48];
-    IXCopyCallerImage(image, sizeof(image));
+    IXCopyCallerImage(image, sizeof(image), caller);
     if (IXSocketType(fd) == SOCK_DGRAM) {
         if (IXRefuseUDP(fd, addr, "connect", image)) return -1;
         return ix_orig_connect(fd, addr, len);
@@ -913,19 +903,18 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
         errno = ENOTSUP;
         return -1;
     }
+    const void *caller = __builtin_return_address(0);
     const struct sockaddr *dest = endpoints ? endpoints->sae_dstaddr : NULL;
-    if (IXCallerOfHookIsSelf() || IXFDBypass(fd)) {
+    if (IXTrafficGuardAddressIsSelf(caller) || IXFDBypass(fd)) {
         return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
     }
+    char image[48];
+    IXCopyCallerImage(image, sizeof(image), caller);
     if (dest && IXSocketType(fd) == SOCK_DGRAM) {
-        char image[48];
-        IXCopyCallerImage(image, sizeof(image));
         if (IXRefuseUDP(fd, dest, "connectx", image)) return -1;
         return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
     }
     if (dest && IXShouldRedirect(fd, dest)) {
-        char image[48];
-        IXCopyCallerImage(image, sizeof(image));
         int rc = IXProxiedConnect(fd, dest, "connectx", image);
         if (rc != 0) return rc;
         int ready = IXPrepareIO(fd);
@@ -952,7 +941,7 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
 static int IXGetAddrInfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res) {
     if (!ix_orig_getaddrinfo) return EAI_FAIL;
     BOOL vpn = IXTrafficGuardVPNOn();
-    if (!vpn || !node || IXCallerOfHookIsSelf() || IXIsNumericHost(node)) {
+    if (!vpn || !node || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(node)) {
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     int family = hints ? hints->ai_family : AF_UNSPEC;
@@ -1023,7 +1012,7 @@ static struct hostent *IXGetHostByName(const char *name) {
         h_errno = HOST_NOT_FOUND;
         return NULL;
     }
-    if (!IXTrafficGuardVPNOn() || !name || IXCallerOfHookIsSelf() || IXIsNumericHost(name)) {
+    if (!IXTrafficGuardVPNOn() || !name || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(name)) {
         return ix_orig_gethostbyname(name);
     }
     uint32_t token = IXRememberHost(name);
@@ -1203,7 +1192,7 @@ static int IXSocket(int domain, int type, int protocol) {
         errno = ENOSYS;
         return -1;
     }
-    BOOL ours = IXCallerOfHookIsSelf();
+    BOOL ours = IXTrafficGuardAddressIsSelf(__builtin_return_address(0));
     int fd = ix_orig_socket(domain, type, protocol);
     if (fd >= 0 && (unsigned)fd < IX_FD_MAX) {
         ix_live[fd].bypass = ours ? 1 : 0;
@@ -1213,7 +1202,7 @@ static int IXSocket(int domain, int type, int protocol) {
 }
 
 static int IXGetNameInfo(const struct sockaddr *sa, socklen_t salen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags) {
-    if (IXTrafficGuardVPNOn() && sa && host && hostlen && !IXCallerOfHookIsSelf() && !(flags & NI_NUMERICHOST)) {
+    if (IXTrafficGuardVPNOn() && sa && host && hostlen && !IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) && !(flags & NI_NUMERICHOST)) {
         char name[256];
         uint16_t port = 0;
         uint32_t token = 0;
@@ -1424,7 +1413,7 @@ static void IXDNSIgnore(void *sdRef, uint32_t flags, uint32_t interfaceIndex, in
 
 static int IXDNSGetAddrInfo(void **sdRef, uint32_t flags, uint32_t interfaceIndex, uint32_t protocol, const char *hostname, IXDNSReply callback, void *context) {
     if (!ix_dns_getaddrinfo) return -65537;
-    if (!IXTrafficGuardVPNOn() || !hostname || IXCallerOfHookIsSelf() || IXIsNumericHost(hostname)) {
+    if (!IXTrafficGuardVPNOn() || !hostname || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(hostname)) {
         return ix_dns_getaddrinfo(sdRef, flags, interfaceIndex, protocol, hostname, (void *)callback, context);
     }
     uint32_t token = IXRememberHost(hostname);
