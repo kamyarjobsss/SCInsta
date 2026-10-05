@@ -1,4 +1,5 @@
 #import "IXRayLoader.h"
+#import "IXTrafficGuard.h"
 
 #import <dlfcn.h>
 #import <stdlib.h>
@@ -53,7 +54,10 @@ BOOL IXRayCoreLoad(NSError **error) {
 
 char *IXRayStart(char *configJSON) {
     if (!ix_ray_start) return strdup("xray is not loaded");
-    return ix_ray_start(configJSON);
+    IXTrafficGuardSetThreadBypass(YES);
+    char *result = ix_ray_start(configJSON);
+    IXTrafficGuardSetThreadBypass(NO);
+    return result;
 }
 
 void IXRayStop(void) {

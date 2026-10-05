@@ -4,10 +4,12 @@
 #include <stddef.h>
 
 /// Replace lazy and non-lazy symbol pointers (GOT / __la_symbol_ptr / __auth_got)
-/// in already-loaded images. Writes data pages only, with VM_PROT_COPY.
-/// Never patches __TEXT. `names` are C names ("connect"); Mach-O's leading
-/// underscore is added here. Originals must already have been taken with dlsym.
-/// Returns how many slots were updated.
+/// in already-loaded images, including images loaded later. Also walks
+/// LC_DYLD_CHAINED_FIXUPS for app binaries such as FBSharedFramework, where
+/// the bind slots are not classic lazy pointers. Writes data pages only.
+/// Never patches __TEXT or Objective-C selector tables. `names` are C names
+/// ("connect"); Mach-O's leading underscore is added here. Originals must
+/// already have been taken with dlsym. Returns how many slots were updated.
 int IXSymbolRebindSlots(const char *const *names, void *const *replacements, unsigned count);
 
 /// Put every slot from the last successful rebind back.

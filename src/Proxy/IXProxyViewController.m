@@ -38,8 +38,9 @@ static NSString *IXDiagnosticsReport(void) {
     NSArray<NSDictionary *> *rows = IXTrafficGuardRecentConnections() ?: @[];
     [text appendFormat:@"connections: %lu\n", (unsigned long)rows.count];
     for (NSDictionary *row in rows) {
-        [text appendFormat:@"%@ %@:%@ up=%@ down=%@ %@\n",
-            row[@"path"] ?: @"",
+        [text appendFormat:@"%@ %@ %@:%@ up=%@ down=%@ %@\n",
+            row[@"image"] ?: @"",
+            row[@"api"] ?: row[@"path"] ?: @"",
             row[@"host"] ?: @"",
             row[@"port"] ?: @0,
             row[@"up"] ?: @0,
@@ -115,7 +116,9 @@ static NSString *IXBytes(uint64_t n) {
     NSString *host = row[@"host"] ?: @"";
     NSNumber *port = row[@"port"];
     cell.textLabel.text = port.unsignedIntegerValue ? [NSString stringWithFormat:@"%@:%@", host, port] : host;
-    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@ · ↑%@ · ↓%@ · %@", row[@"path"] ?: @"", IXBytes([row[@"up"] unsignedLongLongValue]), IXBytes([row[@"down"] unsignedLongLongValue]), row[@"reason"] ?: @""];
+    NSString *image = row[@"image"] ?: @"";
+    NSString *api = row[@"api"] ?: row[@"path"] ?: @"";
+    cell.detailTextLabel.text = [NSString stringWithFormat:@"%@%@%@ · ↑%@ · ↓%@ · %@", image, image.length ? @" · " : @"", api, IXBytes([row[@"up"] unsignedLongLongValue]), IXBytes([row[@"down"] unsignedLongLongValue]), row[@"reason"] ?: @""];
     return cell;
 }
 @end
@@ -140,6 +143,8 @@ static NSString *IXBytes(uint64_t n) {
 
 @interface IXProxyViewController ()
 @property (nonatomic, strong) NSTimer *refreshTimer;
+@property (nonatomic, copy) NSString *exitSummary;
+@property (nonatomic) BOOL checkingIP;
 @end
 
 @implementation IXProxyViewController
@@ -183,7 +188,7 @@ static NSString *IXBytes(uint64_t n) {
     if (section == IXProxySectionProfiles) return MAX([IXProxyManager.shared profiles].count, 1);
     if (section == IXProxySectionControls) return 4;
     if (section == IXProxySectionAdd) return 2;
-    if (section == IXProxySectionTraffic) return 5;
+    if (section == IXProxySectionTraffic) return 6;
     return 1;
 }
 
@@ -237,13 +242,18 @@ static NSString *IXBytes(uint64_t n) {
             cell.textLabel.text = IXT(@"Total", @"حجم کل");
             cell.detailTextLabel.text = [NSString stringWithFormat:IXT(@"Up %@ · Down %@", @"ارسال %@ · دریافت %@"), IXBytes(manager.bytesUp), IXBytes(manager.bytesDown)];
         } else if (indexPath.row == 2) {
+            cell.textLabel.text = IXT(@"Check IP", @"بررسی IP");
+            cell.detailTextLabel.text = self.exitSummary.length ? self.exitSummary : IXT(@"Fetches the exit IP and country through the tunnel.", @"IP خروجی و کشور را از داخل تونل می‌گیرد.");
+            cell.selectionStyle = self.checkingIP ? UITableViewCellSelectionStyleNone : UITableViewCellSelectionStyleDefault;
+            cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+        } else if (indexPath.row == 3) {
             cell.textLabel.text = IXT(@"Test tunnel", @"آزمایش تونل");
             cell.detailTextLabel.text = manager.lastPingMs >= 0
                 ? [NSString stringWithFormat:IXT(@"Last ping %ld ms", @"آخرین پینگ %ld میلی‌ثانیه"), (long)manager.lastPingMs]
                 : IXT(@"Sends generate_204 through the tunnel.", @"یک درخواست generate_204 از داخل تونل می‌فرستد.");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
-        } else if (indexPath.row == 3) {
+        } else if (indexPath.row == 4) {
             cell.textLabel.text = IXT(@"View log", @"دیدن گزارش");
             cell.detailTextLabel.text = IXT(@"Xray messages and the connectivity check.", @"پیام‌های Xray و نتیجهٔ آزمایش اتصال.");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
@@ -297,7 +307,7 @@ static NSString *IXBytes(uint64_t n) {
         NSArray<IXVLESSProfile *> *profiles = [manager profiles];
         if (profiles.count == 0) {
             cell.textLabel.text = IXT(@"No servers yet", @"هنوز سروری نیست");
-            cell.detailTextLabel.text = IXT(@"Paste a vless:// link below.", @"یک لینک vless:// پایین بچسبانید.");
+            cell.detailTextLabel.text = IXT(@"Paste a vless://, trojan://, vmess://, or ss:// link below.", @"یک لینک vless://، trojan://، vmess:// یا ss:// پایین بچسبانید.");
             cell.selectionStyle = UITableViewCellSelectionStyleNone;
             return cell;
         }
@@ -310,7 +320,7 @@ static NSString *IXBytes(uint64_t n) {
         return cell;
     }
 
-    cell.textLabel.text = indexPath.row == 0 ? IXT(@"Paste from clipboard", @"چسباندن از کلیپبورد") : IXT(@"Enter a vless:// link", @"وارد کردن لینک vless://");
+    cell.textLabel.text = indexPath.row == 0 ? IXT(@"Paste from clipboard", @"چسباندن از کلیپبورد") : IXT(@"Enter a server link", @"وارد کردن لینک سرور");
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return cell;
 }
@@ -355,6 +365,20 @@ static NSString *IXBytes(uint64_t n) {
     IXProxyManager *manager = IXProxyManager.shared;
     if (indexPath.section == IXProxySectionTraffic) {
         if (indexPath.row == 2) {
+            if (self.checkingIP) return;
+            self.checkingIP = YES;
+            self.exitSummary = IXT(@"Checking…", @"در حال بررسی…");
+            [self.tableView reloadData];
+            [manager checkExitIP:^(NSString *summary, NSError *error) {
+                self.checkingIP = NO;
+                self.exitSummary = summary;
+                NSString *message = error ? error.localizedDescription : summary;
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Check IP", @"بررسی IP") message:message preferredStyle:UIAlertControllerStyleAlert];
+                [alert addAction:[UIAlertAction actionWithTitle:IXT(@"OK", @"باشه") style:UIAlertActionStyleDefault handler:nil]];
+                [self presentViewController:alert animated:YES completion:nil];
+                [self.tableView reloadData];
+            }];
+        } else if (indexPath.row == 3) {
             [manager runTunnelTest:^(NSInteger millis, NSError *error) {
                 NSString *message = error ? error.localizedDescription : [NSString stringWithFormat:IXT(@"The tunnel answered in %ld ms.", @"تونل در %ld میلی‌ثانیه جواب داد."), (long)millis];
                 UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Test", @"آزمایش") message:message preferredStyle:UIAlertControllerStyleAlert];
@@ -362,9 +386,9 @@ static NSString *IXBytes(uint64_t n) {
                 [self presentViewController:alert animated:YES completion:nil];
                 [self.tableView reloadData];
             }];
-        } else if (indexPath.row == 3) {
-            [self.navigationController pushViewController:[IXProxyLogController new] animated:YES];
         } else if (indexPath.row == 4) {
+            [self.navigationController pushViewController:[IXProxyLogController new] animated:YES];
+        } else if (indexPath.row == 5) {
             [self.navigationController pushViewController:[IXProxyConnectionsController new] animated:YES];
         }
         return;
@@ -411,7 +435,7 @@ static NSString *IXBytes(uint64_t n) {
         [self importText:text];
         return;
     }
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"VLESS link", @"لینک VLESS") message:IXT(@"Paste one or more vless:// links.", @"یک یا چند لینک vless:// بچسبانید.") preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Server link", @"لینک سرور") message:IXT(@"Paste a vless://, trojan://, vmess://, or ss:// link.", @"یک لینک vless://، trojan://، vmess:// یا ss:// بچسبانید.") preferredStyle:UIAlertControllerStyleAlert];
     [alert addTextFieldWithConfigurationHandler:^(UITextField *field) {
         field.placeholder = @"vless://";
         field.autocapitalizationType = UITextAutocapitalizationTypeNone;

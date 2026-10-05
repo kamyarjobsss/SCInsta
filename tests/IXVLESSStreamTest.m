@@ -169,6 +169,62 @@ int main(void) {
         }
         IXExpect(v6Socks, @"ipv6 sockets have a loopback SOCKS inbound");
 
+        NSString *trojan =
+            @"trojan://secret@trojan.example:443?security=tls&type=ws&host=cdn.example&path=%2Ftj&sni=sni.example#trojan";
+        IXVLESSProfile *trojanProfile = [IXVLESSProfile profileFromURI:trojan error:nil];
+        NSDictionary *trojanOut = [trojanProfile xrayOutbound];
+        NSDictionary *trojanServer = [trojanOut[@"settings"][@"servers"] firstObject];
+        IXExpect([trojanOut[@"protocol"] isEqualToString:@"trojan"], @"trojan protocol");
+        IXExpect([trojanServer[@"password"] isEqualToString:@"secret"], @"trojan password");
+        IXExpect([trojanServer[@"address"] isEqualToString:@"trojan.example"], @"trojan address");
+        IXExpect([trojanOut[@"streamSettings"][@"network"] isEqualToString:@"ws"], @"trojan ws");
+        IXExpect([trojanOut[@"streamSettings"][@"wsSettings"][@"host"] isEqualToString:@"cdn.example"], @"trojan ws host");
+
+        NSString *upgrade =
+            @"vless://00000000-0000-0000-0000-000000000000@up.example:443?type=httpupgrade&security=tls&path=%2Fup&host=cdn.example&sni=sni.example";
+        IXVLESSProfile *upgradeProfile = [IXVLESSProfile profileFromURI:upgrade error:nil];
+        NSDictionary *upgradeSettings = [upgradeProfile xrayOutbound][@"streamSettings"][@"httpupgradeSettings"];
+        IXExpect([upgradeSettings[@"path"] isEqualToString:@"/up"], @"httpupgrade path");
+        IXExpect([upgradeSettings[@"host"] isEqualToString:@"cdn.example"], @"httpupgrade host");
+
+        NSString *grpc =
+            @"vless://00000000-0000-0000-0000-000000000000@grpc.example:443?type=grpc&security=tls&serviceName=svc&sni=sni.example";
+        IXVLESSProfile *grpcProfile = [IXVLESSProfile profileFromURI:grpc error:nil];
+        IXExpect([[grpcProfile xrayOutbound][@"streamSettings"][@"grpcSettings"][@"serviceName"] isEqualToString:@"svc"], @"grpc service");
+
+        NSString *reality =
+            @"vless://00000000-0000-0000-0000-000000000000@reality.example:443?security=reality&type=tcp&pbk=PUBLIC&sid=abcd&sni=www.example.com&fp=chrome&flow=xtls-rprx-vision";
+        IXVLESSProfile *realityProfile = [IXVLESSProfile profileFromURI:reality error:nil];
+        NSDictionary *realitySettings = [realityProfile xrayOutbound][@"streamSettings"][@"realitySettings"];
+        IXExpect([realitySettings[@"publicKey"] isEqualToString:@"PUBLIC"], @"reality public key");
+        IXExpect([realitySettings[@"shortId"] isEqualToString:@"abcd"], @"reality short id");
+        IXExpect([realitySettings[@"serverName"] isEqualToString:@"www.example.com"], @"reality sni");
+        IXExpect(realityProfile.needsXray == YES, @"reality needs xray");
+
+        NSDictionary *vmessJSON = @{
+            @"v": @"2", @"ps": @"vm", @"add": @"vmess.example", @"port": @"443",
+            @"id": @"00000000-0000-0000-0000-000000000000", @"aid": @"0", @"scy": @"auto",
+            @"net": @"ws", @"host": @"cdn.example", @"path": @"/vm", @"tls": @"tls", @"sni": @"sni.example"
+        };
+        NSString *vmessBody = [[NSJSONSerialization dataWithJSONObject:vmessJSON options:0 error:nil] base64EncodedStringWithOptions:0];
+        IXVLESSProfile *vmessProfile = [IXVLESSProfile profileFromURI:[@"vmess://" stringByAppendingString:vmessBody] error:nil];
+        NSDictionary *vmessOut = [vmessProfile xrayOutbound];
+        NSDictionary *vmessNext = [vmessOut[@"settings"][@"vnext"] firstObject];
+        NSDictionary *vmessUser = [vmessNext[@"users"] firstObject];
+        IXExpect([vmessOut[@"protocol"] isEqualToString:@"vmess"], @"vmess protocol");
+        IXExpect([vmessNext[@"address"] isEqualToString:@"vmess.example"], @"vmess address");
+        IXExpect([vmessUser[@"security"] isEqualToString:@"auto"], @"vmess security");
+        IXExpect([vmessOut[@"streamSettings"][@"wsSettings"][@"path"] isEqualToString:@"/vm"], @"vmess path");
+
+        NSData *ssUser = [@"aes-256-gcm:secret" dataUsingEncoding:NSUTF8StringEncoding];
+        NSString *ssLink = [NSString stringWithFormat:@"ss://%@@ss.example:8388?type=tcp#shadow", [ssUser base64EncodedStringWithOptions:0]];
+        IXVLESSProfile *ssProfile = [IXVLESSProfile profileFromURI:ssLink error:nil];
+        NSDictionary *ssServer = [[ssProfile xrayOutbound][@"settings"][@"servers"] firstObject];
+        IXExpect([[ssProfile xrayOutbound][@"protocol"] isEqualToString:@"shadowsocks"], @"ss protocol");
+        IXExpect([ssServer[@"method"] isEqualToString:@"aes-256-gcm"], @"ss method");
+        IXExpect([ssServer[@"password"] isEqualToString:@"secret"], @"ss password");
+        IXExpect([ssServer[@"address"] isEqualToString:@"ss.example"], @"ss address");
+
         if (gFailures) {
             fprintf(stderr, "%d failure(s)\n%s\n", gFailures, [outbound description].UTF8String);
             return 1;

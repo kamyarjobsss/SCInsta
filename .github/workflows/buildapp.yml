@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.1.9"
+                description: "Publish a prerelease tagged instagram-x-v2.2.0"
                 default: true
                 required: false
                 type: boolean
@@ -221,9 +221,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.1.9
+                tag_name: instagram-x-v2.2.0
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.1.9
+                name: Instagram X 2.2.0
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -237,11 +237,9 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.1.8 forced xhttp mode auto to stream-one. On this Fastly link stream-one never answered, and packet-up returned PROTOCOL_ERROR. v2.1.9 sends auto the way v2Box does, with xPaddingBytes 100-1000, noGRPCHeader, and scMaxEachPostBytes 1000000. If a mode does not answer within a few seconds it tries packet-up, then stream-up, then stream-one, and saves the mode that answered.
+                  v2.2.0 sends Instagram's own sockets through a SOCKS5 proxy. FBSharedFramework (MNS/Liger/Tigon) does not use NSURLSession, so the hooks rebind connect, connectx, DNS, and the read/write calls in every image, including chained GOT slots and images loaded later. DNS answers with 198.18.0.0/15 and fd00::/8 and the name is resolved on the far side of the tunnel. While the tunnel is down, other TCP connections are refused. UDP to the public network is blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
-                  generate_204 can succeed while the status stayed Disconnected because a later callback tore the listener down, and the probe sometimes ran before the inbound was accepting. v2.1.9 keeps Connected once the probe succeeds and retries the listener after a restart.
-
-                  Xray was dialing from 100.64.100.2, the phone VPN address, which failed with "can't assign requested address". Outbound sockets now bind to en0 or pdp_ip0 with IP_BOUND_IF, including after a network change. With the kill switch on, Instagram still cannot leave through the system VPN or a direct route.
+                  Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
                   The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
 
@@ -252,4 +250,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.1.9"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.0"

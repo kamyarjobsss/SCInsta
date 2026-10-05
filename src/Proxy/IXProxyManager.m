@@ -442,7 +442,7 @@ static dispatch_queue_t IXProxyQueue(void) {
 - (void)addProfilesFromText:(NSString *)text error:(NSError **)error {
     NSArray<IXVLESSProfile *> *incoming = [IXVLESSProfile profilesFromPaste:text];
     if (incoming.count == 0) {
-        if (error) *error = IXProxyError(@"No vless:// links were found. Paste one link, several lines, or a base64 subscription.");
+        if (error) *error = IXProxyError(@"No vless://, trojan://, vmess://, or ss:// links were found.");
         return;
     }
     NSMutableArray<NSString *> *uris = [NSMutableArray array];
@@ -695,7 +695,7 @@ static dispatch_queue_t IXProxyQueue(void) {
     IXVLESSProfile *profile = [self selectedProfile];
     if (!profile) {
         _status = IXProxyStatusFailed;
-        _lastError = @"Add a vless:// link first.";
+        _lastError = @"Add a vless://, trojan://, vmess://, or ss:// link first.";
         [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
         [self persistSettings];
         if (completion) completion(IXProxyError(_lastError));
@@ -1047,6 +1047,65 @@ static dispatch_queue_t IXProxyQueue(void) {
         dispatch_async(dispatch_get_main_queue(), ^{
             if (ms >= 0) self->_lastPingMs = ms;
             if (completion) completion(ms, ms >= 0 ? nil : IXProxyError(why ?: @"The test failed."));
+        });
+    });
+}
+
+- (NSString *)fetchExitURL:(NSString *)urlString {
+    NSURL *url = [NSURL URLWithString:urlString];
+    if (!url) return nil;
+    __block NSData *body = nil;
+    __block NSError *error = nil;
+    dispatch_semaphore_t gate = dispatch_semaphore_create(0);
+    NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    config.timeoutIntervalForRequest = 12;
+    config.timeoutIntervalForResource = 12;
+    config.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:config];
+    NSURLSessionDataTask *task = [session dataTaskWithURL:url completionHandler:^(NSData *data, NSURLResponse *response, NSError *taskError) {
+        body = data;
+        error = taskError;
+        dispatch_semaphore_signal(gate);
+    }];
+    [task resume];
+    dispatch_semaphore_wait(gate, dispatch_time(DISPATCH_TIME_NOW, 14 * NSEC_PER_SEC));
+    [session invalidateAndCancel];
+    if (error || body.length == 0) return nil;
+    return [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding];
+}
+
+- (void)checkExitIP:(void (^)(NSString *, NSError *))completion {
+    if (_status != IXProxyStatusConnected || !IXTrafficGuardProxyUp()) {
+        if (completion) completion(nil, IXProxyError(@"Turn the VPN on first. The check runs through the tunnel."));
+        return;
+    }
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        NSString *ipify = [[self fetchExitURL:@"https://api.ipify.org"] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *info = [self fetchExitURL:@"https://ifconfig.co/json"];
+        NSString *v6 = [[self fetchExitURL:@"https://ipv6.icanhazip.com"] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        NSString *country = @"";
+        NSString *ifconfigIP = @"";
+        NSData *infoData = [info dataUsingEncoding:NSUTF8StringEncoding];
+        id json = infoData ? [NSJSONSerialization JSONObjectWithData:infoData options:0 error:nil] : nil;
+        if ([json isKindOfClass:[NSDictionary class]]) {
+            id ip = json[@"ip"];
+            id place = json[@"country"];
+            if ([ip isKindOfClass:[NSString class]]) ifconfigIP = ip;
+            if ([place isKindOfClass:[NSString class]]) country = place;
+        }
+        BOOL v6ok = [v6 containsString:@":"];
+        NSString *summary = [NSString stringWithFormat:@"Exit IP %@\nCountry %@\nIPv6 %@",
+                             ipify.length ? ipify : (ifconfigIP.length ? ifconfigIP : @"unavailable"),
+                             country.length ? country : @"unavailable",
+                             v6ok ? v6 : @"none"];
+        BOOL any = ipify.length || ifconfigIP.length;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (!any) {
+                if (completion) completion(nil, IXProxyError(@"The tunnel did not return an exit IP."));
+                return;
+            }
+            [self note:summary];
+            if (completion) completion(summary, nil);
         });
     });
 }

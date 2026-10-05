@@ -37,11 +37,16 @@ NSString * _Nullable IXTrafficGuardLookupHost(NSString * _Nullable host);
 /// Mint the same fake addresses getaddrinfo returns, without calling the system resolver.
 BOOL IXTrafficGuardFakeSockaddrs(const char * _Nullable host, struct sockaddr_in * _Nullable v4, struct sockaddr_in6 * _Nullable v6);
 
-/// Newest last. Keys: path (socket or NSURLSession), host, port, up, down, reason.
+/// Newest last. Keys: image, api, path, host, port, up, down, reason (tunneled or blocked).
 NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void);
 void IXTrafficGuardNoteSession(NSString * _Nullable host, uint16_t port, uint64_t up, uint64_t down, NSString * _Nullable reason);
 void IXTrafficGuardNote(NSString * _Nullable path, NSString * _Nullable host, uint16_t port, NSString * _Nullable reason);
+void IXTrafficGuardNoteFull(NSString * _Nullable image, NSString * _Nullable api, NSString * _Nullable host, uint16_t port, NSString * _Nullable reason);
 BOOL IXTrafficGuardCallerIsSelf(void);
+/// `returnAddress` is __builtin_return_address(0) from the hook itself.
+BOOL IXTrafficGuardAddressIsSelf(const void *returnAddress);
+/// Sockets created on this thread are left alone. Used around Xray's own dial.
+void IXTrafficGuardSetThreadBypass(BOOL bypass);
 BOOL IXTrafficGuardNWProxyReady(void);
 
 NS_ASSUME_NONNULL_END

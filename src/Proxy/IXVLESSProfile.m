@@ -1,6 +1,13 @@
 #import "IXVLESSProfile.h"
 #import <arpa/inet.h>
 
+static NSString *IXPadBase64(NSString *value) {
+    NSString *text = [[value stringByReplacingOccurrencesOfString:@"-" withString:@"+"] stringByReplacingOccurrencesOfString:@"_" withString:@"/"];
+    NSUInteger remainder = text.length % 4;
+    if (remainder == 0) return text;
+    return [text stringByPaddingToLength:text.length + (4 - remainder) withString:@"=" startingAtIndex:0];
+}
+
 static NSString *IXPercentDecode(NSString *value) {
     if (value.length == 0) return @"";
     NSString *decoded = [value stringByRemovingPercentEncoding];
@@ -30,16 +37,7 @@ static NSError *IXURIError(NSString *message) {
 
 @implementation IXVLESSProfile
 
-+ (nullable instancetype)profileFromURI:(NSString *)uri error:(NSError **)error {
-    NSString *raw = [uri stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-    if (raw.length == 0) {
-        if (error) *error = IXURIError(@"Empty link.");
-        return nil;
-    }
-    if (![raw.lowercaseString hasPrefix:@"vless://"]) {
-        if (error) *error = IXURIError(@"Only vless:// links are supported.");
-        return nil;
-    }
++ (nullable instancetype)profileFromVLESSBody:(NSString *)raw error:(NSError **)error {
 
     NSString *name = @"";
     NSString *body = [raw substringFromIndex:8];
@@ -107,6 +105,7 @@ static NSError *IXURIError(NSString *message) {
 
     IXVLESSProfile *profile = [IXVLESSProfile new];
     profile.uri = raw;
+    profile.protocolName = @"vless";
     profile.uuid = uuid.lowercaseString;
     profile.host = host;
     profile.port = (uint16_t)port;
@@ -161,17 +160,260 @@ static NSError *IXURIError(NSString *message) {
     return profile;
 }
 
+- (void)ix_applyTransport:(NSDictionary<NSString *, NSString *> *)params defaultSecurity:(NSString *)defaultSecurity {
+    NSString * (^param)(NSString *) = ^NSString *(NSString *key) {
+        id value = params[key];
+        return [value isKindOfClass:[NSString class]] ? value : @"";
+    };
+    NSString *network = param(@"type");
+    if (network.length == 0) network = param(@"net");
+    if (network.length == 0) network = @"tcp";
+    network = network.lowercaseString;
+    if ([network isEqualToString:@"raw"]) network = @"tcp";
+    self.network = network;
+    NSString *security = param(@"security");
+    if (security.length == 0) security = param(@"tls");
+    if (security.length == 0) security = defaultSecurity ?: @"none";
+    if ([security isEqualToString:@"1"] || [security isEqualToString:@"true"]) security = @"tls";
+    self.security = security.lowercaseString;
+    self.flow = [self.network isEqualToString:@"ws"] ? @"" : param(@"flow");
+    self.sni = param(@"sni");
+    self.fingerprint = param(@"fp").length ? param(@"fp") : @"chrome";
+    self.publicKey = param(@"pbk");
+    self.shortId = param(@"sid");
+    self.spiderX = param(@"spx").length ? param(@"spx") : @"/";
+    NSInteger earlyData = param(@"ed").integerValue;
+    NSString *path = param(@"path").length ? param(@"path") : @"/";
+    NSRange pathQuery = [path rangeOfString:@"?"];
+    if (pathQuery.location != NSNotFound) {
+        NSDictionary *inner = IXQuery([path substringFromIndex:pathQuery.location + 1]);
+        if ([inner[@"ed"] integerValue] > 0) earlyData = [inner[@"ed"] integerValue];
+        path = [path substringToIndex:pathQuery.location];
+    }
+    if (path.length == 0) path = @"/";
+    if (![path hasPrefix:@"/"]) path = [@"/" stringByAppendingString:path];
+    self.path = path;
+    self.earlyData = earlyData > 0 ? earlyData : 0;
+    self.wsHost = param(@"host");
+    self.serviceName = param(@"serviceName").length ? param(@"serviceName") : param(@"authority");
+    self.alpn = param(@"alpn");
+    self.mode = param(@"mode");
+    self.xhttpExtra = param(@"extra");
+    BOOL (^flag)(NSString *) = ^BOOL(NSString *value) {
+        return [value isEqualToString:@"1"] || [value.lowercaseString isEqualToString:@"true"];
+    };
+    self.allowInsecure = flag(param(@"allowInsecure")) || flag(param(@"insecure"));
+    self.needsXray = YES;
+}
+
++ (BOOL)ix_splitHostPort:(NSString *)hostport host:(NSString * __autoreleasing *)hostOut port:(int *)portOut error:(NSError **)error {
+    NSString *host = nil;
+    NSString *portString = nil;
+    if ([hostport hasPrefix:@"["]) {
+        NSRange end = [hostport rangeOfString:@"]"];
+        if (end.location == NSNotFound) {
+            if (error) *error = IXURIError(@"The IPv6 address in that link is malformed.");
+            return NO;
+        }
+        host = [hostport substringWithRange:NSMakeRange(1, end.location - 1)];
+        NSString *rest = [hostport substringFromIndex:end.location + 1];
+        if ([rest hasPrefix:@":"]) portString = [rest substringFromIndex:1];
+    } else {
+        NSRange colon = [hostport rangeOfString:@":" options:NSBackwardsSearch];
+        if (colon.location == NSNotFound) {
+            if (error) *error = IXURIError(@"That link is missing a port.");
+            return NO;
+        }
+        host = [hostport substringToIndex:colon.location];
+        portString = [hostport substringFromIndex:colon.location + 1];
+    }
+    int port = portString.intValue;
+    if (host.length == 0 || port < 1 || port > 65535) {
+        if (error) *error = IXURIError(@"That link has a bad host or port.");
+        return NO;
+    }
+    if (hostOut) *hostOut = host;
+    if (portOut) *portOut = port;
+    return YES;
+}
+
++ (nullable instancetype)profileFromTrojan:(NSString *)raw error:(NSError **)error {
+    NSString *name = @"";
+    NSString *body = [raw substringFromIndex:9];
+    NSRange hash = [body rangeOfString:@"#" options:NSBackwardsSearch];
+    if (hash.location != NSNotFound) {
+        name = IXPercentDecode([body substringFromIndex:hash.location + 1]);
+        body = [body substringToIndex:hash.location];
+    }
+    NSString *query = @"";
+    NSRange q = [body rangeOfString:@"?"];
+    if (q.location != NSNotFound) {
+        query = [body substringFromIndex:q.location + 1];
+        body = [body substringToIndex:q.location];
+    }
+    NSRange at = [body rangeOfString:@"@" options:NSBackwardsSearch];
+    if (at.location == NSNotFound || at.location == 0) {
+        if (error) *error = IXURIError(@"That trojan link is missing a password.");
+        return nil;
+    }
+    NSString *host = nil;
+    int port = 0;
+    if (![self ix_splitHostPort:[body substringFromIndex:at.location + 1] host:&host port:&port error:error]) return nil;
+    IXVLESSProfile *profile = [IXVLESSProfile new];
+    profile.uri = raw;
+    profile.protocolName = @"trojan";
+    profile.password = IXPercentDecode([body substringToIndex:at.location]);
+    profile.host = host;
+    profile.port = (uint16_t)port;
+    [profile ix_applyTransport:IXQuery(query) defaultSecurity:@"tls"];
+    if (!name.length) name = [NSString stringWithFormat:@"%@:%d", host, port];
+    profile.name = name;
+    return profile;
+}
+
++ (nullable instancetype)profileFromVMess:(NSString *)raw error:(NSError **)error {
+    NSString *body = [raw substringFromIndex:8];
+    NSRange hash = [body rangeOfString:@"#" options:NSBackwardsSearch];
+    if (hash.location != NSNotFound) body = [body substringToIndex:hash.location];
+    NSData *decoded = [[NSData alloc] initWithBase64EncodedString:IXPadBase64(body) options:NSDataBase64DecodingIgnoreUnknownCharacters];
+    id json = decoded ? [NSJSONSerialization JSONObjectWithData:decoded options:0 error:nil] : nil;
+    if (![json isKindOfClass:[NSDictionary class]]) {
+        if (error) *error = IXURIError(@"That vmess link is not valid base64 JSON.");
+        return nil;
+    }
+    NSDictionary *object = json;
+    id (^field)(NSString *) = ^id(NSString *key) {
+        id value = object[key];
+        if ([value isKindOfClass:[NSString class]] || [value isKindOfClass:[NSNumber class]]) return value;
+        return @"";
+    };
+    NSString *host = [field(@"add") description];
+    int port = [[field(@"port") description] intValue];
+    NSString *uuid = [field(@"id") description];
+    if (host.length == 0 || port < 1 || port > 65535 || ![[[NSUUID alloc] initWithUUIDString:uuid] UUIDString]) {
+        if (error) *error = IXURIError(@"That vmess link is missing a host, port, or UUID.");
+        return nil;
+    }
+    IXVLESSProfile *profile = [IXVLESSProfile new];
+    profile.uri = raw;
+    profile.protocolName = @"vmess";
+    profile.uuid = uuid.lowercaseString;
+    profile.host = host;
+    profile.port = (uint16_t)port;
+    profile.alterId = [[field(@"aid") description] integerValue];
+    profile.method = [field(@"scy") description].length ? [[field(@"scy") description] lowercaseString] : @"auto";
+    NSString *name = [field(@"ps") description];
+    NSMutableDictionary *params = [NSMutableDictionary dictionary];
+    NSString *net = [field(@"net") description];
+    if (net.length) params[@"type"] = net.lowercaseString;
+    NSString *tls = [field(@"tls") description];
+    if (tls.length) params[@"security"] = tls.lowercaseString;
+    if ([field(@"host") description].length) params[@"host"] = [field(@"host") description];
+    if ([field(@"path") description].length) params[@"path"] = [field(@"path") description];
+    if ([field(@"sni") description].length) params[@"sni"] = [field(@"sni") description];
+    if ([field(@"alpn") description].length) params[@"alpn"] = [field(@"alpn") description];
+    if ([field(@"fp") description].length) params[@"fp"] = [field(@"fp") description];
+    if ([field(@"serviceName") description].length) params[@"serviceName"] = [field(@"serviceName") description];
+    [profile ix_applyTransport:params defaultSecurity:@"none"];
+    profile.name = name.length ? name : [NSString stringWithFormat:@"%@:%d", host, port];
+    return profile;
+}
+
++ (nullable instancetype)profileFromSS:(NSString *)raw error:(NSError **)error {
+    NSString *name = @"";
+    NSString *body = [raw substringFromIndex:5];
+    NSRange hash = [body rangeOfString:@"#" options:NSBackwardsSearch];
+    if (hash.location != NSNotFound) {
+        name = IXPercentDecode([body substringFromIndex:hash.location + 1]);
+        body = [body substringToIndex:hash.location];
+    }
+    NSString *query = @"";
+    NSRange q = [body rangeOfString:@"?"];
+    if (q.location != NSNotFound) {
+        query = [body substringFromIndex:q.location + 1];
+        body = [body substringToIndex:q.location];
+    }
+    NSString *method = nil;
+    NSString *password = nil;
+    NSString *host = nil;
+    int port = 0;
+    NSRange at = [body rangeOfString:@"@"];
+    if (at.location != NSNotFound) {
+        NSString *user = IXPercentDecode([body substringToIndex:at.location]);
+        NSData *userData = [[NSData alloc] initWithBase64EncodedString:IXPadBase64(user) options:NSDataBase64DecodingIgnoreUnknownCharacters];
+        NSString *userText = userData ? [[NSString alloc] initWithData:userData encoding:NSUTF8StringEncoding] : nil;
+        if (userText.length == 0) userText = user;
+        NSRange colon = [userText rangeOfString:@":"];
+        if (colon.location == NSNotFound) {
+            if (error) *error = IXURIError(@"That shadowsocks link is missing a method.");
+            return nil;
+        }
+        method = [userText substringToIndex:colon.location];
+        password = [userText substringFromIndex:colon.location + 1];
+        if (![self ix_splitHostPort:[body substringFromIndex:at.location + 1] host:&host port:&port error:error]) return nil;
+    } else {
+        NSData *decoded = [[NSData alloc] initWithBase64EncodedString:IXPadBase64(body) options:NSDataBase64DecodingIgnoreUnknownCharacters];
+        NSString *text = decoded ? [[NSString alloc] initWithData:decoded encoding:NSUTF8StringEncoding] : nil;
+        NSRange decodedAt = [text rangeOfString:@"@" options:NSBackwardsSearch];
+        NSRange colon = [text rangeOfString:@":"];
+        if (decodedAt.location == NSNotFound || colon.location == NSNotFound || colon.location > decodedAt.location) {
+            if (error) *error = IXURIError(@"That shadowsocks link could not be decoded.");
+            return nil;
+        }
+        method = [text substringToIndex:colon.location];
+        password = [text substringWithRange:NSMakeRange(colon.location + 1, decodedAt.location - colon.location - 1)];
+        if (![self ix_splitHostPort:[text substringFromIndex:decodedAt.location + 1] host:&host port:&port error:error]) return nil;
+    }
+    if (method.length == 0 || password.length == 0) {
+        if (error) *error = IXURIError(@"That shadowsocks link is missing a method or password.");
+        return nil;
+    }
+    IXVLESSProfile *profile = [IXVLESSProfile new];
+    profile.uri = raw;
+    profile.protocolName = @"shadowsocks";
+    profile.method = method.lowercaseString;
+    profile.password = password;
+    profile.host = host;
+    profile.port = (uint16_t)port;
+    [profile ix_applyTransport:IXQuery(query) defaultSecurity:@"none"];
+    profile.name = name.length ? name : [NSString stringWithFormat:@"%@:%d", host, port];
+    return profile;
+}
+
++ (nullable instancetype)profileFromURI:(NSString *)uri error:(NSError **)error {
+    NSString *raw = [uri stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (raw.length == 0) {
+        if (error) *error = IXURIError(@"Empty link.");
+        return nil;
+    }
+    NSString *lower = raw.lowercaseString;
+    if ([lower hasPrefix:@"vless://"]) return [self profileFromVLESSBody:raw error:error];
+    if ([lower hasPrefix:@"trojan://"]) return [self profileFromTrojan:raw error:error];
+    if ([lower hasPrefix:@"vmess://"]) return [self profileFromVMess:raw error:error];
+    if ([lower hasPrefix:@"ss://"]) return [self profileFromSS:raw error:error];
+    if (error) *error = IXURIError(@"Paste a vless://, trojan://, vmess://, or ss:// link.");
+    return nil;
+}
+
 + (NSArray<IXVLESSProfile *> *)profilesFromPaste:(NSString *)text {
     NSString *trimmed = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
     if (trimmed.length == 0) return @[];
 
+    NSArray<NSString *> *schemes = @[@"vless://", @"trojan://", @"vmess://", @"ss://"];
+    BOOL (^containsScheme)(NSString *) = ^BOOL(NSString *value) {
+        NSString *lower = value.lowercaseString ?: @"";
+        for (NSString *scheme in schemes) {
+            if ([lower containsString:scheme]) return YES;
+        }
+        return NO;
+    };
     NSMutableArray<NSString *> *lines = [NSMutableArray array];
-    if ([trimmed.lowercaseString containsString:@"vless://"]) {
+    if (containsScheme(trimmed)) {
         [lines addObjectsFromArray:[trimmed componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
     } else {
         NSData *decoded = [[NSData alloc] initWithBase64EncodedString:trimmed options:NSDataBase64DecodingIgnoreUnknownCharacters];
         NSString *expanded = decoded ? [[NSString alloc] initWithData:decoded encoding:NSUTF8StringEncoding] : nil;
-        if ([expanded.lowercaseString containsString:@"vless://"]) {
+        if (containsScheme(expanded)) {
             [lines addObjectsFromArray:[expanded componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
         } else {
             [lines addObject:trimmed];
@@ -183,7 +425,12 @@ static NSError *IXURIError(NSString *message) {
     for (NSString *line in lines) {
         NSString *item = [line stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
         if (item.length == 0 || [item hasPrefix:@"#"]) continue;
-        NSRange scheme = [item.lowercaseString rangeOfString:@"vless://"];
+        NSRange scheme = NSMakeRange(NSNotFound, 0);
+        NSString *lower = item.lowercaseString;
+        for (NSString *name in schemes) {
+            NSRange found = [lower rangeOfString:name];
+            if (found.location != NSNotFound && (scheme.location == NSNotFound || found.location < scheme.location)) scheme = found;
+        }
         if (scheme.location == NSNotFound) continue;
         if (scheme.location > 0) item = [item substringFromIndex:scheme.location];
         IXVLESSProfile *profile = [IXVLESSProfile profileFromURI:item error:nil];
@@ -199,7 +446,7 @@ static NSError *IXURIError(NSString *message) {
 }
 
 - (NSString *)endpointSummary {
-    return [NSString stringWithFormat:@"%@:%u · %@/%@", self.host, self.port, self.security ?: @"none", self.network ?: @"tcp"];
+    return [NSString stringWithFormat:@"%@ %@:%u · %@/%@", self.protocolName ?: @"vless", self.host, self.port, self.security ?: @"none", self.network ?: @"tcp"];
 }
 
 + (NSString *)xrayXHTTPModeFrom:(NSString *)mode {
@@ -260,6 +507,10 @@ static NSError *IXURIError(NSString *message) {
         if (extra[@"scMaxEachPostBytes"] == nil) extra[@"scMaxEachPostBytes"] = @1000000;
         xhttp[@"extra"] = extra;
         stream[@"xhttpSettings"] = xhttp;
+    } else if ([self.network isEqualToString:@"httpupgrade"]) {
+        NSMutableDictionary *upgrade = [@{@"path": self.path.length ? self.path : @"/"} mutableCopy];
+        if (self.wsHost.length) upgrade[@"host"] = self.wsHost;
+        stream[@"httpupgradeSettings"] = upgrade;
     } else if ([self.network isEqualToString:@"h2"] || [self.network isEqualToString:@"http"]) {
         stream[@"network"] = @"h2";
         stream[@"httpSettings"] = @{
@@ -300,16 +551,45 @@ static NSError *IXURIError(NSString *message) {
     if (self.outboundInterface.length) sockopt[@"interface"] = self.outboundInterface;
     stream[@"sockopt"] = sockopt;
 
+    NSString *protocol = self.protocolName.length ? self.protocolName : @"vless";
+    NSDictionary *settings = nil;
+    if ([protocol isEqualToString:@"trojan"]) {
+        settings = @{@"servers": @[@{
+            @"address": self.host ?: @"",
+            @"port": @(self.port),
+            @"password": self.password ?: @""
+        }]};
+    } else if ([protocol isEqualToString:@"shadowsocks"]) {
+        settings = @{@"servers": @[@{
+            @"address": self.host ?: @"",
+            @"port": @(self.port),
+            @"method": self.method ?: @"aes-256-gcm",
+            @"password": self.password ?: @""
+        }]};
+    } else if ([protocol isEqualToString:@"vmess"]) {
+        NSDictionary *vmessUser = @{
+            @"id": self.uuid ?: @"",
+            @"alterId": @(self.alterId),
+            @"security": self.method.length ? self.method : @"auto"
+        };
+        settings = @{@"vnext": @[@{
+            @"address": self.host ?: @"",
+            @"port": @(self.port),
+            @"users": @[vmessUser]
+        }]};
+    } else {
+        protocol = @"vless";
+        settings = @{@"vnext": @[@{
+            @"address": self.host ?: @"",
+            @"port": @(self.port),
+            @"users": @[user]
+        }]};
+    }
+
     return @{
         @"tag": @"proxy",
-        @"protocol": @"vless",
-        @"settings": @{
-            @"vnext": @[@{
-                @"address": self.host ?: @"",
-                @"port": @(self.port),
-                @"users": @[user]
-            }]
-        },
+        @"protocol": protocol,
+        @"settings": settings,
         @"streamSettings": stream,
         @"mux": @{
             @"enabled": @NO,

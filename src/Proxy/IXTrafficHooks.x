@@ -60,6 +60,14 @@ static void IXApplyProxy(NSURLSessionConfiguration *config) {
     if (!config || !IXTrafficGuardVPNOn()) return;
     if (!IXTrafficGuardProxyUp() && !IXTrafficGuardKillSwitch()) return;
     config.connectionProxyDictionary = IXTrafficGuardProxyDictionary();
+    if (@available(iOS 17.0, *)) {
+        SEL setter = NSSelectorFromString(@"setProxyConfigurations:");
+        if ([config respondsToSelector:setter]) {
+            uint16_t port = IXTrafficGuardProxyUp() ? IXTrafficGuardSocksPort() : 9;
+            id proxy = IXPathHookProxyObjectOnPort(port);
+            if (proxy) ((void (*)(id, SEL, id))objc_msgSend)(config, setter, @[proxy]);
+        }
+    }
 }
 
 static BOOL IXApplyWebProxy(WKWebViewConfiguration *configuration) {
@@ -447,6 +455,17 @@ static void IXMediaAttach(AVURLAsset *asset) {
 %end
 %end
 
+static IMP ix_orig_web_proxy;
+
+static void IXSetWebProxy(id self, SEL cmd, id configs) {
+    if (IXTrafficGuardVPNOn() && (IXTrafficGuardProxyUp() || IXTrafficGuardKillSwitch())) {
+        uint16_t port = IXTrafficGuardProxyUp() ? IXTrafficGuardSocksPort() : 9;
+        id proxy = IXPathHookProxyObjectOnPort(port);
+        if (proxy) configs = @[proxy];
+    }
+    if (ix_orig_web_proxy) ((void (*)(id, SEL, id))ix_orig_web_proxy)(self, cmd, configs);
+}
+
 void IXTrafficHooksInstall(void) {
 #if IX_LITE
     return;
@@ -455,5 +474,8 @@ void IXTrafficHooksInstall(void) {
     if (installed) return;
     installed = YES;
     %init(IXTrafficSessionHooks);
+    Class store = NSClassFromString(@"WKWebsiteDataStore");
+    Method method = store ? class_getInstanceMethod(store, NSSelectorFromString(@"setProxyConfigurations:")) : NULL;
+    if (method) ix_orig_web_proxy = method_setImplementation(method, (IMP)IXSetWebProxy);
 #endif
 }

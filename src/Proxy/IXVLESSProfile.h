@@ -2,13 +2,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Parsed vless:// link. `needsXray` is YES for transports the built-in engine
-/// cannot speak (REALITY, Vision, gRPC, XHTTP, QUIC).
+/// Parsed vless://, trojan://, vmess://, or ss:// link. `needsXray` is YES for
+/// transports the built-in engine cannot speak, and for every non-VLESS link.
 @interface IXVLESSProfile : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSString *uri;
+@property (nonatomic, copy) NSString *protocolName; // vless, trojan, vmess, shadowsocks
 @property (nonatomic, copy) NSString *name;
 @property (nonatomic, copy) NSString *uuid;
+@property (nonatomic, copy, nullable) NSString *password;
+@property (nonatomic, copy, nullable) NSString *method;
+@property (nonatomic) NSInteger alterId;
 @property (nonatomic, copy) NSString *host;
 @property (nonatomic) uint16_t port;
 @property (nonatomic, copy) NSString *network;   // tcp, ws, grpc, ...

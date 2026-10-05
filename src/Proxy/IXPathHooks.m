@@ -6,6 +6,7 @@
 #import <netinet/in.h>
 #import <arpa/inet.h>
 #import <objc/message.h>
+#import <stdbool.h>
 #import <objc/runtime.h>
 #import <pthread.h>
 #import <stdio.h>
@@ -222,6 +223,14 @@ static void IXFailBlocked(ix_nw_t connection) {
     });
 }
 
+static void IXDenyFailover(id object) {
+    if (!object) return;
+    SEL sel = NSSelectorFromString(@"setAllowFailover:");
+    if ([object respondsToSelector:sel]) {
+        ((void (*)(id, SEL, BOOL))objc_msgSend)(object, sel, NO);
+    }
+}
+
 static BOOL IXApplyProxyPort(ix_nw_t params, uint16_t port) {
     if (!params || !port || !ix_endpoint_host || (!ix_socks_proxy && !ix_http_proxy)) return NO;
     char portText[8];
@@ -233,6 +242,7 @@ static BOOL IXApplyProxyPort(ix_nw_t params, uint16_t port) {
     if (ix_nw_release) ix_nw_release(endpoint);
     if (!config) return NO;
     id object = (__bridge_transfer id)config;
+    IXDenyFailover(object);
     NSArray *list = @[object];
     if (ix_set_proxies) {
         ix_set_proxies(params, list);
@@ -277,10 +287,11 @@ static ix_nw_t IXRewrite(ix_nw_t endpoint, char *host, size_t hostLen, uint16_t 
 
 static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
     if (!ix_orig_create) return NULL;
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return ix_orig_create(endpoint, parameters);
     char host[192];
     uint16_t port = 0;
     BOOL remote = IXDescribeEndpoint(endpoint, host, sizeof(host), &port);
-    if (!IXTrafficGuardVPNOn() || IXTrafficGuardCallerIsSelf() || !remote || IXLoopbackName(host)) {
+    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host)) {
         return ix_orig_create(endpoint, parameters);
     }
     if (!IXTrafficGuardProxyUp()) {
@@ -363,7 +374,7 @@ static uint16_t IXForcedHTTPPort(void) {
 }
 
 static BOOL IXForceProxy(void) {
-    return IXTrafficGuardVPNOn() && !IXTrafficGuardCallerIsSelf() && (IXTrafficGuardProxyUp() || IXTrafficGuardKillSwitch());
+    return IXTrafficGuardVPNOn() && (IXTrafficGuardProxyUp() || IXTrafficGuardKillSwitch());
 }
 
 static CFDictionaryRef IXProxyDictionary(uint16_t port) {
@@ -389,13 +400,13 @@ static CFArrayRef IXProxyList(uint16_t port, BOOL secure) {
 }
 
 static CFDictionaryRef IXSystemProxy(void) {
-    if (!IXForceProxy()) return ix_orig_settings ? ix_orig_settings() : NULL;
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXForceProxy()) return ix_orig_settings ? ix_orig_settings() : NULL;
     return IXProxyDictionary(IXForcedHTTPPort());
 }
 
 static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
     NSURL *nsurl = (__bridge NSURL *)url;
-    if (!IXTrafficGuardVPNOn() || IXTrafficGuardCallerIsSelf()) {
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn()) {
         return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
     }
     if (!IXTrafficGuardProxyUp() && !IXTrafficGuardKillSwitch()) {
@@ -410,7 +421,7 @@ static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
 }
 
 static CFArrayRef IXProxiesForPAC(CFStringRef script, CFURLRef url, CFErrorRef *error) {
-    if (!IXForceProxy()) return ix_orig_pac ? ix_orig_pac(script, url, error) : NULL;
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXForceProxy()) return ix_orig_pac ? ix_orig_pac(script, url, error) : NULL;
     if (error) *error = NULL;
     NSURL *nsurl = (__bridge NSURL *)url;
     BOOL secure = [nsurl.scheme.lowercaseString isEqualToString:@"https"];
@@ -511,7 +522,7 @@ static void IXFireHost(void *host, int type) {
 
 static void *IXHostCreate(CFAllocatorRef allocator, CFStringRef name) {
     void *host = ix_orig_host_create ? ix_orig_host_create(allocator, name) : NULL;
-    if (!host || !IXTrafficGuardVPNOn() || IXTrafficGuardCallerIsSelf()) return host;
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !host || !IXTrafficGuardVPNOn()) return host;
     pthread_mutex_lock(&ix_host_mu);
     IXHostSlot *slot = IXHostFind(host, YES);
     slot->name[0] = 0;
@@ -554,7 +565,7 @@ static Boolean IXHostStart(void *host, int info, void *error) {
     IXHostSlot *slot = IXHostFind(host, NO);
     if (slot) strlcpy(name, slot->name, sizeof(name));
     pthread_mutex_unlock(&ix_host_mu);
-    if (!IXTrafficGuardVPNOn() || IXTrafficGuardCallerIsSelf()) {
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn()) {
         return ix_orig_host_start ? ix_orig_host_start(host, info, error) : FALSE;
     }
     BOOL named = name[0] && !IXNumericName(name);
@@ -589,7 +600,7 @@ static CFArrayRef IXHostAddresses(void *host, Boolean *resolved) {
         if (resolved) *resolved = TRUE;
         return addresses;
     }
-    if (IXTrafficGuardVPNOn() && IXTrafficGuardKillSwitch() && !IXTrafficGuardCallerIsSelf()) {
+    if (IXTrafficGuardVPNOn() && IXTrafficGuardKillSwitch() && !IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) {
         if (resolved) *resolved = FALSE;
         return NULL;
     }
@@ -648,7 +659,12 @@ id IXPathHookProxyObjectOnPort(uint16_t port) {
     ix_nw_t config = socks ? ix_socks_proxy(endpoint, NULL, NULL) : ix_http_proxy(endpoint, NULL, NULL);
     if (ix_nw_release) ix_nw_release(endpoint);
     if (!config) return nil;
-    return (__bridge_transfer id)config;
+    typedef void (*ix_failover_f)(ix_nw_t, bool);
+    ix_failover_f deny = (ix_failover_f)IXLoad("nw_proxy_config_set_failover_allowed");
+    if (deny) deny(config, false);
+    id object = (__bridge_transfer id)config;
+    IXDenyFailover(object);
+    return object;
 }
 
 id IXPathHookProxyObject(void) {
