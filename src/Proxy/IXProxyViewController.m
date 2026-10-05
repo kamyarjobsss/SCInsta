@@ -192,7 +192,7 @@ static NSString *IXBytes(uint64_t n) {
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     if (section == IXProxySectionProfiles) return MAX([IXProxyManager.shared profiles].count, 1);
-    if (section == IXProxySectionControls) return 4;
+    if (section == IXProxySectionControls) return IXLaunchGuardIsSafeMode() ? 5 : 4;
     if (section == IXProxySectionAdd) return 2;
     if (section == IXProxySectionTraffic) return 6;
     return 1;
@@ -291,6 +291,11 @@ static NSString *IXBytes(uint64_t n) {
             cell.textLabel.text = IXT(@"Block UDP and calls", @"بستن UDP و تماس");
             cell.detailTextLabel.text = IXT(@"Stops call media from bypassing the tunnel. Turning this off can reveal your IP.", @"نمی‌گذارد صدای تماس از کنار تونل رد شود. خاموش کردنش می‌تواند IP را لو بدهد.");
             toggle.on = manager.blockUDP;
+        } else if (indexPath.row == 4) {
+            cell.accessoryView = nil;
+            cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+            cell.textLabel.text = IXT(@"Exit safe mode", @"خروج از حالت امن");
+            cell.detailTextLabel.text = IXT(@"Installs the VPN hooks on this launch when the switch is on.", @"اگر کلید روشن باشد، هوک‌های فیلترشکن را در همین اجرا نصب می‌کند.");
         } else {
             cell.accessoryView = nil;
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
@@ -397,6 +402,11 @@ static NSString *IXBytes(uint64_t n) {
         } else if (indexPath.row == 5) {
             [self.navigationController pushViewController:[IXProxyConnectionsController new] animated:YES];
         }
+        return;
+    }
+    if (indexPath.section == IXProxySectionControls && indexPath.row == 4) {
+        [manager exitSafeMode];
+        [self.tableView reloadData];
         return;
     }
     if (indexPath.section == IXProxySectionControls && indexPath.row == 3) {

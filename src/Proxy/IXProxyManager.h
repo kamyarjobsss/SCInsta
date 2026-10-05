@@ -46,6 +46,8 @@ typedef NS_ENUM(NSInteger, IXProxyStatus) {
 - (void)restoreOnLaunch;
 /// Stops the live tunnel without clearing the saved on switch. Used by safe mode.
 - (void)suppressForSafeMode;
+/// Leaves safe mode and installs hooks when the saved VPN switch is on.
+- (void)exitSafeMode;
 - (void)testProfile:(IXVLESSProfile *)profile completion:(void (^)(NSInteger millis, NSError * _Nullable error))completion;
 - (void)runTunnelTest:(void (^)(NSInteger millis, NSError * _Nullable error))completion;
 - (void)checkExitIP:(void (^)(NSString * _Nullable summary, NSError * _Nullable error))completion;

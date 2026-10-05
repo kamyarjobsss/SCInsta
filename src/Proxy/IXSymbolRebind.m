@@ -1,4 +1,5 @@
 #import "IXSymbolRebind.h"
+#import "../Launch/IXLaunchGuard.h"
 
 #import <dlfcn.h>
 #import <fcntl.h>
@@ -10,6 +11,7 @@
 #import <pthread.h>
 #import <stddef.h>
 #import <Foundation/Foundation.h>
+#import <stdio.h>
 #import <stdlib.h>
 #import <string.h>
 #import <sys/mman.h>
@@ -486,13 +488,19 @@ static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
             break;
         }
     }
+    char lateLine[128];
+    lateLine[0] = 0;
     if (ix_rebind_live && ix_saved_count) {
-        IXRebindImage(header, slide, path, ix_saved_names, ix_saved_repl, ix_saved_count, 1);
+        int late = IXRebindImage(header, slide, path, ix_saved_names, ix_saved_repl, ix_saved_count, 1);
+        if (late > 0 && path && strstr(path, "FBSharedFramework")) {
+            snprintf(lateLine, sizeof(lateLine), "connect hooks installed: yes FBSharedFramework=%d (late)", late);
+        }
     }
     if (ix_perm_count) {
         IXRebindImage(header, slide, path, ix_perm_names, ix_perm_repl, ix_perm_count, 0);
     }
     pthread_mutex_unlock(&ix_rebind_mu);
+    if (lateLine[0]) IXLaunchGuardAppendLog(lateLine);
 }
 
 int IXSymbolRebindSlots(const char *const *names, void *const *replacements, unsigned count) {
@@ -506,6 +514,10 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
     ix_rebind_live = 1;
     int patched = 0;
     int frameworkPatches = -1;
+    char imageList[512];
+    imageList[0] = 0;
+    size_t listed = 0;
+    int listedCount = 0;
     uint32_t images = _dyld_image_count();
     for (uint32_t i = 0; i < images; i++) {
         const char *path = _dyld_get_image_name(i);
@@ -513,6 +525,13 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
                                          names, replacements, count, 1);
         patched += imagePatches;
         if (path && strstr(path, "FBSharedFramework")) frameworkPatches = imagePatches;
+        if (imagePatches <= 0 || listedCount >= 12 || !path) continue;
+        const char *base = strrchr(path, '/');
+        base = base ? base + 1 : path;
+        int wrote = snprintf(imageList + listed, sizeof(imageList) - listed, "%s%s=%d", listed ? " " : "", base, imagePatches);
+        if (wrote < 0 || (size_t)wrote >= sizeof(imageList) - listed) break;
+        listed += (size_t)wrote;
+        listedCount++;
     }
     int registerCallback = 0;
     if (!ix_image_callback) {
@@ -520,9 +539,12 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
         registerCallback = 1;
     }
     pthread_mutex_unlock(&ix_rebind_mu);
-    if (frameworkPatches >= 0) {
-        NSLog(@"[InstagramX] FBSharedFramework rebind patched %d slots", frameworkPatches);
-    }
+    int frameworkCount = frameworkPatches < 0 ? 0 : frameworkPatches;
+    char line[640];
+    snprintf(line, sizeof(line), "connect hooks installed: %s FBSharedFramework=%d total=%d %s",
+             frameworkCount > 0 ? "yes" : "no", frameworkCount, patched, imageList);
+    IXLaunchGuardAppendLog(line);
+    NSLog(@"[InstagramX] %s", line);
     // Registration invokes the callback for images already loaded. That must
     // happen without ix_rebind_mu held, because the callback takes the same lock.
     if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);

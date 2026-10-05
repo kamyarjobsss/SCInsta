@@ -3,18 +3,19 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// Called from willFinishLaunching, before any VPN hook is installed.
-/// HOME is valid by then. A constructor is too early: the container and libc
-/// are not ready, and a crash before the feed would not be recorded.
+/// A file left as "starting" means the previous launch died early. This launch
+/// stays in safe mode, and the file is cleared so the launch after that is normal.
 void IXLaunchGuardRecord(void);
-/// YES when the previous launch did not reach the feed, or the user held a
-/// finger on the splash. VPN hooks stay off until the user turns the VPN on.
+/// YES for this launch only. The next launch is not in safe mode.
 BOOL IXLaunchGuardIsSafeMode(void);
-/// The feed (or a login screen) is on screen, so this launch counts as healthy.
+/// The process is alive (an Instagram view appeared, or several seconds passed).
+/// Clears the watchdog file. Does not turn hooks back on during a safe launch.
 void IXLaunchGuardMarkReady(void);
 BOOL IXLaunchGuardFeedShown(void);
-/// Hold on the splash. This launch stops using the hooks. The saved VPN switch
-/// is left as it is.
+/// Hold on the splash. Hooks stop for this launch. The next launch is normal.
 void IXLaunchGuardEngageBypass(void);
+/// Leave safe mode now and allow hooks to install on this launch.
+void IXLaunchGuardExitSafeMode(void);
 
 void IXLaunchGuardAppendLog(const char * _Nullable line);
 NSString *IXLaunchGuardPersistedLog(void);

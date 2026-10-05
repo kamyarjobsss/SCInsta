@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.2.2"
+                description: "Publish a prerelease tagged instagram-x-v2.2.3"
                 default: true
                 required: false
                 type: boolean
@@ -233,9 +233,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.2.2
+                tag_name: instagram-x-v2.2.3
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.2.2
+                name: Instagram X 2.2.3
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -249,7 +249,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.2.2 keeps the connect-only SOCKS path from 2.2.1. 2.2.1 aborted on launch because folly::IPAddress threw inside Tigon: getnameinfo on a fake 198.18 or fd00:: address returned the original hostname, and isHostThirdParty does not catch that exception. Those addresses now come back as complete sockaddrs (length, family, and address bytes agree, no zone id, canonname NULL) and getnameinfo returns a numeric string that parses as an IP. Hooks are installed only after the app finishes launching, and only while the VPN is on. A crash before the feed has been up for a few seconds leaves the next launch in safe mode. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+                  v2.2.3 clears safe mode after one launch. 2.2.2 left the watchdog on "starting" unless three specific screens stayed up for 8 seconds, so every later launch skipped the connect hooks and only Check IP was tunneled. An Instagram view, or 5 seconds alive, clears the flag. Exit safe mode installs the hooks on this launch. The log records whether connect hooks installed and the per-image slot count. A tunneled TCP connect is logged as "FBSharedFramework connect host:443 tunneled". UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -262,4 +262,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.2"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.3"

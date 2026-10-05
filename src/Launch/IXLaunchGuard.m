@@ -95,43 +95,48 @@ NSString *IXLaunchGuardPersistedLog(void) {
     return text ?: @"";
 }
 
+static void IXClearWatchdog(void) {
+    char path[1024];
+    if (IXHomePath(path, sizeof(path), "ix_launch_guard")) IXGuardWrite(path, "clear\n");
+    char bpath[1024];
+    if (IXHomePath(bpath, sizeof(bpath), "ix_launch_bypass")) unlink(bpath);
+}
+
 void IXLaunchGuardRecord(void) {
     char path[1024];
-    if (!IXHomePath(path, sizeof(path), "ix_launch_guard")) return;
-
-    int previous = 0;
-    int wasStarting = 0;
-    FILE *file = fopen(path, "r");
-    if (file) {
-        char buf[64];
-        if (fgets(buf, sizeof(buf), file)) {
-            int n = 0;
-            if (sscanf(buf, "starting %d", &n) == 1) {
-                wasStarting = 1;
-                previous = n;
-            }
-        }
-        fclose(file);
-    }
-
-    int bypass = 0;
     char bpath[1024];
+    int bypass = 0;
     if (IXHomePath(bpath, sizeof(bpath), "ix_launch_bypass") && access(bpath, F_OK) == 0) {
         bypass = 1;
         unlink(bpath);
     }
-
-    int count = wasStarting ? previous + 1 : 1;
-    if (count < 1) count = 1;
-    ix_safe_mode = (wasStarting || bypass) ? 1 : 0;
-
-    char text[32];
-    snprintf(text, sizeof(text), "starting %d\n", count);
-    IXGuardWrite(path, text);
-    if (ix_safe_mode) {
-        fprintf(stderr, "[InstagramX] safe mode: previous launch did not reach the feed\n");
-        IXLaunchGuardAppendLog("safe mode: VPN hooks stay off so the log can be opened");
+    if (!IXHomePath(path, sizeof(path), "ix_launch_guard")) {
+        if (bypass) {
+            ix_safe_mode = 1;
+            IXLaunchGuardAppendLog("safe mode: this launch only, next launch installs hooks");
+        }
+        return;
     }
+
+    int wasStarting = 0;
+    FILE *file = fopen(path, "r");
+    if (file) {
+        char buf[64];
+        if (fgets(buf, sizeof(buf), file) && strncmp(buf, "starting", 8) == 0) wasStarting = 1;
+        fclose(file);
+    }
+
+    if (wasStarting || bypass) {
+        // One launch only. The file is cleared before this process can die,
+        // so the following launch installs the hooks even if this one is killed.
+        ix_safe_mode = 1;
+        IXGuardWrite(path, "clear\n");
+        fprintf(stderr, "[InstagramX] safe mode: this launch only\n");
+        IXLaunchGuardAppendLog("safe mode: this launch only, next launch installs hooks");
+        return;
+    }
+    ix_safe_mode = 0;
+    IXGuardWrite(path, "starting\n");
 }
 
 BOOL IXLaunchGuardIsSafeMode(void) {
@@ -146,18 +151,23 @@ void IXLaunchGuardMarkReady(void) {
     ix_feed_shown = 1;
     if (ix_marked) return;
     ix_marked = 1;
-    char path[1024];
-    if (IXHomePath(path, sizeof(path), "ix_launch_guard")) IXGuardWrite(path, "ready 0\n");
-    char bpath[1024];
-    if (IXHomePath(bpath, sizeof(bpath), "ix_launch_bypass")) unlink(bpath);
-    IXLaunchGuardAppendLog("feed visible, launch marked ready");
+    IXClearWatchdog();
+    IXLaunchGuardAppendLog("watchdog cleared");
 }
 
 void IXLaunchGuardEngageBypass(void) {
     if (ix_feed_shown) return;
     ix_safe_mode = 1;
-    char bpath[1024];
-    if (IXHomePath(bpath, sizeof(bpath), "ix_launch_bypass")) IXGuardWrite(bpath, "bypass\n");
-    IXLaunchGuardAppendLog("manual bypass: finger held on the splash, VPN hooks off");
+    IXClearWatchdog();
+    IXLaunchGuardAppendLog("manual bypass: VPN hooks off for this launch only");
     fprintf(stderr, "[InstagramX] manual bypass\n");
+}
+
+void IXLaunchGuardExitSafeMode(void) {
+    ix_safe_mode = 0;
+    ix_feed_shown = 1;
+    ix_marked = 1;
+    IXClearWatchdog();
+    IXLaunchGuardAppendLog("safe mode exited");
+    fprintf(stderr, "[InstagramX] safe mode exited\n");
 }

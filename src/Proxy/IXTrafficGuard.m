@@ -549,6 +549,7 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr, socklen_t len, 
         return -1;
     }
     IXTrackFD(fd, addr, len, host, port, image, api);
+    IXPushLog(image, "connect", host, port, 0, 0, "tunneled");
     if (dialed == IX_SOCKS_IN_PROGRESS) {
         errno = EINPROGRESS;
         return -1;

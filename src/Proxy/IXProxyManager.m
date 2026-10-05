@@ -762,6 +762,16 @@ static dispatch_queue_t IXProxyQueue(void) {
     }];
 }
 
+- (void)exitSafeMode {
+    IXLaunchGuardExitSafeMode();
+    [self note:@"Exit safe mode: installing VPN hooks if the switch is on."];
+    @synchronized (self) {
+        _autostarted = NO;
+    }
+    if (![self isEnabled]) return;
+    [self restoreOnLaunch];
+}
+
 - (void)suppressForSafeMode {
     @synchronized (self) {
         _autostarted = YES;

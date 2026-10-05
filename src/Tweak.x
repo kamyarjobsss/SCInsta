@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.2.2";
+NSString *SCIVersionString = @"v2.2.3";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -254,9 +254,13 @@ static void IXEngageLaunchBypass(UIWindow *window) {
             if (!presenter) return;
             while (presenter.presentedViewController) presenter = presenter.presentedViewController;
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
-                                                                           message:@"The last launch never reached the feed, so the VPN hooks stayed off. Open the VPN screen and use Copy. You can turn the VPN on again from there."
+                                                                           message:@"VPN hooks are off for this launch only. The next launch installs them again. Exit safe mode installs them now."
                                                                     preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"Exit safe mode" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                [IXProxyManager.shared exitSafeMode];
+                [[window viewWithTag:22021] removeFromSuperview];
+            }]];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
             [presenter presentViewController:alert animated:YES completion:nil];
         });
     }
@@ -269,6 +273,10 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         press.delaysTouchesEnded = NO;
         [window addGestureRecognizer:press];
     }
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXLaunchGuardMarkReady();
+    });
 
     return true;
 }
@@ -292,16 +300,17 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 // Tab bar only exists in the logged-in state — fire the changelog popup here
 // rather than at app launch (which runs pre-login).
 static void IXMarkFeedReady(void) {
-    // The 2.2.1 abort landed about four seconds after launch, on an image
-    // queue, which can be after the feed appears. Wait before clearing the
-    // guard so that crash still starts the next launch with the hooks off.
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            IXLaunchGuardMarkReady();
-        });
-    });
+    IXLaunchGuardMarkReady();
 }
+
+%hook UIViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    if (IXLaunchGuardFeedShown()) return;
+    NSString *name = NSStringFromClass(self.class);
+    if ([name hasPrefix:@"IG"]) IXLaunchGuardMarkReady();
+}
+%end
 
 %hook IGMainFeedViewController
 - (void)viewDidAppear:(BOOL)animated {
