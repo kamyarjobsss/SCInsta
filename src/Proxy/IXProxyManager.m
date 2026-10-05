@@ -118,17 +118,6 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 @end
 
-__attribute__((constructor(180)))
-static void IXProxyEarlyStart(void) {
-#if !IX_LITE
-    @autoreleasepool {
-        // Schedules Xray before UIApplication starts networking. setEnabled
-        // returns as soon as the work is queued, so this constructor does not block.
-        [IXProxyManager.shared restoreOnLaunch];
-    }
-#endif
-}
-
 @implementation IXProxyManager {
     IXNativeEngine *_native;
     BOOL _usingXray;

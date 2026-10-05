@@ -172,11 +172,19 @@ static const char *IXChainedSymbol(const uint8_t *imports, uint32_t importsCount
     return symbols + nameOffset;
 }
 
+static int IXImageExcluded(const char *path) {
+    if (!path || !path[0]) return 1;
+    if (strncmp(path, "/usr/lib/", 9) == 0 || strncmp(path, "/usr/libexec/", 13) == 0 || strncmp(path, "/System/", 8) == 0) return 1;
+    // Our dylib and the Go/Xray image must keep the real libc symbols.
+    if (strstr(path, "SCInsta") || strstr(path, "InstagramX") || strstr(path, "IXRayCore") || strstr(path, "libXray")) return 1;
+    return 0;
+}
+
 static int IXRebindChained(const struct mach_header *header, const char *path,
                            const char *const *names, void *const *replacements, unsigned count, int remember) {
     if (!header || !path || header->magic != MH_MAGIC_64) return 0;
     if (header->flags & MH_DYLIB_IN_CACHE) return 0;
-    if (strncmp(path, "/usr/lib/", 9) == 0 || strncmp(path, "/System/", 8) == 0) return 0;
+    if (IXImageExcluded(path)) return 0;
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) return 0;
@@ -376,9 +384,9 @@ static int IXRebindChained(const struct mach_header *header, const char *path,
 static int IXRebindImage(const struct mach_header *header, intptr_t slide, const char *path,
                          const char *const *names, void *const *replacements, unsigned count, int remember) {
     if (!header || header->magic != MH_MAGIC_64) return 0;
-    // IXRayCore must keep the real libc symbols. SCInsta too: the handshake
-    // calls connect/send/recv/poll, and rebinding this image would recurse.
-    if (path && (strstr(path, "IXRayCore") || strstr(path, "SCInsta"))) return 0;
+    // System libraries, this dylib, and the Go/Xray image keep real libc.
+    // Rebinding them recurses into the handshake and into dyld.
+    if (IXImageExcluded(path)) return 0;
 
     const struct segment_command_64 *linkedit = NULL;
     const struct symtab_command *symtabCmd = NULL;

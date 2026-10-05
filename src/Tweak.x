@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.2.1";
+NSString *SCIVersionString = @"v2.2.2";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -69,6 +69,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 // Tweak first-time setup
 %hook IGInstagramAppDelegate
 - (_Bool)application:(UIApplication *)application willFinishLaunchingWithOptions:(id)arg2 {
+    IXLaunchGuardRecord();
     if (ix_launch_clock == 0) ix_launch_clock = CFAbsoluteTimeGetCurrent();
     // Default SCInsta config
     NSDictionary *sciDefaults = @{
@@ -291,7 +292,15 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 // Tab bar only exists in the logged-in state — fire the changelog popup here
 // rather than at app launch (which runs pre-login).
 static void IXMarkFeedReady(void) {
-    IXLaunchGuardMarkReady();
+    // The 2.2.1 abort landed about four seconds after launch, on an image
+    // queue, which can be after the feed appears. Wait before clearing the
+    // guard so that crash still starts the next launch with the hooks off.
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            IXLaunchGuardMarkReady();
+        });
+    });
 }
 
 %hook IGMainFeedViewController

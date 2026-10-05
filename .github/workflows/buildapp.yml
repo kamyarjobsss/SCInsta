@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.2.1"
+                description: "Publish a prerelease tagged instagram-x-v2.2.2"
                 default: true
                 required: false
                 type: boolean
@@ -164,6 +164,10 @@ jobs:
                   tests/IXSOCKSConnectTest.c src/Proxy/IXSOCKSConnect.c \
                   -o /tmp/ix-socks-test
                 /tmp/ix-socks-test
+                clang \
+                  tests/IXAddrCheckTest.c src/Proxy/IXAddrCheck.c \
+                  -o /tmp/ix-addr-test
+                /tmp/ix-addr-test
 
             - name: Build Instagram X for sideloading (as IPA)
               run: |
@@ -229,9 +233,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.2.1
+                tag_name: instagram-x-v2.2.2
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.2.1
+                name: Instagram X 2.2.2
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -245,7 +249,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.2.1 keeps the SOCKS proxy on connect only. 2.2.0 also wrapped read, write, poll, and kevent, which stalled the feed after a few kilobytes and could block the splash. connect now finishes the SOCKS5 handshake on a temporarily blocking socket and hands back a normal stream. DNS still answers with 198.18.0.0/15 and fd00::/8. A launch that never reaches the feed starts the next time with the VPN hooks off, and holding a finger on the splash does the same. The VPN log is saved under Library/Caches. Xray logs why it stopped. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+                  v2.2.2 keeps the connect-only SOCKS path from 2.2.1. 2.2.1 aborted on launch because folly::IPAddress threw inside Tigon: getnameinfo on a fake 198.18 or fd00:: address returned the original hostname, and isHostThirdParty does not catch that exception. Those addresses now come back as complete sockaddrs (length, family, and address bytes agree, no zone id, canonname NULL) and getnameinfo returns a numeric string that parses as an IP. Hooks are installed only after the app finishes launching, and only while the VPN is on. A crash before the feed has been up for a few seconds leaves the next launch in safe mode. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -258,4 +262,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.1"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.2"

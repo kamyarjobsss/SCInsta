@@ -2,6 +2,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Called from willFinishLaunching, before any VPN hook is installed.
+/// HOME is valid by then. A constructor is too early: the container and libc
+/// are not ready, and a crash before the feed would not be recorded.
+void IXLaunchGuardRecord(void);
 /// YES when the previous launch did not reach the feed, or the user held a
 /// finger on the splash. VPN hooks stay off until the user turns the VPN on.
 BOOL IXLaunchGuardIsSafeMode(void);

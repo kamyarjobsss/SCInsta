@@ -95,8 +95,7 @@ NSString *IXLaunchGuardPersistedLog(void) {
     return text ?: @"";
 }
 
-__attribute__((constructor(101)))
-static void IXLaunchGuardRecord(void) {
+void IXLaunchGuardRecord(void) {
     char path[1024];
     if (!IXHomePath(path, sizeof(path), "ix_launch_guard")) return;
 
