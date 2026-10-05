@@ -8,7 +8,9 @@ package main
 import "C"
 
 import (
+	"fmt"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -40,6 +42,19 @@ func (ringHandler) Handle(msg log.Message) {
 		return
 	}
 	line := strings.TrimSpace(msg.String())
+	if line == "" {
+		return
+	}
+	logMu.Lock()
+	defer logMu.Unlock()
+	logLines = append(logLines, line)
+	if len(logLines) > logLimit {
+		logLines = logLines[len(logLines)-logLimit:]
+	}
+}
+
+func appendLog(line string) {
+	line = strings.TrimSpace(line)
 	if line == "" {
 		return
 	}
@@ -94,9 +109,22 @@ func startGC() {
 }
 
 //export ixray_start
-func ixray_start(configJSON *C.char) *C.char {
+func ixray_start(configJSON *C.char) (out *C.char) {
 	startGC()
+	// Soft heap goal for the embedded runtime. This is not a jetsam limit:
+	// the process is the app, and the runtime just collects earlier.
+	debug.SetGCPercent(50)
+	debug.SetMemoryLimit(256 << 20)
+	defer func() {
+		if r := recover(); r != nil {
+			appendLog(fmt.Sprintf("xray stopped: panic %v", r))
+			if out == nil {
+				out = C.CString(fmt.Sprintf("xray stopped: panic %v", r))
+			}
+		}
+	}()
 	if configJSON == nil {
+		appendLog("xray stopped: empty config")
 		return C.CString("empty xray config")
 	}
 	jsonText := C.GoString(configJSON)
@@ -134,6 +162,7 @@ func ixray_start(configJSON *C.char) *C.char {
 		}
 		inst = server
 		enableLog()
+		appendLog("xray started, GOGC 50, heap limit 256MB")
 		return nil
 	}
 	if last == nil {
@@ -147,8 +176,13 @@ func ixray_stop() {
 	mu.Lock()
 	defer mu.Unlock()
 	if inst != nil {
-		_ = inst.Close()
+		err := inst.Close()
 		inst = nil
+		if err != nil {
+			appendLog("xray stopped: " + err.Error())
+		} else {
+			appendLog("xray stopped")
+		}
 	}
 }
 

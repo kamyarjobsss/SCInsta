@@ -2,11 +2,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// YES when two launches in a row began and neither reached the logged-in tab bar.
-/// A crash after login, before the tab bar appears, counts. Extras (VPN restore,
-/// fake location, the settings row, FLEX on launch) stay off until the user
-/// turns one on. The tab bar marks the launch ready.
+/// YES when the previous launch did not reach the feed, or the user held a
+/// finger on the splash. VPN hooks stay off until the user turns the VPN on.
 BOOL IXLaunchGuardIsSafeMode(void);
+/// The feed (or a login screen) is on screen, so this launch counts as healthy.
 void IXLaunchGuardMarkReady(void);
+BOOL IXLaunchGuardFeedShown(void);
+/// Hold on the splash. This launch stops using the hooks. The saved VPN switch
+/// is left as it is.
+void IXLaunchGuardEngageBypass(void);
+
+void IXLaunchGuardAppendLog(const char * _Nullable line);
+NSString *IXLaunchGuardPersistedLog(void);
 
 NS_ASSUME_NONNULL_END

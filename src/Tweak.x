@@ -21,14 +21,55 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.2.0";
+NSString *SCIVersionString = @"v2.2.1";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
 
+static CFAbsoluteTime ix_launch_clock = 0;
+static int ix_bypass_armed = 1;
+
+static void IXShowSafeBanner(UIWindow *window) {
+    if (!window || [window viewWithTag:22021]) return;
+    CGFloat top = 48;
+    if (@available(iOS 11.0, *)) top = MAX(window.safeAreaInsets.top, 20) + 8;
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(12, top, MAX(window.bounds.size.width - 24, 120), 78)];
+    label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    label.tag = 22021;
+    label.numberOfLines = 4;
+    label.textAlignment = NSTextAlignmentCenter;
+    label.font = [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    label.textColor = UIColor.whiteColor;
+    label.backgroundColor = [UIColor colorWithRed:0.78 green:0.22 blue:0.28 alpha:0.95];
+    label.layer.cornerRadius = 12;
+    label.clipsToBounds = YES;
+    label.text = @"Instagram X safe mode. VPN hooks are off so you can open the log. Copy diagnostics still works.\nحالت امن: فیلترشکن خاموش است. گزارش را کپی کنید.";
+    [window addSubview:label];
+}
+
+static void IXEngageLaunchBypass(UIWindow *window) {
+    if (!ix_bypass_armed || IXLaunchGuardFeedShown()) return;
+    if (ix_launch_clock > 0 && CFAbsoluteTimeGetCurrent() - ix_launch_clock > 12) return;
+    ix_bypass_armed = 0;
+    IXLaunchGuardEngageBypass();
+    [IXProxyManager.shared suppressForSafeMode];
+    IXShowSafeBanner(window);
+}
+
+@interface IXLaunchTouchTarget : NSObject
+@end
+
+@implementation IXLaunchTouchTarget
++ (void)held:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateBegan) return;
+    IXEngageLaunchBypass(gesture.view.window);
+}
+@end
+
 // Tweak first-time setup
 %hook IGInstagramAppDelegate
 - (_Bool)application:(UIApplication *)application willFinishLaunchingWithOptions:(id)arg2 {
+    if (ix_launch_clock == 0) ix_launch_clock = CFAbsoluteTimeGetCurrent();
     // Default SCInsta config
     NSDictionary *sciDefaults = @{
         @"hide_ads": @(YES),
@@ -205,16 +246,27 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
             [[objc_getClass("FLEXManager") sharedManager] showExplorer];
         }
     } else {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            UIViewController *presenter = [self window].rootViewController;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            UIWindow *window = [self window];
+            IXShowSafeBanner(window);
+            UIViewController *presenter = window.rootViewController;
             if (!presenter) return;
             while (presenter.presentedViewController) presenter = presenter.presentedViewController;
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
-                                                                           message:@"The last launch closed before Instagram X was ready, so the VPN and fake location stayed off. You can turn them on from settings."
+                                                                           message:@"The last launch never reached the feed, so the VPN hooks stayed off. Open the VPN screen and use Copy. You can turn the VPN on again from there."
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [presenter presentViewController:alert animated:YES completion:nil];
         });
+    }
+    UIWindow *window = [self window];
+    if (window && !IXLaunchGuardIsSafeMode()) {
+        UILongPressGestureRecognizer *press = [[UILongPressGestureRecognizer alloc] initWithTarget:[IXLaunchTouchTarget class] action:@selector(held:)];
+        press.minimumPressDuration = 0.6;
+        press.cancelsTouchesInView = NO;
+        press.delaysTouchesBegan = NO;
+        press.delaysTouchesEnded = NO;
+        [window addGestureRecognizer:press];
     }
 
     return true;
@@ -238,15 +290,59 @@ BOOL dmVisualMsgsViewedButtonEnabled = false;
 
 // Tab bar only exists in the logged-in state — fire the changelog popup here
 // rather than at app launch (which runs pre-login).
+static void IXMarkFeedReady(void) {
+    IXLaunchGuardMarkReady();
+}
+
+%hook IGMainFeedViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    IXMarkFeedReady();
+}
+%end
+
+%hook IGLoginViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    IXMarkFeedReady();
+}
+%end
+
+%hook IGWelcomeViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    IXMarkFeedReady();
+}
+%end
+
+%hook UIApplication
+- (void)sendEvent:(UIEvent *)event {
+    %orig;
+    if (!ix_bypass_armed || IXLaunchGuardFeedShown() || IXLaunchGuardIsSafeMode()) return;
+    if (ix_launch_clock > 0 && CFAbsoluteTimeGetCurrent() - ix_launch_clock > 12) return;
+    static CFAbsoluteTime heldSince = 0;
+    BOOL touching = NO;
+    for (UITouch *touch in [event allTouches]) {
+        if (touch.phase == UITouchPhaseEnded || touch.phase == UITouchPhaseCancelled) continue;
+        touching = YES;
+        break;
+    }
+    if (!touching) {
+        heldSince = 0;
+        return;
+    }
+    if (heldSince == 0) heldSince = CFAbsoluteTimeGetCurrent();
+    if (CFAbsoluteTimeGetCurrent() - heldSince < 0.6) return;
+    UIWindow *window = self.keyWindow ?: self.windows.firstObject;
+    IXEngageLaunchBypass(window);
+}
+%end
+
 %hook IGTabBarController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        // The tab bar is the logged-in UI. Marking ready here, not a few
-        // seconds after launch, is what makes a post-login crash loop trip
-        // safe mode on the next start.
-        IXLaunchGuardMarkReady();
         [SCIChangelog presentIfNewFromWindow:self.view.window];
     });
 }

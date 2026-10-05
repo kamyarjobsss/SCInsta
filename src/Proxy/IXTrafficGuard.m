@@ -1,17 +1,16 @@
 #import "IXTrafficGuard.h"
+#import "IXSOCKSConnect.h"
+#import "../Launch/IXLaunchGuard.h"
 
 #import <dlfcn.h>
 #import <errno.h>
-#import <fcntl.h>
 #import <netinet/in.h>
-#import <poll.h>
 #import <pthread.h>
 #import <stdatomic.h>
+#import <stdio.h>
 #import <stdlib.h>
 #import <string.h>
-#import <sys/event.h>
-#import <sys/select.h>
-#import <sys/uio.h>
+#import <sys/time.h>
 #import <unistd.h>
 #import "IXPathHooks.h"
 #import "IXSymbolRebind.h"
@@ -35,20 +34,12 @@ static ssize_t (*ix_orig_sendmsg)(int, const struct msghdr *, int) = NULL;
 static int (*ix_orig_connectx)(int, const sa_endpoints_t *, sae_associd_t, unsigned int, const struct iovec *, unsigned int, size_t *, sae_connid_t *) = NULL;
 static int (*ix_orig_getpeername)(int, struct sockaddr *, socklen_t *) = NULL;
 static int (*ix_orig_close)(int) = NULL;
-static ssize_t (*ix_orig_read)(int, void *, size_t) = NULL;
-static ssize_t (*ix_orig_recv)(int, void *, size_t, int) = NULL;
-static ssize_t (*ix_orig_write)(int, const void *, size_t) = NULL;
-static ssize_t (*ix_orig_send)(int, const void *, size_t, int) = NULL;
 static int (*ix_orig_socket)(int, int, int) = NULL;
 static int (*ix_orig_getnameinfo)(const struct sockaddr *, socklen_t, char *, socklen_t, char *, socklen_t, int) = NULL;
-static ssize_t (*ix_orig_writev)(int, const struct iovec *, int) = NULL;
-static ssize_t (*ix_orig_recvfrom)(int, void *, size_t, int, struct sockaddr *, socklen_t *) = NULL;
-static ssize_t (*ix_orig_recvmsg)(int, struct msghdr *, int) = NULL;
-static int (*ix_orig_poll)(struct pollfd *, nfds_t, int) = NULL;
-static int (*ix_orig_kevent)(int, const struct kevent *, int, struct kevent *, int, const struct timespec *) = NULL;
-static int (*ix_orig_select)(int, fd_set *, fd_set *, fd_set *, struct timeval *) = NULL;
-static int (*ix_orig_getsockopt)(int, int, int, void *, socklen_t *) = NULL;
 static int (*ix_dns_getaddrinfo)(void **, uint32_t, uint32_t, uint32_t, const char *, void *, void *) = NULL;
+
+static pthread_mutex_t ix_ready_mu = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t ix_ready_cv = PTHREAD_COND_INITIALIZER;
 
 static __thread int ix_tls_bypass = 0;
 static BOOL ix_installed = NO;
@@ -177,9 +168,12 @@ static uint32_t IXTokenFromV6(const struct in6_addr *addr) {
 
 void IXTrafficGuardSetRuntime(BOOL vpnOn, BOOL proxyUp, BOOL killSwitch, BOOL blockUDP) {
     atomic_store(&ix_vpn_on, vpnOn ? 1 : 0);
-    atomic_store(&ix_proxy_up, proxyUp ? 1 : 0);
     atomic_store(&ix_kill, killSwitch ? 1 : 0);
     atomic_store(&ix_block_udp, blockUDP ? 1 : 0);
+    pthread_mutex_lock(&ix_ready_mu);
+    atomic_store(&ix_proxy_up, proxyUp ? 1 : 0);
+    pthread_cond_broadcast(&ix_ready_cv);
+    pthread_mutex_unlock(&ix_ready_mu);
 }
 
 void IXTrafficGuardSetPorts(uint16_t socksPort, uint16_t httpPort) {
@@ -338,17 +332,6 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
 #define IX_FD_MAX 8192
 #define IX_LOG_MAX 80
 
-enum {
-    IX_HS_NONE = 0,
-    IX_HS_CONNECTING = 1,
-    IX_HS_SEND_GREET = 2,
-    IX_HS_RECV_GREET = 3,
-    IX_HS_SEND_REQ = 4,
-    IX_HS_RECV_REPLY = 5,
-    IX_HS_READY = 6,
-    IX_HS_FAIL = 7
-};
-
 typedef struct {
     _Atomic int on;
     _Atomic uint64_t up;
@@ -359,13 +342,7 @@ typedef struct {
     uint16_t port;
     struct sockaddr_storage addr;
     socklen_t addrLen;
-    uint8_t phase;
     uint8_t bypass;
-    uint16_t hsLen;
-    uint16_t hsOff;
-    uint16_t replyGot;
-    uint16_t replyNeed;
-    uint8_t hs[300];
 } IXLiveFD;
 
 typedef struct {
@@ -406,6 +383,9 @@ static void IXPushLog(const char *image, const char *api, const char *host, uint
     ix_log_next = (ix_log_next + 1) % IX_LOG_MAX;
     if (ix_log_count < IX_LOG_MAX) ix_log_count++;
     pthread_mutex_unlock(&ix_fd_mu);
+    char line[256];
+    snprintf(line, sizeof(line), "%s %s %s:%u %s", image ?: "?", api ?: "connect", host ?: "?", port, reason ?: "");
+    IXLaunchGuardAppendLog(line);
 }
 
 static void IXTrackFD(int fd, const struct sockaddr *addr, socklen_t len, const char *host, uint16_t port, const char *image, const char *api) {
@@ -419,11 +399,6 @@ static void IXTrackFD(int fd, const struct sockaddr *addr, socklen_t len, const 
     strlcpy(slot->image, image ?: "", sizeof(slot->image));
     strlcpy(slot->api, api ?: "connect", sizeof(slot->api));
     slot->port = port;
-    slot->phase = IX_HS_NONE;
-    slot->hsLen = 0;
-    slot->hsOff = 0;
-    slot->replyGot = 0;
-    slot->replyNeed = 0;
     atomic_store(&slot->up, 0);
     atomic_store(&slot->down, 0);
     atomic_store(&slot->on, 1);
@@ -450,307 +425,15 @@ static void IXUntrackFD(int fd, const char *reason) {
     strlcpy(image, slot->image, sizeof(image));
     strlcpy(api, slot->api[0] ? slot->api : "close", sizeof(api));
     atomic_store(&slot->on, 0);
-    slot->phase = IX_HS_NONE;
     slot->bypass = 0;
     pthread_mutex_unlock(&ix_fd_mu);
     IXPushLog(image, api, host, port, up, down, reason ?: "tunneled");
 }
 
-static ssize_t IXOrigSendBytes(int fd, const void *buf, size_t len) {
-    if (ix_orig_send) return ix_orig_send(fd, buf, len, 0);
-    return send(fd, buf, len, 0);
-}
-
-static ssize_t IXOrigRecvBytes(int fd, void *buf, size_t len) {
-    if (ix_orig_recv) return ix_orig_recv(fd, buf, len, 0);
-    return recv(fd, buf, len, 0);
-}
-
-static BOOL IXWaitSocket(int fd, short events) {
-    for (;;) {
-        struct pollfd pfd = {.fd = fd, .events = events};
-        int rc = poll(&pfd, 1, 5000);
-        if (rc > 0) return YES;
-        if (rc == 0) return NO;
-        if (errno == EINTR) continue;
-        return NO;
-    }
-}
-
-static BOOL IXWriteFull(int fd, const void *buf, size_t len) {
-    const uint8_t *p = buf;
-    size_t sent = 0;
-    while (sent < len) {
-        if (!IXWaitSocket(fd, POLLOUT)) return NO;
-        ssize_t n = IXOrigSendBytes(fd, p + sent, len - sent);
-        if (n < 0) {
-            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
-            return NO;
-        }
-        if (n == 0) return NO;
-        sent += (size_t)n;
-    }
-    return YES;
-}
-
-static BOOL IXReadFull(int fd, void *buf, size_t len) {
-    uint8_t *p = buf;
-    size_t got = 0;
-    while (got < len) {
-        if (!IXWaitSocket(fd, POLLIN)) return NO;
-        ssize_t n = IXOrigRecvBytes(fd, p + got, len - got);
-        if (n == 0) return NO;
-        if (n < 0) {
-            if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
-            return NO;
-        }
-        got += (size_t)n;
-    }
-    return YES;
-}
-
-static BOOL IXSOCKSHandshake(int fd, const char *host, uint16_t port) {
-    uint8_t hello[3] = {0x05, 0x01, 0x00};
-    if (!IXWriteFull(fd, hello, sizeof(hello))) return NO;
-    uint8_t method[2];
-    if (!IXReadFull(fd, method, 2) || method[1] != 0x00) return NO;
-
-    uint8_t req[512];
-    size_t len = 0;
-    req[len++] = 0x05;
-    req[len++] = 0x01;
-    req[len++] = 0x00;
-    struct in_addr v4;
-    struct in6_addr v6;
-    if (inet_pton(AF_INET, host, &v4) == 1 && IXTokenFromIPv4(v4.s_addr) == 0) {
-        req[len++] = 0x01;
-        memcpy(req + len, &v4, 4);
-        len += 4;
-    } else if (inet_pton(AF_INET6, host, &v6) == 1) {
-        req[len++] = 0x04;
-        memcpy(req + len, &v6, 16);
-        len += 16;
-    } else {
-        size_t n = strlen(host);
-        if (n == 0 || n > 255) return NO;
-        req[len++] = 0x03;
-        req[len++] = (uint8_t)n;
-        memcpy(req + len, host, n);
-        len += n;
-    }
-    req[len++] = (uint8_t)(port >> 8);
-    req[len++] = (uint8_t)(port & 0xff);
-    if (!IXWriteFull(fd, req, len)) return NO;
-
-    uint8_t reply[4];
-    if (!IXReadFull(fd, reply, 4) || reply[1] != 0x00) return NO;
-    size_t skip = 0;
-    if (reply[3] == 0x01) skip = 4;
-    else if (reply[3] == 0x04) skip = 16;
-    else if (reply[3] == 0x03) {
-        uint8_t nlen = 0;
-        if (!IXReadFull(fd, &nlen, 1)) return NO;
-        skip = nlen;
-    } else return NO;
-    uint8_t sink[256];
-    if (skip && !IXReadFull(fd, sink, skip)) return NO;
-    if (!IXReadFull(fd, sink, 2)) return NO;
-    return YES;
-}
-
-
 static BOOL IXFDBypass(int fd) {
     if (ix_tls_bypass) return YES;
     if ((unsigned)fd < IX_FD_MAX && ix_live[fd].bypass) return YES;
     return NO;
-}
-
-static BOOL IXHandshakePending(int fd) {
-    if ((unsigned)fd >= IX_FD_MAX) return NO;
-    if (!atomic_load(&ix_live[fd].on)) return NO;
-    uint8_t phase = ix_live[fd].phase;
-    return phase != IX_HS_NONE && phase != IX_HS_READY && phase != IX_HS_FAIL;
-}
-
-static int IXBuildSOCKSRequest(uint8_t *req, size_t cap, const char *host, uint16_t port) {
-    if (!req || cap < 10 || !host) return -1;
-    size_t len = 0;
-    req[len++] = 0x05;
-    req[len++] = 0x01;
-    req[len++] = 0x00;
-    struct in_addr v4;
-    struct in6_addr v6;
-    if (inet_pton(AF_INET, host, &v4) == 1 && IXTokenFromIPv4(v4.s_addr) == 0) {
-        if (len + 6 > cap) return -1;
-        req[len++] = 0x01;
-        memcpy(req + len, &v4, 4);
-        len += 4;
-    } else if (inet_pton(AF_INET6, host, &v6) == 1 && IXTokenFromV6(&v6) == 0) {
-        if (len + 18 > cap) return -1;
-        req[len++] = 0x04;
-        memcpy(req + len, &v6, 16);
-        len += 16;
-    } else {
-        size_t n = strlen(host);
-        if (n == 0 || n > 255 || len + 3 + n > cap) return -1;
-        req[len++] = 0x03;
-        req[len++] = (uint8_t)n;
-        memcpy(req + len, host, n);
-        len += n;
-    }
-    req[len++] = (uint8_t)(port >> 8);
-    req[len++] = (uint8_t)(port & 0xff);
-    return (int)len;
-}
-
-static void IXQueueRequest(IXLiveFD *slot) {
-    int n = IXBuildSOCKSRequest(slot->hs, sizeof(slot->hs), slot->host, slot->port);
-    if (n < 0) {
-        slot->phase = IX_HS_FAIL;
-        return;
-    }
-    slot->hsLen = (uint16_t)n;
-    slot->hsOff = 0;
-    slot->phase = IX_HS_SEND_REQ;
-}
-
-static int IXDriveHandshake(int fd) {
-    if ((unsigned)fd >= IX_FD_MAX) return -1;
-    IXLiveFD *slot = &ix_live[fd];
-    if (!atomic_load(&slot->on)) return -1;
-    if (slot->phase == IX_HS_READY) return 1;
-    if (slot->phase == IX_HS_FAIL || slot->phase == IX_HS_NONE) return slot->phase == IX_HS_READY ? 1 : -1;
-
-    if (slot->phase == IX_HS_CONNECTING) {
-        int err = 0;
-        socklen_t sl = sizeof(err);
-        int so = ix_orig_getsockopt ? ix_orig_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl) : getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sl);
-        if (so != 0) {
-            slot->phase = IX_HS_FAIL;
-            return -1;
-        }
-        if (err == EINPROGRESS) return 0;
-        if (err != 0) {
-            slot->phase = IX_HS_FAIL;
-            return -1;
-        }
-        slot->hs[0] = 0x05;
-        slot->hs[1] = 0x01;
-        slot->hs[2] = 0x00;
-        slot->hsLen = 3;
-        slot->hsOff = 0;
-        slot->phase = IX_HS_SEND_GREET;
-    }
-
-    if (slot->phase == IX_HS_SEND_GREET || slot->phase == IX_HS_SEND_REQ) {
-        while (slot->hsOff < slot->hsLen) {
-            ssize_t n = IXOrigSendBytes(fd, slot->hs + slot->hsOff, slot->hsLen - slot->hsOff);
-            if (n < 0) {
-                if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) return 0;
-                slot->phase = IX_HS_FAIL;
-                return -1;
-            }
-            if (n == 0) {
-                slot->phase = IX_HS_FAIL;
-                return -1;
-            }
-            slot->hsOff = (uint16_t)(slot->hsOff + n);
-        }
-        slot->replyGot = 0;
-        slot->replyNeed = slot->phase == IX_HS_SEND_GREET ? 2 : 4;
-        slot->phase = slot->phase == IX_HS_SEND_GREET ? IX_HS_RECV_GREET : IX_HS_RECV_REPLY;
-        memset(slot->hs, 0, 8);
-    }
-
-    if (slot->phase == IX_HS_RECV_GREET || slot->phase == IX_HS_RECV_REPLY) {
-        while (slot->replyGot < slot->replyNeed) {
-            ssize_t n = IXOrigRecvBytes(fd, slot->hs + slot->replyGot, slot->replyNeed - slot->replyGot);
-            if (n == 0) {
-                slot->phase = IX_HS_FAIL;
-                return -1;
-            }
-            if (n < 0) {
-                if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) return 0;
-                slot->phase = IX_HS_FAIL;
-                return -1;
-            }
-            slot->replyGot = (uint16_t)(slot->replyGot + n);
-            if (slot->phase == IX_HS_RECV_REPLY && slot->replyGot >= 4 && slot->replyNeed == 4) {
-                if (slot->hs[1] != 0x00) {
-                    slot->phase = IX_HS_FAIL;
-                    return -1;
-                }
-                uint8_t atyp = slot->hs[3];
-                if (atyp == 0x01) slot->replyNeed = 10;
-                else if (atyp == 0x04) slot->replyNeed = 22;
-                else if (atyp == 0x03) slot->replyNeed = 5;
-                else {
-                    slot->phase = IX_HS_FAIL;
-                    return -1;
-                }
-            } else if (slot->phase == IX_HS_RECV_REPLY && slot->hs[3] == 0x03 && slot->replyGot >= 5 && slot->replyNeed == 5) {
-                slot->replyNeed = (uint16_t)(5 + slot->hs[4] + 2);
-                if (slot->replyNeed > sizeof(slot->hs)) {
-                    slot->phase = IX_HS_FAIL;
-                    return -1;
-                }
-            }
-        }
-        if (slot->phase == IX_HS_RECV_GREET) {
-            if (slot->hs[0] != 0x05 || slot->hs[1] != 0x00) {
-                slot->phase = IX_HS_FAIL;
-                return -1;
-            }
-            IXQueueRequest(slot);
-            if (slot->phase == IX_HS_FAIL) return -1;
-            return IXDriveHandshake(fd);
-        }
-        slot->phase = IX_HS_READY;
-        return 1;
-    }
-    return 0;
-}
-
-static int IXCompleteHandshake(int fd, int timeoutMs) {
-    if (!ix_orig_poll) return IXDriveHandshake(fd);
-    int waited = 0;
-    for (;;) {
-        int step = IXDriveHandshake(fd);
-        if (step != 0) return step;
-        if (timeoutMs >= 0 && waited >= timeoutMs) return 0;
-        uint8_t phase = ix_live[fd].phase;
-        short events = (phase == IX_HS_RECV_GREET || phase == IX_HS_RECV_REPLY) ? POLLIN : POLLOUT;
-        struct pollfd pfd = {.fd = fd, .events = events};
-        int slice = timeoutMs < 0 ? 5000 : timeoutMs - waited;
-        if (slice < 0) slice = 0;
-        int rc = ix_orig_poll(&pfd, 1, slice);
-        if (rc == 0) return 0;
-        if (rc < 0) {
-            if (errno == EINTR) continue;
-            ix_live[fd].phase = IX_HS_FAIL;
-            return -1;
-        }
-        if (timeoutMs >= 0) waited += slice > 50 ? 50 : slice;
-    }
-}
-
-static int IXPrepareIO(int fd) {
-    if ((unsigned)fd >= IX_FD_MAX || !atomic_load(&ix_live[fd].on)) return 1;
-    if (ix_live[fd].bypass) return 1;
-    uint8_t phase = ix_live[fd].phase;
-    if (phase == IX_HS_NONE || phase == IX_HS_READY) return 1;
-    if (phase == IX_HS_FAIL) {
-        errno = ECONNREFUSED;
-        return -1;
-    }
-    int step = IXCompleteHandshake(fd, 2000);
-    if (step > 0) return 1;
-    if (step == 0) {
-        errno = EAGAIN;
-        return 0;
-    }
-    errno = ECONNREFUSED;
-    return -1;
 }
 
 static BOOL IXShouldRedirect(int fd, const struct sockaddr *addr) {
@@ -764,110 +447,83 @@ static BOOL IXShouldRedirect(int fd, const struct sockaddr *addr) {
     return YES;
 }
 
-static int IXLocalSOCKS(int fd, const struct sockaddr *via) {
-    if (IXSocketDomain(fd) == AF_INET6) {
-        struct sockaddr_in6 local;
-        memset(&local, 0, sizeof(local));
-        local.sin6_family = AF_INET6;
-        local.sin6_len = sizeof(local);
-        local.sin6_port = htons(IXTrafficGuardSocksPort());
-        local.sin6_addr = in6addr_loopback;
-        return ix_orig_connect(fd, (struct sockaddr *)&local, sizeof(local));
+// Background threads wait until the inbound is up. The main thread never waits:
+// a blocked connect there is what froze the splash in 2.2.0.
+static BOOL IXAwaitProxy(void) {
+    if (atomic_load(&ix_proxy_up)) return YES;
+#if defined(__APPLE__)
+    if (pthread_main_np()) return NO;
+#endif
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    struct timespec ts;
+    ts.tv_sec = tv.tv_sec + 5;
+    ts.tv_nsec = tv.tv_usec * 1000;
+    pthread_mutex_lock(&ix_ready_mu);
+    while (!atomic_load(&ix_proxy_up)) {
+        int rc = pthread_cond_timedwait(&ix_ready_cv, &ix_ready_mu, &ts);
+        if (rc == ETIMEDOUT) break;
     }
-    struct sockaddr_in local;
-    memset(&local, 0, sizeof(local));
-    local.sin_family = AF_INET;
-    local.sin_len = sizeof(local);
-    local.sin_port = htons(IXTrafficGuardSocksPort());
-    local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    (void)via;
-    return ix_orig_connect(fd, (struct sockaddr *)&local, sizeof(local));
+    BOOL up = atomic_load(&ix_proxy_up) != 0;
+    pthread_mutex_unlock(&ix_ready_mu);
+    return up;
 }
 
-static int IXProxiedConnect(int fd, const struct sockaddr *addr, const char *api, const char *image) {
+static void IXProxyAddress(int fd, struct sockaddr_storage *out, socklen_t *outLen) {
+    memset(out, 0, sizeof(*out));
+    if (IXSocketDomain(fd) == AF_INET6) {
+        struct sockaddr_in6 *local = (struct sockaddr_in6 *)out;
+        local->sin6_family = AF_INET6;
+        local->sin6_len = sizeof(*local);
+        local->sin6_port = htons(IXTrafficGuardSocksPort());
+        local->sin6_addr = in6addr_loopback;
+        *outLen = sizeof(*local);
+        return;
+    }
+    struct sockaddr_in *local = (struct sockaddr_in *)out;
+    local->sin_family = AF_INET;
+    local->sin_len = sizeof(*local);
+    local->sin_port = htons(IXTrafficGuardSocksPort());
+    local->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    *outLen = sizeof(*local);
+}
+
+static int IXProxiedConnect(int fd, const struct sockaddr *addr, socklen_t len, const char *api, const char *image) {
     char host[256];
     uint16_t port = 0;
     if (!IXDescribe(addr, host, sizeof(host), &port)) {
         errno = EAFNOSUPPORT;
         return -1;
     }
-    if (!IXTrafficGuardProxyUp()) {
-        IXPushLog(image, api, host, port, 0, 0, "blocked");
-        errno = ECONNREFUSED;
-        return -1;
-    }
-
-    socklen_t trackedLen = addr->sa_family == AF_INET6 ? (socklen_t)sizeof(struct sockaddr_in6) : (socklen_t)sizeof(struct sockaddr_in);
-    IXTrackFD(fd, addr, trackedLen, host, port, image, api);
-    int nosig = 1;
-    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosig, sizeof(nosig));
-
-    int flags = fcntl(fd, F_GETFL, 0);
-    BOOL nonblock = flags >= 0 && (flags & O_NONBLOCK) != 0;
-    if ((unsigned)fd >= IX_FD_MAX) nonblock = NO;
-    if (!nonblock) {
-        struct timeval savedRecv = {0}, savedSend = {0};
-        socklen_t timeLen = sizeof(savedRecv);
-        getsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &savedRecv, &timeLen);
-        timeLen = sizeof(savedSend);
-        getsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &savedSend, &timeLen);
-        struct timeval five = {.tv_sec = 5, .tv_usec = 0};
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &five, sizeof(five));
-        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &five, sizeof(five));
-        int rc = IXLocalSOCKS(fd, addr);
-        if (rc != 0 && errno == EINPROGRESS) {
-            rc = IXWaitSocket(fd, POLLOUT) ? 0 : -1;
-            if (rc == 0) {
-                int soerr = 0;
-                socklen_t sl = sizeof(soerr);
-                getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &sl);
-                if (soerr != 0) {
-                    errno = soerr;
-                    rc = -1;
-                }
-            }
-        }
-        BOOL ok = rc == 0 && IXSOCKSHandshake(fd, host, port);
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &savedRecv, sizeof(savedRecv));
-        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &savedSend, sizeof(savedSend));
-        if (!ok) {
+    if (len == 0) len = addr->sa_family == AF_INET6 ? (socklen_t)sizeof(struct sockaddr_in6) : (socklen_t)sizeof(struct sockaddr_in);
+    if (!IXAwaitProxy()) {
+        if (IXTrafficGuardKillSwitch()) {
             IXPushLog(image, api, host, port, 0, 0, "blocked");
-            NSLog(@"[InstagramX] %s %s %s:%u SOCKS failed", image ?: "?", api ?: "connect", host, port);
-            if ((unsigned)fd < IX_FD_MAX) ix_live[fd].phase = IX_HS_FAIL;
-            shutdown(fd, SHUT_RDWR);
             errno = ECONNREFUSED;
             return -1;
         }
-        if ((unsigned)fd < IX_FD_MAX) ix_live[fd].phase = IX_HS_READY;
-        return 0;
+        IXPushLog(image, api, host, port, 0, 0, "direct");
+        return ix_orig_connect(fd, addr, len);
     }
 
-    int rc = IXLocalSOCKS(fd, addr);
-    if (rc == 0) {
-        ix_live[fd].hs[0] = 0x05;
-        ix_live[fd].hs[1] = 0x01;
-        ix_live[fd].hs[2] = 0x00;
-        ix_live[fd].hsLen = 3;
-        ix_live[fd].hsOff = 0;
-        ix_live[fd].phase = IX_HS_SEND_GREET;
-        int step = IXCompleteHandshake(fd, 0);
-        if (step > 0) return 0;
-        if (step == 0) {
-            errno = EINPROGRESS;
-            return -1;
-        }
+    int nosig = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosig, sizeof(nosig));
+    struct sockaddr_storage proxy;
+    socklen_t proxyLen = 0;
+    IXProxyAddress(fd, &proxy, &proxyLen);
+    int dialed = IXSOCKSDial(fd, (const struct sockaddr *)&proxy, proxyLen, host, port);
+    if (dialed == IX_SOCKS_REFUSED) {
         IXPushLog(image, api, host, port, 0, 0, "blocked");
+        NSLog(@"[InstagramX] %s %s %s:%u SOCKS failed", image ?: "?", api ?: "connect", host, port);
         errno = ECONNREFUSED;
         return -1;
     }
-    if (errno == EINPROGRESS) {
-        ix_live[fd].phase = IX_HS_CONNECTING;
+    IXTrackFD(fd, addr, len, host, port, image, api);
+    if (dialed == IX_SOCKS_IN_PROGRESS) {
+        errno = EINPROGRESS;
         return -1;
     }
-    IXPushLog(image, api, host, port, 0, 0, "blocked");
-    ix_live[fd].phase = IX_HS_FAIL;
-    errno = ECONNREFUSED;
-    return -1;
+    return 0;
 }
 
 static void IXNoteAddr(const char *image, const char *api, const struct sockaddr *addr, const char *reason);
@@ -895,7 +551,7 @@ static int IXConnect(int fd, const struct sockaddr *addr, socklen_t len) {
         return ix_orig_connect(fd, addr, len);
     }
     if (!IXShouldRedirect(fd, addr)) return ix_orig_connect(fd, addr, len);
-    return IXProxiedConnect(fd, addr, "connect", image);
+    return IXProxiedConnect(fd, addr, len, "connect", image);
 }
 
 static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t associd, unsigned int flags, const struct iovec *iov, unsigned int iovcnt, size_t *len, sae_connid_t *connid) {
@@ -905,6 +561,7 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
     }
     const void *caller = __builtin_return_address(0);
     const struct sockaddr *dest = endpoints ? endpoints->sae_dstaddr : NULL;
+    socklen_t destLen = endpoints ? endpoints->sae_dstaddrlen : 0;
     if (IXTrafficGuardAddressIsSelf(caller) || IXFDBypass(fd)) {
         return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
     }
@@ -915,15 +572,13 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
         return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
     }
     if (dest && IXShouldRedirect(fd, dest)) {
-        int rc = IXProxiedConnect(fd, dest, "connectx", image);
-        if (rc != 0) return rc;
-        int ready = IXPrepareIO(fd);
-        if (ready <= 0) return -1;
+        int rc = IXProxiedConnect(fd, dest, destLen, "connectx", image);
+        if (rc != 0 && errno != EINPROGRESS) return rc;
         if (iov && iovcnt && len) {
             size_t wrote = 0;
             for (unsigned int i = 0; i < iovcnt; i++) {
                 if (!iov[i].iov_base || iov[i].iov_len == 0) continue;
-                if (!IXWriteFull(fd, iov[i].iov_base, iov[i].iov_len)) {
+                if (IXSOCKSSendAll(fd, iov[i].iov_base, iov[i].iov_len) != 0) {
                     errno = EPIPE;
                     return -1;
                 }
@@ -1072,119 +727,50 @@ static int IXGetPeerName(int fd, struct sockaddr *addr, socklen_t *len) {
     return ix_orig_getpeername(fd, addr, len);
 }
 
-static BOOL IXDatagramBlocked(int fd) {
-    if (!IXTrafficGuardVPNOn()) return NO;
-    if (IXFDBypass(fd)) return NO;
-    if (IXSocketType(fd) != SOCK_DGRAM) return NO;
-    struct sockaddr_storage peer;
-    socklen_t len = sizeof(peer);
-    if (getpeername(fd, (struct sockaddr *)&peer, &len) == 0 && IXAddrIsLoopback((struct sockaddr *)&peer)) return NO;
-    return YES;
-}
-
 static int IXClose(int fd) {
-    IXUntrackFD(fd, "tunneled · closed by app");
+    IXUntrackFD(fd, "tunneled");
+    if ((unsigned)fd < IX_FD_MAX) ix_live[fd].bypass = 0;
     if (!ix_orig_close) return close(fd);
     return ix_orig_close(fd);
 }
 
-static ssize_t IXRead(int fd, void *buf, size_t len) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "udp", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_read) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_read(fd, buf, len);
-    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
-    return n;
-}
-
-static ssize_t IXRecv(int fd, void *buf, size_t len, int flags) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "udp", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_recv) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_recv(fd, buf, len, flags);
-    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
-    return n;
-}
-
-static ssize_t IXWrite(int fd, const void *buf, size_t len) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "udp", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_write) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_write(fd, buf, len);
-    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
-    return n;
-}
-
-static ssize_t IXSend(int fd, const void *buf, size_t len, int flags) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "udp", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_send) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_send(fd, buf, len, flags);
-    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
-    return n;
-}
-
 static ssize_t IXSendTo(int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest, socklen_t destLen) {
-    if (IXUDPShouldBlock(fd, dest)) {
-        IXNoteAddr("unknown", "udp", dest, "blocked");
-        errno = EPERM;
-        return -1;
-    }
     if (!ix_orig_sendto) {
         errno = ENOSYS;
+        return -1;
+    }
+    if (IXSocketType(fd) == SOCK_DGRAM && IXUDPShouldBlock(fd, dest)) {
+        const void *caller = __builtin_return_address(0);
+        char image[48];
+        IXCopyCallerImage(image, sizeof(image), caller);
+        IXNoteAddr(image, "sendto", dest, "blocked");
+        errno = EPERM;
         return -1;
     }
     return ix_orig_sendto(fd, buf, len, flags, dest, destLen);
 }
 
 static ssize_t IXSendMsg(int fd, const struct msghdr *msg, int flags) {
-    const struct sockaddr *dest = msg ? msg->msg_name : NULL;
-    if (IXUDPShouldBlock(fd, dest)) {
-        IXNoteAddr("unknown", "udp", dest, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
     if (!ix_orig_sendmsg) {
         errno = ENOSYS;
         return -1;
     }
-    ssize_t n = ix_orig_sendmsg(fd, msg, flags);
-    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
-    return n;
+    if (!msg || IXSocketType(fd) != SOCK_DGRAM) return ix_orig_sendmsg(fd, msg, flags);
+    const struct sockaddr *dest = msg ? (const struct sockaddr *)msg->msg_name : NULL;
+    struct sockaddr_storage peer;
+    if (!dest && ix_orig_getpeername) {
+        socklen_t plen = sizeof(peer);
+        if (ix_orig_getpeername(fd, (struct sockaddr *)&peer, &plen) == 0) dest = (struct sockaddr *)&peer;
+    }
+    if (IXUDPShouldBlock(fd, dest)) {
+        const void *caller = __builtin_return_address(0);
+        char image[48];
+        IXCopyCallerImage(image, sizeof(image), caller);
+        IXNoteAddr(image, "sendmsg", dest, "blocked");
+        errno = EPERM;
+        return -1;
+    }
+    return ix_orig_sendmsg(fd, msg, flags);
 }
 
 static int IXSocket(int domain, int type, int protocol) {
@@ -1195,8 +781,8 @@ static int IXSocket(int domain, int type, int protocol) {
     BOOL ours = IXTrafficGuardAddressIsSelf(__builtin_return_address(0));
     int fd = ix_orig_socket(domain, type, protocol);
     if (fd >= 0 && (unsigned)fd < IX_FD_MAX) {
+        atomic_store(&ix_live[fd].on, 0);
         ix_live[fd].bypass = ours ? 1 : 0;
-        if (!ours) ix_live[fd].phase = IX_HS_NONE;
     }
     return fd;
 }
@@ -1220,163 +806,6 @@ static int IXGetNameInfo(const struct sockaddr *sa, socklen_t salen, char *host,
     }
     if (!ix_orig_getnameinfo) return EAI_FAIL;
     return ix_orig_getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
-}
-
-static ssize_t IXWriteV(int fd, const struct iovec *iov, int iovcnt) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "writev", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_writev) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_writev(fd, iov, iovcnt);
-    if (n > 0) IXAddBytes(fd, (uint64_t)n, 0);
-    return n;
-}
-
-static ssize_t IXRecvFrom(int fd, void *buf, size_t len, int flags, struct sockaddr *src, socklen_t *srcLen) {
-    if (src && IXUDPShouldBlock(fd, NULL) && IXSocketType(fd) == SOCK_DGRAM && !IXFDBypass(fd)) {
-        IXPushLog("unknown", "recvfrom", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "recvfrom", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_recvfrom) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_recvfrom(fd, buf, len, flags, src, srcLen);
-    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
-    return n;
-}
-
-static ssize_t IXRecvMsg(int fd, struct msghdr *msg, int flags) {
-    if (IXDatagramBlocked(fd)) {
-        IXPushLog("unknown", "recvmsg", "", 0, 0, 0, "blocked");
-        errno = EPERM;
-        return -1;
-    }
-    int ready = IXPrepareIO(fd);
-    if (ready <= 0) return ready;
-    if (!ix_orig_recvmsg) {
-        errno = ENOSYS;
-        return -1;
-    }
-    ssize_t n = ix_orig_recvmsg(fd, msg, flags);
-    if (n > 0) IXAddBytes(fd, 0, (uint64_t)n);
-    return n;
-}
-
-static int IXPoll(struct pollfd *fds, nfds_t nfds, int timeout) {
-    if (!ix_orig_poll) return poll(fds, nfds, timeout);
-    if (fds && IXTrafficGuardVPNOn()) {
-        for (nfds_t i = 0; i < nfds; i++) {
-            int fd = fds[i].fd;
-            if (IXHandshakePending(fd)) IXCompleteHandshake(fd, timeout < 0 ? 5000 : timeout);
-        }
-    }
-    int rc = ix_orig_poll(fds, nfds, timeout);
-    if (!fds || rc < 0) return rc;
-    int ready = 0;
-    for (nfds_t i = 0; i < nfds; i++) {
-        int fd = fds[i].fd;
-        if ((unsigned)fd < IX_FD_MAX && atomic_load(&ix_live[fd].on) && ix_live[fd].phase == IX_HS_FAIL) {
-            fds[i].revents = POLLERR;
-        } else if (IXHandshakePending(fd)) {
-            fds[i].revents = 0;
-        }
-        if (fds[i].revents) ready++;
-    }
-    return ready;
-}
-
-static int IXKevent(int kq, const struct kevent *changelist, int nchanges, struct kevent *eventlist, int nevents, const struct timespec *timeout) {
-    if (!ix_orig_kevent) {
-        errno = ENOSYS;
-        return -1;
-    }
-    int rc = ix_orig_kevent(kq, changelist, nchanges, eventlist, nevents, timeout);
-    if (rc <= 0 || !eventlist) return rc;
-    int timeoutMs = 0;
-    if (timeout) timeoutMs = (int)(timeout->tv_sec * 1000 + timeout->tv_nsec / 1000000);
-    int out = 0;
-    for (int i = 0; i < rc; i++) {
-        int fd = (int)eventlist[i].ident;
-        if (IXHandshakePending(fd)) {
-            int step = IXCompleteHandshake(fd, timeoutMs);
-            if (step == 0) continue;
-            if (step < 0) {
-                eventlist[out] = eventlist[i];
-                eventlist[out].flags |= EV_ERROR;
-                eventlist[out].data = ECONNREFUSED;
-                out++;
-                continue;
-            }
-        }
-        if (out != i) eventlist[out] = eventlist[i];
-        out++;
-    }
-    return out;
-}
-
-static int IXSelect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout) {
-    if (!ix_orig_select) {
-        errno = ENOSYS;
-        return -1;
-    }
-    int timeoutMs = timeout ? (int)(timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : -1;
-    if (IXTrafficGuardVPNOn()) {
-        int limit = nfds < IX_FD_MAX ? nfds : IX_FD_MAX;
-        for (int fd = 0; fd < limit; fd++) {
-            BOOL watched = (readfds && FD_ISSET(fd, readfds)) || (writefds && FD_ISSET(fd, writefds)) || (errorfds && FD_ISSET(fd, errorfds));
-            if (watched && IXHandshakePending(fd)) IXCompleteHandshake(fd, timeoutMs < 0 ? 5000 : timeoutMs);
-        }
-    }
-    int rc = ix_orig_select(nfds, readfds, writefds, errorfds, timeout);
-    if (!IXTrafficGuardVPNOn()) return rc;
-    int limit = nfds < IX_FD_MAX ? nfds : IX_FD_MAX;
-    for (int fd = 0; fd < limit; fd++) {
-        if (!atomic_load(&ix_live[fd].on)) continue;
-        if (ix_live[fd].phase == IX_HS_FAIL && errorfds) FD_SET(fd, errorfds);
-        if (!IXHandshakePending(fd)) continue;
-        if (readfds) FD_CLR(fd, readfds);
-        if (writefds) FD_CLR(fd, writefds);
-    }
-    return rc;
-}
-
-static int IXGetSockOpt(int fd, int level, int optname, void *optval, socklen_t *optlen) {
-    if (level == SOL_SOCKET && optname == SO_ERROR && optval && optlen && *optlen >= (socklen_t)sizeof(int) &&
-        (unsigned)fd < IX_FD_MAX && atomic_load(&ix_live[fd].on)) {
-        uint8_t phase = ix_live[fd].phase;
-        int err = 0;
-        if (phase == IX_HS_FAIL) err = ECONNREFUSED;
-        else if (phase != IX_HS_NONE && phase != IX_HS_READY) err = EINPROGRESS;
-        if (err || phase == IX_HS_READY) {
-            if (phase == IX_HS_READY && ix_orig_getsockopt) {
-                return ix_orig_getsockopt(fd, level, optname, optval, optlen);
-            }
-            *(int *)optval = err;
-            *optlen = sizeof(int);
-            return 0;
-        }
-    }
-    if (!ix_orig_getsockopt) {
-        errno = ENOSYS;
-        return -1;
-    }
-    return ix_orig_getsockopt(fd, level, optname, optval, optlen);
 }
 
 typedef void (*IXDNSReply)(void *, uint32_t, uint32_t, int32_t, const char *, const struct sockaddr *, uint32_t, void *);
@@ -1450,27 +879,16 @@ BOOL IXTrafficGuardInstall(void) {
     IXCapture("sendmsg", (void **)&ix_orig_sendmsg);
     IXCapture("getpeername", (void **)&ix_orig_getpeername);
     IXCapture("close", (void **)&ix_orig_close);
-    IXCapture("read", (void **)&ix_orig_read);
-    IXCapture("recv", (void **)&ix_orig_recv);
-    IXCapture("recvfrom", (void **)&ix_orig_recvfrom);
-    IXCapture("recvmsg", (void **)&ix_orig_recvmsg);
-    IXCapture("write", (void **)&ix_orig_write);
-    IXCapture("writev", (void **)&ix_orig_writev);
-    IXCapture("send", (void **)&ix_orig_send);
-    IXCapture("poll", (void **)&ix_orig_poll);
-    IXCapture("kevent", (void **)&ix_orig_kevent);
-    IXCapture("select", (void **)&ix_orig_select);
-    IXCapture("getsockopt", (void **)&ix_orig_getsockopt);
     IXCapture("DNSServiceGetAddrInfo", (void **)&ix_dns_getaddrinfo);
-    if (!ix_orig_connect || !ix_orig_poll) return NO;
+    if (!ix_orig_connect) return NO;
+    IXSOCKSUseConnect(ix_orig_connect);
 
     IXPathHookPrepare();
     const char *names[64];
     void *replacements[64];
-    // FBSharedFramework imports these (nm/otool on the 436 binary): socket, connect,
-    // connectx, getaddrinfo, getnameinfo, getpeername, send, sendto, sendmsg, write,
-    // writev, recv, recvfrom, recvmsg, read, close, poll, kevent, select, and
-    // DNSServiceGetAddrInfo. res_* and getaddrinfo_a are not imported.
+    // FBSharedFramework imports connect, connectx, getaddrinfo, DNSServiceGetAddrInfo,
+    // getpeername, sendto, sendmsg, and close. read/write/poll/kevent/select stay
+    // unbound: wrapping them stalled folly's EventBase after a few kilobytes.
     struct { const char *name; void *repl; void *orig; } rows[] = {
         {"socket", (void *)IXSocket, (void *)ix_orig_socket},
         {"connect", (void *)IXConnect, (void *)ix_orig_connect},
@@ -1482,17 +900,6 @@ BOOL IXTrafficGuardInstall(void) {
         {"sendmsg", (void *)IXSendMsg, (void *)ix_orig_sendmsg},
         {"getpeername", (void *)IXGetPeerName, (void *)ix_orig_getpeername},
         {"close", (void *)IXClose, (void *)ix_orig_close},
-        {"read", (void *)IXRead, (void *)ix_orig_read},
-        {"recv", (void *)IXRecv, (void *)ix_orig_recv},
-        {"recvfrom", (void *)IXRecvFrom, (void *)ix_orig_recvfrom},
-        {"recvmsg", (void *)IXRecvMsg, (void *)ix_orig_recvmsg},
-        {"write", (void *)IXWrite, (void *)ix_orig_write},
-        {"writev", (void *)IXWriteV, (void *)ix_orig_writev},
-        {"send", (void *)IXSend, (void *)ix_orig_send},
-        {"poll", (void *)IXPoll, (void *)ix_orig_poll},
-        {"kevent", (void *)IXKevent, (void *)ix_orig_kevent},
-        {"select", (void *)IXSelect, (void *)ix_orig_select},
-        {"getsockopt", (void *)IXGetSockOpt, (void *)ix_orig_getsockopt},
         {"DNSServiceGetAddrInfo", (void *)IXDNSGetAddrInfo, (void *)ix_dns_getaddrinfo},
     };
     unsigned count = 0;
@@ -1540,7 +947,7 @@ NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void) {
     for (int fd = 0; fd < IX_FD_MAX; fd++) {
         if (!atomic_load(&ix_live[fd].on)) continue;
         NSString *api = ix_live[fd].api[0] ? [NSString stringWithUTF8String:ix_live[fd].api] : @"connect";
-        NSString *reason = ix_live[fd].phase == IX_HS_FAIL ? @"blocked" : @"tunneled";
+        NSString *reason = @"tunneled";
         [rows addObject:@{
             @"image": ix_live[fd].image[0] ? [NSString stringWithUTF8String:ix_live[fd].image] : @"",
             @"api": api ?: @"",

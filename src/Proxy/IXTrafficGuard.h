@@ -7,7 +7,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// In-process traffic policy shared by the VLESS engine and the socket hooks.
 /// Symbol rebinding is installed only when the VPN is turned on, and removed
-/// when it is turned off. Nothing here runs from a constructor.
+/// when it is turned off. connect finishes the SOCKS5 handshake itself.
+/// read, write, poll, and kevent are not hooked.
 
 BOOL IXTrafficGuardInstall(void);
 void IXTrafficGuardUninstall(void);

@@ -638,6 +638,13 @@ static NSError *IXURIError(NSString *message) {
         @"metadataOnly": @NO,
         @"routeOnly": @YES
     };
+    NSDictionary *inboundStream = @{
+        @"sockopt": @{
+            @"tcpKeepAliveIdle": @30,
+            @"tcpKeepAliveInterval": @15,
+            @"tcpNoDelay": @YES
+        }
+    };
     NSDictionary *config = @{
         @"log": @{@"loglevel": @"warning"},
         @"dns": dns,
@@ -646,7 +653,8 @@ static NSError *IXURIError(NSString *message) {
                 @"listen": @"127.0.0.1",
                 @"port": @(socksPort),
                 @"protocol": @"socks",
-                @"settings": @{@"auth": @"noauth", @"udp": @YES},
+                @"settings": @{@"auth": @"noauth", @"udp": @NO, @"userLevel": @0},
+                @"streamSettings": inboundStream,
                 @"tag": @"socks-in",
                 @"sniffing": sniff
             },
@@ -654,7 +662,8 @@ static NSError *IXURIError(NSString *message) {
                 @"listen": @"::1",
                 @"port": @(socksPort),
                 @"protocol": @"socks",
-                @"settings": @{@"auth": @"noauth", @"udp": @YES},
+                @"settings": @{@"auth": @"noauth", @"udp": @NO, @"userLevel": @0},
+                @"streamSettings": inboundStream,
                 @"tag": @"socks-in6",
                 @"sniffing": sniff
             },
@@ -663,7 +672,8 @@ static NSError *IXURIError(NSString *message) {
                 @"listen": @"127.0.0.1",
                 @"port": @(httpPort),
                 @"protocol": @"http",
-                @"settings": @{},
+                @"settings": @{@"userLevel": @0},
+                @"streamSettings": inboundStream,
                 @"sniffing": httpSniff
             },
             @{
@@ -671,7 +681,8 @@ static NSError *IXURIError(NSString *message) {
                 @"listen": @"::1",
                 @"port": @(httpPort),
                 @"protocol": @"http",
-                @"settings": @{},
+                @"settings": @{@"userLevel": @0},
+                @"streamSettings": inboundStream,
                 @"sniffing": httpSniff
             }
         ],
@@ -692,6 +703,15 @@ static NSError *IXURIError(NSString *message) {
         ],
         @"stats": @{},
         @"policy": @{
+            @"levels": @{
+                @"0": @{
+                    @"handshake": @8,
+                    @"connIdle": @300,
+                    @"uplinkOnly": @2,
+                    @"downlinkOnly": @5,
+                    @"bufferSize": @512
+                }
+            },
             @"system": @{
                 @"statsInboundUplink": @YES,
                 @"statsInboundDownlink": @YES

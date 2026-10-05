@@ -118,6 +118,17 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 @end
 
+__attribute__((constructor(180)))
+static void IXProxyEarlyStart(void) {
+#if !IX_LITE
+    @autoreleasepool {
+        // Schedules Xray before UIApplication starts networking. setEnabled
+        // returns as soon as the work is queued, so this constructor does not block.
+        [IXProxyManager.shared restoreOnLaunch];
+    }
+#endif
+}
+
 @implementation IXProxyManager {
     IXNativeEngine *_native;
     BOOL _usingXray;
@@ -139,6 +150,7 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSString *_boundInterface;
     NSString *_activeXHTTPMode;
     nw_path_monitor_t _pathMonitor;
+    BOOL _autostarted;
 }
 
 + (instancetype)shared {
@@ -483,6 +495,11 @@ static dispatch_queue_t IXProxyQueue(void) {
     if (_usingXray) {
         IXRayStop();
         _usingXray = NO;
+        char *raw = IXRayCopyLog();
+        if (raw) {
+            if (raw[0]) IXLaunchGuardAppendLog(raw);
+            free(raw);
+        }
     }
     [_native stop];
     _native = nil;
@@ -572,6 +589,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         NSString *why = nil;
         if ([self launchXray:profile error:&why]) {
             if (![self listenerReady:profile error:error]) return NO;
+            IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+            [self note:@"SOCKS inbound is accepting connections."];
             return [self confirmTunnel:error timeout:timeout];
         }
         if (profile.needsXray) {
@@ -597,6 +616,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         if (error) *error = IXProxyError(@"The local proxy is not accepting connections.");
         return NO;
     }
+    IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+    [self note:@"SOCKS inbound is accepting connections."];
     return [self confirmTunnel:error timeout:timeout];
 }
 
@@ -708,8 +729,11 @@ static dispatch_queue_t IXProxyQueue(void) {
         [self stopEngine];
         NSError *error = nil;
         BOOL ok = [self startProfile:profile error:&error];
-        if (!ok && generation == self->_generation) [self stopEngine];
         NSString *message = error.localizedDescription;
+        if (!ok && generation == self->_generation) {
+            [self note:[NSString stringWithFormat:@"Xray stopped: %@", message ?: @"the tunnel did not stay up"]];
+            [self stopEngine];
+        }
         dispatch_async(dispatch_get_main_queue(), ^{
             if (generation != self->_generation) return;
             if (ok) {
@@ -732,13 +756,38 @@ static dispatch_queue_t IXProxyQueue(void) {
 - (void)restoreOnLaunch {
     [self restoreStoredSettings];
     if (IXLaunchGuardIsSafeMode()) {
-        NSLog(@"[InstagramX] safe mode: not restoring the VPN");
+        static int noted = 0;
+        if (!noted) {
+            noted = 1;
+            [self note:@"Safe mode: not restoring the VPN. Copy diagnostics still works."];
+        }
         return;
     }
     if (![self isEnabled]) return;
+    @synchronized (self) {
+        if (_autostarted) return;
+        _autostarted = YES;
+    }
     [self setEnabled:YES completion:^(NSError *error) {
         if (error) NSLog(@"[InstagramX] proxy restore failed: %@", error.localizedDescription);
     }];
+}
+
+- (void)suppressForSafeMode {
+    @synchronized (self) {
+        _autostarted = YES;
+    }
+    NSInteger generation = ++_generation;
+    dispatch_async(IXProxyQueue(), ^{
+        if (generation != self->_generation) return;
+        [self note:@"Safe mode turned the VPN hooks off. The saved switch was not changed."];
+        [self stopEngine];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (generation != self->_generation) return;
+            self->_status = IXProxyStatusOff;
+            self->_lastError = @"Safe mode: VPN hooks are off.";
+        });
+    });
 }
 
 - (uint64_t)bytesUp { return _bytesUp; }
@@ -749,9 +798,12 @@ static dispatch_queue_t IXProxyQueue(void) {
 
 - (void)note:(NSString *)line {
     if (line.length == 0) return;
-    if (!_logLines) _logLines = [NSMutableArray array];
-    [_logLines addObject:line];
-    if (_logLines.count > 80) [_logLines removeObjectsInRange:NSMakeRange(0, _logLines.count - 80)];
+    IXLaunchGuardAppendLog(line.UTF8String);
+    @synchronized (self) {
+        if (!_logLines) _logLines = [NSMutableArray array];
+        [_logLines addObject:line];
+        if (_logLines.count > 80) [_logLines removeObjectsInRange:NSMakeRange(0, _logLines.count - 80)];
+    }
 }
 
 - (NSString *)recentLog {
@@ -760,8 +812,10 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSString *picked = _activeXHTTPMode.length ? _activeXHTTPMode : [self xhttpModeForProfile:profile];
     NSString *rawMode = picked.length ? picked : profile.mode;
     NSString *mode = xhttp ? [IXVLESSProfile xrayXHTTPModeFrom:rawMode] : @"n/a";
-    NSString *header = [NSString stringWithFormat:@"Instagram X %@\nxhttp mode: %@\ninterface: %@", SCIVersionString ?: @"", mode, _boundInterface ?: @"system"];
-    NSMutableArray *lines = [_logLines mutableCopy] ?: [NSMutableArray array];
+    NSString *header = [NSString stringWithFormat:@"Instagram X %@\nsafe mode: %@\nlog file: Library/Caches/ix_vpn_log.txt\nxhttp mode: %@\ninterface: %@", SCIVersionString ?: @"", IXLaunchGuardIsSafeMode() ? @"yes" : @"no", mode, _boundInterface ?: @"system"];
+    NSString *persisted = IXLaunchGuardPersistedLog() ?: @"";
+    NSMutableArray *lines = [NSMutableArray array];
+    if (persisted.length) [lines addObject:persisted];
     char *raw = IXRayCopyLog();
     if (raw) {
         NSString *text = [NSString stringWithUTF8String:raw];

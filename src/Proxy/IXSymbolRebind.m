@@ -376,7 +376,9 @@ static int IXRebindChained(const struct mach_header *header, const char *path,
 static int IXRebindImage(const struct mach_header *header, intptr_t slide, const char *path,
                          const char *const *names, void *const *replacements, unsigned count, int remember) {
     if (!header || header->magic != MH_MAGIC_64) return 0;
-    if (path && strstr(path, "IXRayCore")) return 0;
+    // IXRayCore must keep the real libc symbols. SCInsta too: the handshake
+    // calls connect/send/recv/poll, and rebinding this image would recurse.
+    if (path && (strstr(path, "IXRayCore") || strstr(path, "SCInsta"))) return 0;
 
     const struct segment_command_64 *linkedit = NULL;
     const struct symtab_command *symtabCmd = NULL;

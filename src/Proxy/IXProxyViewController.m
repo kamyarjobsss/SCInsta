@@ -1,6 +1,7 @@
 #import "IXProxyViewController.h"
 #import "IXProxyManager.h"
 #import "IXTrafficGuard.h"
+#import "../Launch/IXLaunchGuard.h"
 #import "../Localization/SCILocalization.h"
 #import "../Tweak.h"
 
@@ -36,6 +37,7 @@ static NSString *IXDiagnosticsReport(void) {
     [text appendFormat:@"proxyUp: %@\n", IXTrafficGuardProxyUp() ? @"yes" : @"no"];
     [text appendFormat:@"nwProxy: %@\n", IXTrafficGuardNWProxyReady() ? @"yes" : @"no"];
     NSArray<NSDictionary *> *rows = IXTrafficGuardRecentConnections() ?: @[];
+    [text appendFormat:@"safeMode: %@\n", IXLaunchGuardIsSafeMode() ? @"yes" : @"no"];
     [text appendFormat:@"connections: %lu\n", (unsigned long)rows.count];
     for (NSDictionary *row in rows) {
         [text appendFormat:@"%@ %@ %@:%@ up=%@ down=%@ %@\n",
@@ -46,6 +48,10 @@ static NSString *IXDiagnosticsReport(void) {
             row[@"up"] ?: @0,
             row[@"down"] ?: @0,
             row[@"reason"] ?: @""];
+    }
+    if (manager.recentLog.length) {
+        [text appendString:@"\n"];
+        [text appendString:manager.recentLog];
     }
     return text;
 }
