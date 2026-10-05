@@ -32,7 +32,10 @@ int IXAddrFillInet6(struct sockaddr_in6 *out, const struct in6_addr *addr, uint1
 
 static int IXEnough(const struct sockaddr *in, socklen_t inLen, socklen_t need) {
     if (!in) return 0;
-    if (inLen >= need) return 1;
+    // The caller's length is the buffer we are allowed to read. sa_len can
+    // claim the full v6 size while the buffer is only 16 bytes, and reading
+    // past that is what produced the garbage string Tigon parsed.
+    if (inLen > 0) return inLen >= need;
 #ifdef __APPLE__
     if (in->sa_len >= need) return 1;
 #endif
