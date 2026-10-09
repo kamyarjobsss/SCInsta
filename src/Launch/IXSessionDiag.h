@@ -9,7 +9,9 @@ void IXSessionDiagKeychain(const char *op, int status, NSString *group, int call
 void IXSessionDiagAccounts(NSString *phase);
 void IXSessionDiagNoteContainer(NSString *path, NSString *source);
 void IXSessionDiagBoot(void);
-// Replay fresh-install markers into the shared suite before Instagram reads them.
+// Replay fresh-install markers before Instagram reads them.
 void IXPrefsSeedFreshMarkers(void);
+// didFinishLaunching has returned. Password deletes are allowed after this.
+void IXSessionLaunchFinished(void);
 NSString *IXSessionDiagReport(void);
 void IXSessionDiagPresentCopy(void);

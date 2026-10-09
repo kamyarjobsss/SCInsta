@@ -25,6 +25,10 @@ int IXSessionContainerComponent(const char *identifier, char *out, size_t outLen
 // itself, return 0 so the mapping cannot recurse.
 int IXPrefsSharedSuite(const char *suite, char *out, size_t outLen);
 
+/* The iCloud-keychain read helpers below are not the relaunch fix.
+   A sideload log mentioned synchronizable items only as a clue. v2.4.2
+   still logged out with SecItem hooks off, and the probe item survived. */
+
 /* How a SecItem read asked about iCloud keychain.
    ABSENT means the query omitted kSecAttrSynchronizable, which by default
    searches only the local partition and misses a synchronizable login item. */
@@ -45,5 +49,45 @@ int IXKeychainReadFirstSync(int incoming);
    Not-found and a missing iCloud entitlement try the other partition.
    Success is never repeated. */
 int IXKeychainReadFallbackSync(int incoming, int status);
+
+/* 1 when `key` is an Instagram fresh-install marker. Names that contain
+   password, token, or session are rejected so this store cannot hold them.
+   The match is ASCII case-insensitive. NULL and overlong names are 0. */
+int IXFreshInstallKey(const char *key);
+
+/* The two markers v2.4.2 printed while the preference plists were absent. */
+int IXFreshKnownKey(const char *key);
+
+/* 1 when a missing persistent value should be replaced by the Documents copy.
+   A value already in the persistent domain is kept. Registered defaults do
+   not count as persisted: the v2.4.2 log showed the key names through
+   dictionaryRepresentation while both plists were missing. */
+int IXFreshMarkerRestore(int persistent_present, int saved_present);
+
+/* 1 when a known marker that has never been stored should be created.
+   A saved or persisted value is not replaced by the placeholder. */
+int IXFreshMarkerSeed(int persistent_present, int saved_present, int known_key);
+
+/* 1 when SecItemDelete may run.
+   our_service is the diagnostics, backend, or VPN item and is always allowed.
+   password_class is a generic password, an internet password, or a query
+   with no class. Other classes are always allowed.
+   marker_persisted is 1 when a fresh-install marker was already in the
+   Documents file or a preference domain at process start. Registered
+   defaults do not count.
+   A previous install whose marker was missing refuses password deletes
+   until didFinishLaunching returns. That is the v2.4.2 window: existing
+   launch, both plists absent, accounts already 0 when launch returned,
+   and the v2.4.1 delete that returned success. Once the marker is on
+   disk, launch deletes stay allowed so a normal token refresh still
+   works. After launch, a real logout is allowed. The first install is
+   allowed. */
+int IXSessionDeleteAllowed(int existing_install, int launch_finished, int marker_persisted, int our_service, int password_class);
+
+/* 1 for instagramx.diag, instagramx.backend, and instagramx.vpn. */
+int IXSessionOurService(const char *service);
+
+/* 1 for "genp", "inet", an empty class, or NULL. Certificates and keys are 0. */
+int IXSessionPasswordClass(const char *cls);
 
 #endif

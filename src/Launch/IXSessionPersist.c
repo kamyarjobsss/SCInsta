@@ -55,3 +55,66 @@ int IXKeychainReadFallbackSync(int incoming, int status) {
     if (first != IX_SYNC_ANY) return IX_SYNC_ANY;
     return -1;
 }
+
+static char ix_lower(char c) {
+    if (c >= 'A' && c <= 'Z') return (char)(c - 'A' + 'a');
+    return c;
+}
+
+static int ix_has(const char *text, const char *needle) {
+    size_t n = strlen(needle);
+    size_t t = strlen(text);
+    size_t i, j;
+    if (n == 0 || t < n) return 0;
+    for (i = 0; i + n <= t; i++) {
+        for (j = 0; j < n; j++) {
+            if (ix_lower(text[i + j]) != needle[j]) break;
+        }
+        if (j == n) return 1;
+    }
+    return 0;
+}
+
+int IXFreshInstallKey(const char *key) {
+    size_t n;
+    if (!key || !key[0]) return 0;
+    n = strlen(key);
+    if (n == 0 || n > 80) return 0;
+    if (ix_has(key, "password") || ix_has(key, "token") || ix_has(key, "session")) return 0;
+    return ix_has(key, "freshinstall");
+}
+
+int IXFreshKnownKey(const char *key) {
+    if (!key) return 0;
+    return strcmp(key, "mc_freshinstall_time") == 0 ||
+           strcmp(key, "mobileconfig_freshinstall_track_version") == 0;
+}
+
+int IXFreshMarkerRestore(int persistent_present, int saved_present) {
+    return !persistent_present && saved_present;
+}
+
+int IXFreshMarkerSeed(int persistent_present, int saved_present, int known_key) {
+    if (persistent_present || saved_present) return 0;
+    return known_key ? 1 : 0;
+}
+
+int IXSessionOurService(const char *service) {
+    if (!service || !service[0]) return 0;
+    return strcmp(service, "instagramx.diag") == 0 ||
+           strcmp(service, "instagramx.backend") == 0 ||
+           strcmp(service, "instagramx.vpn") == 0;
+}
+
+int IXSessionPasswordClass(const char *cls) {
+    if (!cls || !cls[0]) return 1;
+    if (strcmp(cls, "genp") == 0 || strcmp(cls, "inet") == 0) return 1;
+    return 0;
+}
+
+int IXSessionDeleteAllowed(int existing_install, int launch_finished, int marker_persisted, int our_service, int password_class) {
+    if (our_service) return 1;
+    if (!password_class) return 1;
+    if (existing_install && !launch_finished && !marker_persisted) return 0;
+    return 1;
+}

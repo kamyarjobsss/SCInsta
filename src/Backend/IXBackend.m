@@ -27,7 +27,7 @@ static NSString *const kBase = @"https://77.110.125.217:9443";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.3";
+static NSString *const kAppVersion = @"2.4.4";
 static NSString *const kService = @"instagramx.backend";
 
 static dispatch_queue_t ix_q;

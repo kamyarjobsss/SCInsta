@@ -1,6 +1,6 @@
 Package: com.kamyar.instagramx
 Name: Instagram X
-Version: 2.4.3
+Version: 2.4.4
 Architecture: iphoneos-arm
 Description: Instagram X, GPL-3.0. Features from the RyukGram v1.3.2 sources by faroukbmiled, SCInsta by SoCuul, with an in-app VLESS proxy and launch safe mode.
 Homepage: https://github.com/kamyarjobsss/SCInsta

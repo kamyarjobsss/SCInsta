@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.3"
+                description: "Publish a prerelease tagged instagram-x-v2.4.4"
                 default: true
                 required: false
                 type: boolean
@@ -261,15 +261,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.3 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.4 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.3
+                tag_name: instagram-x-v2.4.4
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.3
+                name: Instagram X 2.4.4
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -295,7 +295,7 @@ jobs:
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
 
-                  v2.4.3 keeps fresh-install markers in one stable app-group directory and in instagramx.appgroup. Login items are synchronizable keychain items. A read that misses the local partition is repeated with kSecAttrSynchronizableAny, without rewriting access groups. Diagnostics logs the image, symbol, and query attributes of each SecItemDelete. The panel trust delegate accepts the certificate only when the P-256 SPKI hash matches a pin, and Panel connection shows the computed pin of the received chain. The panel host and port 9443 stay off the SOCKS redirect. The panel URL and certificate pins are unchanged.
+                  v2.4.4 stays logged in after the app is closed and opened. On v2.4.2 the sandbox was still there: the relaunch probe, the cookie file, and the container path all survived, and SecItem hooks were off. The preference plists were missing. mc_freshinstall_time and mobileconfig_freshinstall_track_version showed up only as registered defaults. Instagram then deleted the session during launch. v2.4.1 had already logged that delete: SecItemDelete returned success and the query already contained an access group, while the diagnostics item was not the item removed. Those two markers are stored under Documents and put back through NSUserDefaults and CFPreferences before launch finishes. Until didFinishLaunching returns, a previous install whose markers were missing cannot delete a password item unless that item belongs to Instagram X. Logout after launch still can. Access groups are not rewritten. SecItemCopyMatching is not hooked. Diagnostics logs the image, symbol, and query attributes of each delete. The panel trust delegate accepts a certificate only when its P-256 SPKI hash matches a pin and logs that pin. The panel host and port 9443 stay off the SOCKS redirect. The panel URL and pins are unchanged. One login can be required after this update if an older build already deleted the session.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -308,4 +308,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.3"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.4"

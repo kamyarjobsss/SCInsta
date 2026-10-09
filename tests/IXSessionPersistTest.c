@@ -59,5 +59,52 @@ int main(void) {
     expect(IXKeychainReadFallbackSync(IX_SYNC_TRUE, IX_KC_MISSING_ENTITLEMENT) == IX_SYNC_ANY, "sync entitlement tries any");
     expect(IXKeychainReadFallbackSync(IX_SYNC_ANY, IX_KC_NOT_FOUND) == -1, "any miss does not loop");
     expect(IXKeychainReadFallbackSync(IX_SYNC_FALSE, -50) == -1, "other errors stand");
+
+    expect(IXFreshInstallKey("mc_freshinstall_time") == 1, "time marker");
+    expect(IXFreshInstallKey("mobileconfig_freshinstall_track_version") == 1, "version marker");
+    expect(IXFreshInstallKey("MC_FRESHINSTALL_TIME") == 1, "marker case");
+    expect(IXFreshInstallKey("session_freshinstall") == 0, "session key skipped");
+    expect(IXFreshInstallKey("freshinstall_password") == 0, "password key skipped");
+    expect(IXFreshInstallKey("freshinstall_token") == 0, "token key skipped");
+    expect(IXFreshInstallKey("haslaunched") == 0, "other flag");
+    expect(IXFreshInstallKey(NULL) == 0, "null marker");
+    expect(IXFreshInstallKey("") == 0, "empty marker");
+    expect(IXFreshKnownKey("mc_freshinstall_time") == 1, "known time");
+    expect(IXFreshKnownKey("mobileconfig_freshinstall_track_version") == 1, "known version");
+    expect(IXFreshKnownKey("other_freshinstall") == 0, "unknown fresh key is not a placeholder");
+    expect(IXFreshKnownKey(NULL) == 0, "null known key");
+    expect(IXFreshMarkerRestore(0, 1) == 1, "missing plist restores the saved marker");
+    expect(IXFreshMarkerRestore(1, 1) == 0, "persisted marker is kept");
+    expect(IXFreshMarkerRestore(0, 0) == 0, "nothing to restore");
+    expect(IXFreshMarkerRestore(1, 0) == 0, "persisted only");
+    expect(IXFreshMarkerSeed(0, 0, 1) == 1, "absent known marker is seeded");
+    expect(IXFreshMarkerSeed(0, 1, 1) == 0, "saved marker is not replaced");
+    expect(IXFreshMarkerSeed(1, 0, 1) == 0, "persisted marker is not replaced");
+    expect(IXFreshMarkerSeed(0, 0, 0) == 0, "unknown key is not invented");
+
+    expect(IXSessionOurService("instagramx.diag") == 1, "probe service");
+    expect(IXSessionOurService("instagramx.backend") == 1, "backend service");
+    expect(IXSessionOurService("instagramx.vpn") == 1, "vpn service");
+    expect(IXSessionOurService("com.burbn.instagram") == 0, "instagram service is not ours");
+    expect(IXSessionOurService(NULL) == 0, "missing service");
+    expect(IXSessionPasswordClass("genp") == 1, "generic password");
+    expect(IXSessionPasswordClass("inet") == 1, "internet password");
+    expect(IXSessionPasswordClass("") == 1, "unscoped delete");
+    expect(IXSessionPasswordClass(NULL) == 1, "missing class");
+    expect(IXSessionPasswordClass("cert") == 0, "certificate");
+    expect(IXSessionPasswordClass("key") == 0, "key class");
+    expect(IXSessionPasswordClass("idnt") == 0, "identity");
+
+    /* v2.4.2 second launch: ix_seen_launch=existing, both preference plists
+       absent, accounts already 0 when didFinishLaunching returned. v2.4.1
+       logged SecItemDelete status 0 with an access group in the query, and
+       the instagramx.diag probe was still there afterward. */
+    expect(IXSessionDeleteAllowed(1, 0, 0, 0, 1) == 0, "relaunch password delete is refused");
+    expect(IXSessionDeleteAllowed(1, 0, 0, IXSessionOurService("instagramx.diag"), 1) == 1, "probe delete stays allowed");
+    expect(IXSessionDeleteAllowed(1, 1, 0, 0, 1) == 1, "logout after launch is allowed");
+    expect(IXSessionDeleteAllowed(0, 0, 0, 0, 1) == 1, "first install delete is allowed");
+    expect(IXSessionDeleteAllowed(1, 0, 0, 0, 0) == 1, "certificate delete is allowed");
+    expect(IXSessionDeleteAllowed(1, 0, 0, 0, IXSessionPasswordClass(NULL)) == 0, "unscoped relaunch wipe is refused");
+    expect(IXSessionDeleteAllowed(1, 0, 1, 0, 1) == 1, "stored marker allows a launch delete");
     return g_failed ? 1 : 0;
 }
