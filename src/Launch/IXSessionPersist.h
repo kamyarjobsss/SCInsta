@@ -90,4 +90,19 @@ int IXSessionOurService(const char *service);
 /* 1 for "genp", "inet", an empty class, or NULL. Certificates and keys are 0. */
 int IXSessionPasswordClass(const char *cls);
 
+/* Directory leaf for a missing app-group container. v2.2.4 used one leaf for
+   every group id. e0b8495 used the identifier, so the session directory moved
+   when that string changed. The identifier is ignored. */
+int IXSessionFallbackLeaf(const char *identifier, char *out, size_t outLen);
+
+/* Suite used when METAAppGroup has no user defaults. v2.2.4 always used
+   group.com.burbn.instagram. e0b8495 used the identifier. */
+int IXSessionDefaultsSuite(const char *identifier, char *out, size_t outLen);
+
+/* What to write into a nil METAAppGroup identifier. Returns 0 when `current`
+   is already set: v2.2.4 left it alone, and replacing it made the next launch
+   miss the session. A nil identifier gets the SecItem probe group, then the
+   requested name. */
+int IXSessionIdentifierFill(const char *current, const char *requested, const char *probe, char *out, size_t outLen);
+
 #endif

@@ -106,5 +106,27 @@ int main(void) {
     expect(IXSessionDeleteAllowed(1, 0, 0, 0, 0) == 1, "certificate delete is allowed");
     expect(IXSessionDeleteAllowed(1, 0, 0, 0, IXSessionPasswordClass(NULL)) == 0, "unscoped relaunch wipe is refused");
     expect(IXSessionDeleteAllowed(1, 0, 1, 0, 1) == 1, "stored marker allows a launch delete");
+
+    /* v2.2.4 kept the login. e0b8495 (2.3.0) gave each group its own
+       directory, stored the requested name instead of the probed keychain
+       group, and rewrote a non-empty identifier. */
+    expect(IXSessionFallbackLeaf("group.com.burbn.instagram", out, sizeof out) == 1, "fallback leaf");
+    expect_str(out, "IXAppGroup", "one directory for the ig group");
+    expect(IXSessionFallbackLeaf("TEAMID1234.group.com.burbn.instagram", out, sizeof out) == 1, "prefixed fallback");
+    expect_str(out, "IXAppGroup", "prefix does not move the directory");
+    expect(IXSessionFallbackLeaf(NULL, out, sizeof out) == 1, "null fallback");
+    expect_str(out, "IXAppGroup", "null identifier shares the directory");
+    expect(IXSessionDefaultsSuite("TEAMID1234.group.com.burbn.instagram", out, sizeof out) == 1, "defaults suite");
+    expect_str(out, "group.com.burbn.instagram", "suite is not the identifier");
+    expect(IXSessionDefaultsSuite(NULL, out, sizeof out) == 1, "null suite");
+    expect_str(out, "group.com.burbn.instagram", "null suite value");
+    expect(IXSessionIdentifierFill("group.com.burbn.instagram", "other", "TEAMID.com.burbn.instagram", out, sizeof out) == 0, "existing identifier stays");
+    expect_str(out, "", "existing identifier is not rewritten");
+    expect(IXSessionIdentifierFill("", "group.com.burbn.instagram", "TEAMID.com.burbn.instagram", out, sizeof out) == 1, "nil identifier uses the probe");
+    expect_str(out, "TEAMID.com.burbn.instagram", "probe group is stored");
+    expect(IXSessionIdentifierFill(NULL, "group.com.facebook.family", NULL, out, sizeof out) == 1, "nil identifier without a probe");
+    expect_str(out, "group.com.facebook.family", "requested name is the fallback");
+    expect(IXSessionIdentifierFill(NULL, NULL, NULL, out, sizeof out) == 1, "nil identifier default");
+    expect_str(out, "group.com.burbn.instagram", "default identifier");
     return g_failed ? 1 : 0;
 }

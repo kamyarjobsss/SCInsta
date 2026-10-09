@@ -112,6 +112,25 @@ int IXSessionPasswordClass(const char *cls) {
     return 0;
 }
 
+int IXSessionFallbackLeaf(const char *identifier, char *out, size_t outLen) {
+    (void)identifier;
+    return ix_copy(out, outLen, "IXAppGroup");
+}
+
+int IXSessionDefaultsSuite(const char *identifier, char *out, size_t outLen) {
+    (void)identifier;
+    return ix_copy(out, outLen, "group.com.burbn.instagram");
+}
+
+int IXSessionIdentifierFill(const char *current, const char *requested, const char *probe, char *out, size_t outLen) {
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (current && current[0]) return 0;
+    if (probe && probe[0]) return ix_copy(out, outLen, probe);
+    if (requested && requested[0]) return ix_copy(out, outLen, requested);
+    return ix_copy(out, outLen, "group.com.burbn.instagram");
+}
+
 int IXSessionDeleteAllowed(int existing_install, int launch_finished, int marker_persisted, int our_service, int password_class) {
     if (our_service) return 1;
     if (!password_class) return 1;
