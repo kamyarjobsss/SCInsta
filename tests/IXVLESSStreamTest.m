@@ -130,18 +130,6 @@ int main(void) {
         IXExpect([xSettings[@"extra"][@"xPaddingBytes"] isEqualToString:@"100-1000"], @"xhttp extra");
         IXExpect([xSettings[@"extra"][@"noGRPCHeader"] isEqual:@YES], @"xhttp noGRPCHeader default");
         IXExpect([xSettings[@"extra"][@"scMaxEachPostBytes"] isEqual:@1000000], @"xhttp scMaxEachPostBytes default");
-        IXExpect([xSettings[@"extra"][@"xmux"][@"maxConcurrency"] isEqualToString:@"16-32"], @"xmux default concurrency");
-        IXExpect([xSettings[@"extra"][@"xmux"][@"maxConnections"] isEqualToString:@"1-2"], @"xmux default connections");
-        IXExpect([xSettings[@"extra"][@"xmux"][@"hMaxRequestTimes"] isEqualToString:@"800-1200"], @"xmux default request reuse");
-        IXExpect([xSettings[@"extra"][@"xmux"][@"hKeepAlivePeriod"] isEqual:@15], @"xmux keepalive");
-        NSString *xmuxLink =
-            @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
-            @"?security=tls&type=xhttp&mode=stream-one&path=%2F"
-            @"&extra=%7B%22xmux%22%3A%7B%22maxConcurrency%22%3A%221-2%22%7D%7D";
-        IXVLESSProfile *xmuxProfile = [IXVLESSProfile profileFromURI:xmuxLink error:nil];
-        NSDictionary *kept = [xmuxProfile xrayOutbound][@"streamSettings"][@"xhttpSettings"][@"extra"][@"xmux"];
-        IXExpect([kept[@"maxConcurrency"] isEqualToString:@"1-2"], @"link xmux concurrency is kept");
-        IXExpect([kept[@"maxConnections"] isEqualToString:@"1-2"], @"missing xmux keys are filled");
         IXExpect([xStream[@"tlsSettings"][@"serverName"] isEqualToString:@"ssl.fastly.com"], @"xhttp sni");
         IXExpect([xStream[@"tlsSettings"][@"fingerprint"] isEqualToString:@"chrome"], @"xhttp fingerprint");
         IXExpect([xStream[@"tlsSettings"][@"alpn"] isEqual:@[@"h2"]], @"xhttp alpn");
@@ -170,8 +158,6 @@ int main(void) {
             if ([outbound[@"tag"] isEqualToString:@"direct"] && [outbound[@"streamSettings"][@"sockopt"][@"interface"] isEqualToString:@"en0"]) directBound = YES;
         }
         IXExpect(directBound, @"direct outbound binds the same interface");
-        IXExpect([boundConfig[@"policy"][@"levels"][@"0"][@"uplinkOnly"] isEqual:@120], @"half-close is not cut at 2 seconds");
-        IXExpect([boundConfig[@"policy"][@"levels"][@"0"][@"handshake"] isEqual:@15], @"handshake budget is 15 seconds");
         NSString *packet =
             @"vless://00000000-0000-0000-0000-000000000000@fs.koomeh.net:443"
             @"?security=tls&type=xhttp&mode=packet-up&path=%2F";

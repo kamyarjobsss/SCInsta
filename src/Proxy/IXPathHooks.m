@@ -1,7 +1,6 @@
 #import "IXPathHooks.h"
 #import "IXTrafficGuard.h"
 
-#import <CFNetwork/CFNetwork.h>
 #import <dlfcn.h>
 #import <dispatch/dispatch.h>
 #import <netinet/in.h>
@@ -276,23 +275,29 @@ static void IXReleaseNW(ix_nw_t object) {
     else CFRelease(object);
 }
 
-static ix_nw_create_f ix_orig_group;
-
-static ix_nw_t IXNWCreateWith(ix_nw_create_f orig, ix_nw_t endpoint, ix_nw_t parameters, int group) {
-    if (!orig) return NULL;
-    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return orig(endpoint, parameters);
+static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
+    if (!ix_orig_create) return NULL;
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return ix_orig_create(endpoint, parameters);
     char host[192];
     uint16_t port = 0;
     BOOL remote = IXDescribeEndpoint(endpoint, host, sizeof(host), &port);
     if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host)) {
-        return orig(endpoint, parameters);
+        return ix_orig_create(endpoint, parameters);
     }
-    BOOL kill = IXTrafficGuardKillSwitch();
-    BOOL up = IXTrafficGuardProxyUp();
-    const char *api = group ? "nw_connection_group" : "nw_connection";
-    if (!up && !kill) {
-        IXTrafficGuardNote(@(api), @(host), port, @"bypassed");
-        return orig(endpoint, parameters);
+    if (!IXTrafficGuardProxyUp()) {
+        if (IXTrafficGuardKillSwitch() && ix_orig_start) {
+            ix_nw_t params = parameters;
+            ix_nw_t copied = IXCopyParams(parameters);
+            if (copied) params = copied;
+            IXApplyProxyPort(params, 9);
+            ix_nw_t conn = ix_orig_create(endpoint, params);
+            if (copied) IXReleaseNW(copied);
+            IXNWRemember(conn, host, port, 1);
+            IXTrafficGuardNote(@"nw_connection", @(host), port, @"blocked by kill switch");
+            return conn;
+        }
+        IXTrafficGuardNote(@"nw_connection", @(host), port, @"direct");
+        return ix_orig_create(endpoint, parameters);
     }
     ix_nw_t params = parameters;
     ix_nw_t copied = IXCopyParams(parameters);
@@ -301,29 +306,12 @@ static ix_nw_t IXNWCreateWith(ix_nw_create_f orig, ix_nw_t endpoint, ix_nw_t par
     // nw_endpoint_get_hostname return a domain on the response path, and
     // TigonRequest::requestCategory passed that string to folly::IPAddress.
     // The front translator turns 198.18.x.x into the mapped name for Xray.
-    uint16_t proxyPort = up ? (ix_socks_proxy ? IXTrafficGuardFrontPort() : IXTrafficGuardHTTPPort()) : 9;
-    BOOL applied = IXApplyProxyPort(params, proxyPort);
-    if (!applied && kill) {
-        applied = IXApplyProxyPort(params, 9);
-        proxyPort = 9;
-        up = NO;
-    }
-    ix_nw_t conn = orig(endpoint, params);
+    BOOL applied = IXApplyProxyPort(params, ix_socks_proxy ? IXTrafficGuardFrontPort() : IXTrafficGuardHTTPPort());
+    ix_nw_t conn = ix_orig_create(endpoint, params);
     if (copied) IXReleaseNW(copied);
-    int blocked = kill && (!up || !applied);
-    if (!group) IXNWRemember(conn, host, port, blocked);
-    if (blocked && kill) IXTrafficGuardNote(@(api), @(host), port, @"blocked");
-    else if (applied && up) IXTrafficGuardNote(@(api), @(host), port, @"tunneled");
-    else IXTrafficGuardNote(@(api), @(host), port, @"bypassed");
+    IXNWRemember(conn, host, port, 0);
+    IXTrafficGuardNote(@"nw_connection", @(host), port, applied ? @"tunneled" : @"direct (no proxy config)");
     return conn;
-}
-
-static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
-    return IXNWCreateWith(ix_orig_create, endpoint, parameters, 0);
-}
-
-static ix_nw_t IXNWGroupCreate(ix_nw_t endpoint, ix_nw_t parameters) {
-    return IXNWCreateWith(ix_orig_group, endpoint, parameters, 1);
 }
 
 static void IXNWStart(ix_nw_t connection) {
@@ -614,136 +602,8 @@ static void IXHostCancel(void *host) {
     if (ix_orig_host_cancel) ix_orig_host_cancel(host);
 }
 
-typedef void (*ix_cfstream_pair_f)(CFAllocatorRef, CFStringRef, UInt32, CFReadStreamRef *, CFWriteStreamRef *);
-static ix_cfstream_pair_f ix_orig_stream_pair;
-
-static void IXCFStreamPair(CFAllocatorRef alloc, CFStringRef host, UInt32 port, CFReadStreamRef *readStream, CFWriteStreamRef *writeStream) {
-    if (!ix_orig_stream_pair) return;
-    ix_orig_stream_pair(alloc, host, port, readStream, writeStream);
-    if (!IXTrafficGuardVPNOn() || IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return;
-    char name[256];
-    name[0] = 0;
-    if (host) CFStringGetCString(host, name, sizeof(name), kCFStringEncodingUTF8);
-    BOOL kill = IXTrafficGuardKillSwitch();
-    BOOL up = IXTrafficGuardProxyUp();
-    if (!up && !kill) {
-        IXTrafficGuardNote(@"CFStream", @(name), (uint16_t)port, @"bypassed");
-        return;
-    }
-    uint16_t proxyPort = up ? IXTrafficGuardHTTPPort() : 9;
-    uint16_t socksPort = up ? IXTrafficGuardFrontPort() : 9;
-    NSDictionary *proxy = @{
-        @"HTTPEnable": @1,
-        @"HTTPProxy": @"127.0.0.1",
-        @"HTTPPort": @(proxyPort),
-        @"HTTPSEnable": @1,
-        @"HTTPSProxy": @"127.0.0.1",
-        @"HTTPSPort": @(proxyPort),
-        @"SOCKSEnable": @1,
-        @"SOCKSProxy": @"127.0.0.1",
-        @"SOCKSPort": @(socksPort),
-        @"SOCKSVersion": @"SOCKS5"
-    };
-    CFDictionaryRef dict = (CFDictionaryRef)CFBridgingRetain(proxy);
-    if (readStream && *readStream) {
-        CFReadStreamSetProperty(*readStream, CFSTR("kCFStreamPropertyHTTPProxy"), dict);
-        CFReadStreamSetProperty(*readStream, CFSTR("kCFStreamPropertyHTTPSProxy"), dict);
-        CFReadStreamSetProperty(*readStream, CFSTR("kCFStreamPropertySOCKSProxy"), dict);
-    }
-    if (writeStream && *writeStream) {
-        CFWriteStreamSetProperty(*writeStream, CFSTR("kCFStreamPropertyHTTPProxy"), dict);
-        CFWriteStreamSetProperty(*writeStream, CFSTR("kCFStreamPropertyHTTPSProxy"), dict);
-        CFWriteStreamSetProperty(*writeStream, CFSTR("kCFStreamPropertySOCKSProxy"), dict);
-    }
-    if (dict) CFRelease(dict);
-    IXTrafficGuardNote(@"CFStream", @(name), (uint16_t)port, up ? @"tunneled" : @"blocked");
-}
-
-static id (*ix_nw_init_imp)(id, SEL, id, id);
-static id (*ix_nw_factory_imp)(id, SEL, id, id);
-
-static id IXParametersForProxy(id endpoint, id parameters, const char *api, int *blocked) {
-    if (blocked) *blocked = 0;
-    char host[192];
-    uint16_t port = 0;
-    BOOL remote = IXDescribeEndpoint((__bridge ix_nw_t)endpoint, host, sizeof(host), &port);
-    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host)) return parameters;
-    BOOL kill = IXTrafficGuardKillSwitch();
-    BOOL up = IXTrafficGuardProxyUp();
-    if (!up && !kill) {
-        IXTrafficGuardNote(@(api), @(host), port, @"bypassed");
-        return parameters;
-    }
-    id copied = [parameters respondsToSelector:@selector(copy)] ? [parameters copy] : nil;
-    id params = copied ?: parameters;
-    uint16_t proxyPort = up ? (ix_socks_proxy ? IXTrafficGuardFrontPort() : IXTrafficGuardHTTPPort()) : 9;
-    BOOL applied = IXApplyProxyPort((__bridge ix_nw_t)params, proxyPort);
-    if (!applied && kill) {
-        applied = IXApplyProxyPort((__bridge ix_nw_t)params, 9);
-        up = NO;
-    }
-    if (blocked) *blocked = kill && !up;
-    IXTrafficGuardNote(@(api), @(host), port, (applied && up) ? @"tunneled" : (kill ? @"blocked" : @"bypassed"));
-    return params;
-}
-
-static id IXNWInit(id self, SEL cmd, id endpoint, id parameters) {
-    if (!ix_nw_init_imp) return nil;
-    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return ix_nw_init_imp(self, cmd, endpoint, parameters);
-    int blocked = 0;
-    id params = IXParametersForProxy(endpoint, parameters, "NWConnection", &blocked);
-    id conn = ix_nw_init_imp(self, cmd, endpoint, params);
-    if (blocked && conn) {
-        char host[192];
-        uint16_t port = 0;
-        IXDescribeEndpoint((__bridge ix_nw_t)endpoint, host, sizeof(host), &port);
-        IXNWRemember((__bridge ix_nw_t)conn, host, port, 1);
-    }
-    return conn;
-}
-
-static id IXNWFactory(id self, SEL cmd, id endpoint, id parameters) {
-    if (!ix_nw_factory_imp) return nil;
-    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return ix_nw_factory_imp(self, cmd, endpoint, parameters);
-    int blocked = 0;
-    id params = IXParametersForProxy(endpoint, parameters, "NWConnection", &blocked);
-    id conn = ix_nw_factory_imp(self, cmd, endpoint, params);
-    if (blocked && conn) {
-        char host[192];
-        uint16_t port = 0;
-        IXDescribeEndpoint((__bridge ix_nw_t)endpoint, host, sizeof(host), &port);
-        IXNWRemember((__bridge ix_nw_t)conn, host, port, 1);
-    }
-    return conn;
-}
-
-static void IXSwizzleNWClass(Class cls) {
-    if (!cls) return;
-    SEL initSel = sel_registerName("initWithEndpoint:parameters:");
-    Method initMethod = class_getInstanceMethod(cls, initSel);
-    if (initMethod && method_getNumberOfArguments(initMethod) == 4 && !ix_nw_init_imp) {
-        ix_nw_init_imp = (id (*)(id, SEL, id, id))method_getImplementation(initMethod);
-        method_setImplementation(initMethod, (IMP)IXNWInit);
-        NSLog(@"[InstagramX] %s initWithEndpoint:parameters: swizzled", class_getName(cls));
-    }
-    SEL factorySel = sel_registerName("connectionWithEndpoint:parameters:");
-    Method factory = class_getClassMethod(cls, factorySel);
-    if (factory && method_getNumberOfArguments(factory) == 4 && !ix_nw_factory_imp) {
-        ix_nw_factory_imp = (id (*)(id, SEL, id, id))method_getImplementation(factory);
-        method_setImplementation(factory, (IMP)IXNWFactory);
-        NSLog(@"[InstagramX] %s connectionWithEndpoint:parameters: swizzled", class_getName(cls));
-    }
-}
-
-static void IXSwizzleNW(void) {
-    Class primary = objc_getClass("OS_nw_connection");
-    if (!primary) primary = objc_getClass("NWConnection");
-    IXSwizzleNWClass(primary);
-}
-
 void IXPathHookPrepare(void) {
     ix_orig_create = IXLoad("nw_connection_create");
-    ix_orig_group = IXLoad("nw_connection_group_create");
     ix_orig_start = IXLoad("nw_connection_start");
     ix_orig_handler = IXLoad("nw_connection_set_state_changed_handler");
     ix_orig_queue = IXLoad("nw_connection_set_queue");
@@ -768,14 +628,11 @@ void IXPathHookPrepare(void) {
     ix_orig_host_start = IXLoad("CFHostStartInfoResolution");
     ix_orig_host_addrs = IXLoad("CFHostGetAddressing");
     ix_orig_host_cancel = IXLoad("CFHostCancelInfoResolution");
-    ix_orig_stream_pair = IXLoad("CFStreamCreatePairWithSocketToHost");
     ix_proxy_ready = (ix_socks_proxy || ix_http_proxy) && ix_set_proxies;
-    IXSwizzleNW();
     NSLog(@"[InstagramX] network proxy config %@, setter %@, ready %@",
           ix_socks_proxy ? @"socks" : (ix_http_proxy ? @"http" : @"missing"),
           ix_set_proxies ? @"yes" : @"objc",
           ix_proxy_ready ? @"yes" : @"no");
-    NSLog(@"[InstagramX] nw_connection_group %@ CFStream %@", ix_orig_group ? @"yes" : @"no", ix_orig_stream_pair ? @"yes" : @"no");
 }
 
 BOOL IXPathHookProxyReady(void) {
@@ -812,7 +669,6 @@ unsigned IXPathHookFill(const char **names, void **replacements, unsigned capaci
         void *orig;
     } rows[] = {
         {"nw_connection_create", (void *)IXNWCreate, (void *)ix_orig_create},
-        {"nw_connection_group_create", (void *)IXNWGroupCreate, (void *)ix_orig_group},
         {"nw_connection_start", (void *)IXNWStart, (void *)ix_orig_start},
         {"nw_connection_set_state_changed_handler", (void *)IXNWSetHandler, (void *)ix_orig_handler},
         {"nw_connection_set_queue", (void *)IXNWSetQueue, (void *)ix_orig_queue},
@@ -826,7 +682,6 @@ unsigned IXPathHookFill(const char **names, void **replacements, unsigned capaci
         {"CFHostStartInfoResolution", (void *)IXHostStart, (void *)ix_orig_host_start},
         {"CFHostGetAddressing", (void *)IXHostAddresses, (void *)ix_orig_host_addrs},
         {"CFHostCancelInfoResolution", (void *)IXHostCancel, (void *)ix_orig_host_cancel},
-        {"CFStreamCreatePairWithSocketToHost", (void *)IXCFStreamPair, (void *)ix_orig_stream_pair},
     };
     unsigned count = 0;
     unsigned total = (unsigned)(sizeof(rows) / sizeof(rows[0]));
@@ -841,13 +696,4 @@ unsigned IXPathHookFill(const char **names, void **replacements, unsigned capaci
 
 BOOL IXTrafficGuardNWProxyReady(void) {
     return IXPathHookProxyReady();
-}
-
-void *IXPathHookReplaceSymbol(const char *name) {
-    if (!name) return NULL;
-    if (strcmp(name, "nw_connection_create") == 0 && ix_orig_create) return (void *)IXNWCreate;
-    if (strcmp(name, "nw_connection_group_create") == 0 && ix_orig_group) return (void *)IXNWGroupCreate;
-    if (strcmp(name, "nw_connection_start") == 0 && ix_orig_start) return (void *)IXNWStart;
-    if (strcmp(name, "CFStreamCreatePairWithSocketToHost") == 0 && ix_orig_stream_pair) return (void *)IXCFStreamPair;
-    return NULL;
 }

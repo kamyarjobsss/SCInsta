@@ -14,11 +14,10 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-// Local handshake budget. Covers the SOCKS reply, which waits on the remote
-// dial. 2s made a slow Fastly handshake look like a refused connect.
-#define IX_SOCKS_BUDGET_MS 12000
-
-void IXTrafficGuardAddSocksBytes(uint64_t up, uint64_t down);
+// Local handshake budget. The tunnel-readiness wait is separate and never
+// runs on the main thread. This cap is only so a stuck inbound cannot sit
+// inside connect forever.
+#define IX_SOCKS_BUDGET_MS 2000
 
 static int (*ix_socks_connect)(int, const struct sockaddr *, socklen_t) = connect;
 
@@ -285,57 +284,30 @@ static int IXFrontReadDest(int fd, char *host, size_t hostLen, uint16_t *port) {
     return -2;
 }
 
-static int IXFrontPump(int src, int dst, int *openSrc, uint64_t up, uint64_t down) {
-    uint8_t buf[16384];
-    ssize_t n = recv(src, buf, sizeof(buf), 0);
-    if (n > 0) {
-        IXTrafficGuardAddSocksBytes(up ? (uint64_t)n : 0, down ? (uint64_t)n : 0);
-        if (IXWriteFull(dst, buf, (size_t)n, IXNowMs() + 30000) != 0) return -1;
-        return 0;
-    }
-    if (n == 0) {
-        shutdown(dst, SHUT_WR);
-        *openSrc = 0;
-        return 0;
-    }
-    if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) return 0;
-    return -1;
-}
-
 static void IXFrontSplice(int a, int b) {
     int fa = fcntl(a, F_GETFL, 0);
     int fb = fcntl(b, F_GETFL, 0);
     if (fa >= 0) fcntl(a, F_SETFL, fa | O_NONBLOCK);
     if (fb >= 0) fcntl(b, F_SETFL, fb | O_NONBLOCK);
-    int openA = 1;
-    int openB = 1;
-    while (openA || openB) {
+    uint8_t buf[4096];
+    for (;;) {
         struct pollfd pfds[2];
-        int nfd = 0;
-        int idxA = -1;
-        int idxB = -1;
-        if (openA) {
-            idxA = nfd;
-            pfds[nfd].fd = a;
-            pfds[nfd].events = POLLIN;
-            nfd++;
-        }
-        if (openB) {
-            idxB = nfd;
-            pfds[nfd].fd = b;
-            pfds[nfd].events = POLLIN;
-            nfd++;
-        }
-        int rc = poll(pfds, (nfds_t)nfd, -1);
-        if (rc < 0) {
-            if (errno == EINTR) continue;
+        pfds[0].fd = a;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = b;
+        pfds[1].events = POLLIN;
+        int rc = poll(pfds, 2, 60000);
+        if (rc <= 0) {
+            if (rc < 0 && errno == EINTR) continue;
             return;
         }
-        if (idxA >= 0 && (pfds[idxA].revents & (POLLIN | POLLHUP | POLLERR))) {
-            if (IXFrontPump(a, b, &openA, 1, 0) != 0) return;
-        }
-        if (idxB >= 0 && (pfds[idxB].revents & (POLLIN | POLLHUP | POLLERR))) {
-            if (IXFrontPump(b, a, &openB, 0, 1) != 0) return;
+        for (int i = 0; i < 2; i++) {
+            if (!(pfds[i].revents & (POLLIN | POLLHUP | POLLERR))) continue;
+            int src = pfds[i].fd;
+            int dst = src == a ? b : a;
+            ssize_t n = recv(src, buf, sizeof(buf), 0);
+            if (n <= 0) return;
+            if (IXWriteFull(dst, buf, (size_t)n, IXNowMs() + 30000) != 0) return;
         }
     }
 }

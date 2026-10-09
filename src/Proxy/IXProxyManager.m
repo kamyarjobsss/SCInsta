@@ -134,10 +134,6 @@ static dispatch_queue_t IXProxyQueue(void) {
     uint64_t _sampleDown;
     NSTimeInterval _sampleTime;
     dispatch_source_t _statsTimer;
-    dispatch_source_t _healthTimer;
-    int _healthFails;
-    int _healthBusy;
-    int _statTicks;
     NSInteger _generation;
     NSInteger _pathGeneration;
     NSString *_boundInterface;
@@ -485,13 +481,6 @@ static dispatch_queue_t IXProxyQueue(void) {
         dispatch_source_cancel(_statsTimer);
         _statsTimer = nil;
     }
-    if (_healthTimer) {
-        dispatch_source_cancel(_healthTimer);
-        _healthTimer = nil;
-    }
-    _healthFails = 0;
-    _healthBusy = 0;
-    _statTicks = 0;
     if (_usingXray) {
         IXRayStop();
         _usingXray = NO;
@@ -589,7 +578,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         NSString *why = nil;
         if ([self launchXray:profile error:&why]) {
             if (![self listenerReady:profile error:error]) return NO;
-            [self note:@"SOCKS inbound is accepting connections. App traffic stays blocked until the tunnel answers."];
+            IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+            [self note:@"SOCKS inbound is accepting connections."];
             return [self confirmTunnel:error timeout:timeout];
         }
         if (profile.needsXray) {
@@ -615,7 +605,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         if (error) *error = IXProxyError(@"The local proxy is not accepting connections.");
         return NO;
     }
-    [self note:@"SOCKS inbound is accepting connections. App traffic stays blocked until the tunnel answers."];
+    IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+    [self note:@"SOCKS inbound is accepting connections."];
     return [self confirmTunnel:error timeout:timeout];
 }
 
@@ -641,8 +632,8 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSInteger generation = _generation;
     // Resolve before the traffic hooks exist. URLSession here is a direct
     // connection, and the IP is only written into dns.hosts. vnext stays the domain.
-    NSArray<NSString *> *ips = [self hostIsAddress:profile.host] ? @[profile.host] : [self resolveHosts:profile.host];
-    if (ips.count == 0) ips = @[@""];
+    if ([self hostIsAddress:profile.host]) profile.dialAddress = nil;
+    else profile.dialAddress = [self resolveHost:profile.host];
     if (generation != _generation) return NO;
     NSString *iface = [self physicalInterface];
     _boundInterface = iface;
@@ -658,34 +649,24 @@ static dispatch_queue_t IXProxyQueue(void) {
     IXTrafficGuardSetRuntime(YES, NO, YES, [self blockUDP]);
 
     BOOL xhttp = [profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"];
-    NSArray<NSString *> *modes = xhttp ? [self xhttpModesToTry:profile] : @[@""];
-    if (!xhttp) _activeXHTTPMode = nil;
+    if (!xhttp) {
+        _activeXHTTPMode = nil;
+        return [self runEngine:profile timeout:8 error:error];
+    }
     NSError *last = nil;
-    for (NSString *mode in modes) {
-        if (xhttp) {
-            profile.mode = mode;
-            _activeXHTTPMode = mode;
+    for (NSString *mode in [self xhttpModesToTry:profile]) {
+        if (generation != _generation) return NO;
+        profile.mode = mode;
+        _activeXHTTPMode = mode;
+        [self note:[NSString stringWithFormat:@"XHTTP trying mode %@.", mode]];
+        NSError *step = nil;
+        if ([self runEngine:profile timeout:5 error:&step]) {
+            [self rememberXHTTPMode:mode uri:profile.uri];
+            [self note:[NSString stringWithFormat:@"XHTTP kept mode %@.", mode]];
+            return YES;
         }
-        for (NSString *ip in ips) {
-            if (generation != _generation) return NO;
-            profile.dialAddress = ip.length ? ip : nil;
-            if (xhttp) {
-                [self note:[NSString stringWithFormat:@"XHTTP trying mode %@ via %@.", mode, ip.length ? ip : @"Xray DNS"]];
-            } else if (ip.length) {
-                [self note:[NSString stringWithFormat:@"Trying dial address %@.", ip]];
-            }
-            NSError *step = nil;
-            if ([self runEngine:profile timeout:15 error:&step]) {
-                if (xhttp) {
-                    [self rememberXHTTPMode:mode uri:profile.uri];
-                    [self note:[NSString stringWithFormat:@"XHTTP kept mode %@ via %@.", mode, ip.length ? ip : @"Xray DNS"]];
-                }
-                return YES;
-            }
-            last = step;
-            if (xhttp) [self note:[NSString stringWithFormat:@"XHTTP mode %@ via %@ did not answer.", mode, ip.length ? ip : @"Xray DNS"]];
-            else [self note:[NSString stringWithFormat:@"Dial address %@ did not answer.", ip.length ? ip : @"Xray DNS"]];
-        }
+        last = step;
+        [self note:[NSString stringWithFormat:@"XHTTP mode %@ did not answer.", mode]];
     }
     if (error) *error = last ?: IXProxyError(@"The tunnel did not pass the connectivity test.");
     return NO;
@@ -845,11 +826,8 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 
 - (void)sampleStats {
-    uint64_t xrayUp = 0, xrayDown = 0, socksUp = 0, socksDown = 0;
-    IXRayTraffic(&xrayUp, &xrayDown);
-    IXTrafficGuardTunnelCounters(&socksUp, &socksDown, NULL, NULL, NULL, NULL, NULL);
-    uint64_t up = xrayUp > socksUp ? xrayUp : socksUp;
-    uint64_t down = xrayDown > socksDown ? xrayDown : socksDown;
+    uint64_t up = 0, down = 0;
+    IXRayTraffic(&up, &down);
     NSTimeInterval now = CACurrentMediaTime();
     if (_sampleTime > 0) {
         double dt = now - _sampleTime;
@@ -865,10 +843,6 @@ static dispatch_queue_t IXProxyQueue(void) {
     _sampleTime = now;
     _bytesUp = up;
     _bytesDown = down;
-    if (++_statTicks >= 10) {
-        _statTicks = 0;
-        [self note:[IXTrafficGuardStatsLine(xrayUp, xrayDown) copy]];
-    }
 }
 
 - (void)startStats {
@@ -891,42 +865,41 @@ static dispatch_queue_t IXProxyQueue(void) {
     return inet_pton(AF_INET, host.UTF8String, &v4) == 1 || inet_pton(AF_INET6, host.UTF8String, &v6) == 1;
 }
 
-- (void)addDoHAddresses:(NSData *)data to:(NSMutableOrderedSet<NSString *> *)set {
-    if (data.length == 0 || !set) return;
+- (NSString *)addressFromDoHJSON:(NSData *)data {
+    if (data.length == 0) return nil;
     id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     NSArray *answers = [obj isKindOfClass:[NSDictionary class]] ? obj[@"Answer"] : nil;
-    if (![answers isKindOfClass:[NSArray class]]) return;
+    if (![answers isKindOfClass:[NSArray class]]) return nil;
     for (id item in answers) {
         if (![item isKindOfClass:[NSDictionary class]]) continue;
         NSNumber *type = item[@"type"];
         NSString *value = item[@"data"];
-        if (type.intValue == 1 && [value isKindOfClass:[NSString class]] && [self hostIsAddress:value]) [set addObject:value];
+        if (type.intValue == 1 && [value isKindOfClass:[NSString class]] && [self hostIsAddress:value]) return value;
     }
+    return nil;
 }
 
-- (void)addSystemAddresses:(NSString *)host to:(NSMutableOrderedSet<NSString *> *)set {
+- (NSString *)resolveHostBySystem:(NSString *)host {
     struct addrinfo hints;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo *res = NULL;
     int gai = IXOrigGetaddrinfo(host.UTF8String, "0", &hints, &res);
-    if (gai != 0 || !res) {
+    if (gai != 0 || !res || res->ai_family != AF_INET) {
         if (res) freeaddrinfo(res);
-        return;
+        return nil;
     }
-    for (struct addrinfo *ai = res; ai; ai = ai->ai_next) {
-        if (ai->ai_family != AF_INET || !ai->ai_addr) continue;
-        char buf[INET_ADDRSTRLEN];
-        const char *text = inet_ntop(AF_INET, &((struct sockaddr_in *)ai->ai_addr)->sin_addr, buf, sizeof(buf));
-        if (text) [set addObject:[NSString stringWithUTF8String:text]];
-    }
+    char buf[INET_ADDRSTRLEN];
+    const char *text = inet_ntop(AF_INET, &((struct sockaddr_in *)res->ai_addr)->sin_addr, buf, sizeof(buf));
+    NSString *ip = text ? [NSString stringWithUTF8String:text] : nil;
     freeaddrinfo(res);
+    if (ip.length) [self note:[NSString stringWithFormat:@"Resolved %@ to %@ with the system resolver.", host, ip]];
+    return ip.length ? ip : nil;
 }
 
-- (NSArray<NSString *> *)resolveHosts:(NSString *)host {
-    if (host.length == 0) return @[];
-    if ([self hostIsAddress:host]) return @[host];
+- (NSString *)resolveHost:(NSString *)host {
+    if ([self hostIsAddress:host]) return host;
     NSString *escaped = [host stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: host;
     NSArray<NSString *> *urls = @[
         [NSString stringWithFormat:@"https://1.1.1.1/dns-query?name=%@&type=A", escaped],
@@ -941,36 +914,34 @@ static dispatch_queue_t IXProxyQueue(void) {
     config.connectionProxyDictionary = @{@"HTTPEnable": @NO, @"HTTPSEnable": @NO, @"SOCKSEnable": @NO};
     config.timeoutIntervalForRequest = 4;
     NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:trust delegateQueue:nil];
-    dispatch_group_t group = dispatch_group_create();
+    dispatch_semaphore_t done = dispatch_semaphore_create(0);
     NSLock *lock = [NSLock new];
-    NSMutableOrderedSet<NSString *> *set = [NSMutableOrderedSet orderedSet];
+    __block NSString *found = nil;
     for (NSString *raw in urls) {
         NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:raw]];
         [request setValue:@"application/dns-json" forHTTPHeaderField:@"Accept"];
-        dispatch_group_enter(group);
         NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             (void)response;
-            if (!error) {
+            NSString *ip = error ? nil : [self addressFromDoHJSON:data];
+            if (ip.length) {
                 [lock lock];
-                [self addDoHAddresses:data to:set];
+                if (!found) found = [ip copy];
                 [lock unlock];
+                dispatch_semaphore_signal(done);
             }
-            dispatch_group_leave(group);
         }];
         [task resume];
     }
-    dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)));
+    dispatch_semaphore_wait(done, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)));
     [session invalidateAndCancel];
-    [lock lock];
-    if (set.count == 0) [self addSystemAddresses:host to:set];
-    NSArray<NSString *> *ips = set.array;
-    [lock unlock];
-    if (ips.count) {
-        [self note:[NSString stringWithFormat:@"Resolved %@ to %@.", host, [ips componentsJoinedByString:@", "]]];
-        return ips;
+    if (found.length) {
+        [self note:[NSString stringWithFormat:@"Resolved %@ to %@ by direct DNS-over-HTTPS.", host, found]];
+        return found;
     }
+    NSString *system = [self resolveHostBySystem:host];
+    if (system.length) return system;
     [self note:[NSString stringWithFormat:@"Could not resolve %@. Xray will resolve it on the direct outbound.", host]];
-    return @[];
+    return nil;
 }
 
 - (BOOL)waitForLocalProxy:(NSTimeInterval)timeout {
@@ -1115,55 +1086,7 @@ static dispatch_queue_t IXProxyQueue(void) {
     IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
     [self note:[NSString stringWithFormat:@"Tunnel answered generate_204 in %ld ms.", (long)ms]];
     [self startStats];
-    [self startHealthWatch];
     return YES;
-}
-
-- (void)startHealthWatch {
-    if (_healthTimer) return;
-    _healthFails = 0;
-    NSInteger generation = _generation;
-    dispatch_queue_t queue = dispatch_queue_create("instagramx.proxy.health", DISPATCH_QUEUE_SERIAL);
-    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
-    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), (uint64_t)(30 * NSEC_PER_SEC), (uint64_t)(2 * NSEC_PER_SEC));
-    __weak IXProxyManager *weakSelf = self;
-    dispatch_source_set_event_handler(timer, ^{
-        IXProxyManager *selfRef = weakSelf;
-        if (!selfRef || generation != selfRef->_generation || selfRef->_healthBusy) return;
-        selfRef->_healthBusy = 1;
-        BOOL listening = [selfRef waitForLocalProxy:1.0];
-        if (generation != selfRef->_generation) {
-            selfRef->_healthBusy = 0;
-            return;
-        }
-        if (!listening) {
-            IXTrafficGuardSetRuntime(YES, NO, [selfRef killSwitch], [selfRef blockUDP]);
-            [selfRef note:@"WARNING: local proxy is not accepting. Kill switch is blocking app traffic. Xray was not restarted."];
-            selfRef->_healthBusy = 0;
-            return;
-        }
-        if (!IXTrafficGuardProxyUp()) {
-            IXTrafficGuardSetRuntime(YES, YES, [selfRef killSwitch], [selfRef blockUDP]);
-            [selfRef note:@"Local proxy is accepting again. App traffic can use the tunnel."];
-        }
-        NSString *why = nil;
-        NSInteger ms = [selfRef tunnelProbe:&why timeout:15];
-        if (generation != selfRef->_generation) {
-            selfRef->_healthBusy = 0;
-            return;
-        }
-        if (ms < 0) {
-            selfRef->_healthFails += 1;
-            if (selfRef->_healthFails >= 3) {
-                [selfRef note:[NSString stringWithFormat:@"WARNING: tunnel health check failed %d times (%@). Xray was not restarted.", selfRef->_healthFails, why ?: @"no answer"]];
-            }
-        } else {
-            selfRef->_healthFails = 0;
-        }
-        selfRef->_healthBusy = 0;
-    });
-    _healthTimer = timer;
-    dispatch_resume(timer);
 }
 
 - (void)runTunnelTest:(void (^)(NSInteger, NSError *))completion {

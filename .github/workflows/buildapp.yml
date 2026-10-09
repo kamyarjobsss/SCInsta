@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.2.5"
+                description: "Publish a prerelease tagged instagram-x-v2.2.4"
                 default: true
                 required: false
                 type: boolean
@@ -237,9 +237,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.2.5
+                tag_name: instagram-x-v2.2.4
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.2.5
+                name: Instagram X 2.2.4
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -253,7 +253,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.2.5 keeps a working tunnel up. A failed health check no longer stops Xray or cycles XHTTP modes while Instagram is using it; that probe is a 15 second warning after three misses. Mode and Fastly-address fallback happen only before app traffic is allowed through. XHTTP gets an xmux cap so one Fastly connection is reused. Every DoH address is tried. connect, __connect_nocancel, connectx, syscall, dlsym, nw_connection, and NWConnection are forced through SOCKS or blocked by the kill switch, and each bypass is logged with the image name and host. The speed line counts bytes that actually crossed SOCKS. Raw SVC connect sites are logged and left unpatched. v2.2.4's IPv4-only fake addresses and the 5 second safe mode stay. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+                  v2.2.4 stops the folly::IPAddress crash in tigon::helpers::isHostThirdParty. 2.2.2 and 2.2.3 still handed Tigon a host string that is not an IP: getnameinfo could return the original hostname or an empty buffer, and DNS, CFHost, and Network.framework still produced IPv6 fakes (fd00::, scoped, or bracketed). Those hooks are gone. Resolver answers are IPv4 in 198.18.0.0/15 only, ai_canonname stays empty, and getpeername returns that IPv4 instead of the SOCKS peer 127.0.0.1. getnameinfo and inet_ntop are not hooked. If a launch dies within 5 seconds, VPN hooks and Xray autostart stay off until Exit safe mode. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -266,4 +266,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.5"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.4"
