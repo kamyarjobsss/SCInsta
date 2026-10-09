@@ -34,9 +34,14 @@ static void check_numeric(const struct sockaddr *sa, socklen_t len, int family) 
 
 int main(void) {
     struct sockaddr_in v4;
-    expect(IXAddrFillInet(&v4, htonl(0xC6120001u), htons(443)) == 0, "fill v4");
+    expect(IXFakeIPv4Bits(1) == htonl(0xC6120001u), "token 1 is 198.18.0.1");
+    expect(IXFakeIPv4Token(IXFakeIPv4Bits(1)) == 1, "token round trip");
+    expect(IXFakeIPv4Bits(0) == 0, "token 0 is not an address");
+    expect(IXFakeIPv4Token(htonl(0x08080808u)) == 0, "8.8.8.8 is not a fake");
+    expect(IXAddrFillInet(&v4, IXFakeIPv4Bits(1), htons(443)) == 0, "fill v4");
     check_numeric((struct sockaddr *)&v4, sizeof(v4), AF_INET);
     expect(strcmp(inet_ntoa(v4.sin_addr), "198.18.0.1") == 0, "198.18.0.1");
+    expect(strchr(inet_ntoa(v4.sin_addr), ':') == NULL, "minted address is IPv4 only");
 
     struct in6_addr raw;
     memset(&raw, 0, sizeof(raw));

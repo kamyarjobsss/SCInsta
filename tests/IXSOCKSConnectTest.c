@@ -192,7 +192,40 @@ static int dial_and_exchange(const struct sockaddr_in *proxy, int nonblock, cons
     return 0;
 }
 
+static int lookup_instagram(uint32_t addr, char *host, size_t hostLen, void *ctx) {
+    (void)ctx;
+    uint32_t ip = ntohl(addr);
+    if ((ip & 0xFFFE0000u) != 0xC6120000u) return 0;
+    if ((ip & 0x1FFFFu) != 7) return 0;
+    snprintf(host, hostLen, "i.instagram.com");
+    return 1;
+}
+
+static int lookup_bad(uint32_t addr, char *host, size_t hostLen, void *ctx) {
+    (void)addr;
+    (void)ctx;
+    snprintf(host, hostLen, "fd00::1%%en0");
+    return 1;
+}
+
+static void check_dest(void) {
+    char host[64];
+    uint32_t fake = htonl(0xC6120007u);
+    expect(IXSOCKSDestFromIPv4(fake, host, sizeof(host), lookup_instagram, NULL) == 1, "fake maps to a hostname");
+    expect(strcmp(host, "i.instagram.com") == 0, "hostname is the mapped name");
+    expect(strchr(host, '%') == NULL && strchr(host, '[') == NULL, "mapped name has no zone or brackets");
+
+    uint32_t real = htonl(0x08080808u);
+    expect(IXSOCKSDestFromIPv4(real, host, sizeof(host), lookup_instagram, NULL) == 0, "public v4 stays numeric");
+    expect(strcmp(host, "8.8.8.8") == 0, "8.8.8.8");
+
+    expect(IXSOCKSDestFromIPv4(fake, host, sizeof(host), lookup_bad, NULL) == 0, "malformed lookup falls back to numeric");
+    expect(strcmp(host, "198.18.0.7") == 0, "fallback is the dotted fake");
+    expect(host[0] != 0, "fallback is not empty");
+}
+
 int main(void) {
+    check_dest();
     struct sockaddr_in proxy;
     int lfd = listen_loopback(&proxy);
     expect(lfd >= 0, "listen");

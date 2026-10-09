@@ -3,18 +3,18 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// Called from willFinishLaunching, before any VPN hook is installed.
-/// A file left as "starting" means the previous launch died early. This launch
-/// stays in safe mode, and the file is cleared so the launch after that is normal.
+/// A file left as "starting" means the previous launch died within 5 seconds.
+/// This launch stays in safe mode, and that disable persists until Exit safe mode.
 void IXLaunchGuardRecord(void);
-/// YES for this launch only. The next launch is not in safe mode.
+/// YES until the user leaves safe mode. It does not clear itself.
 BOOL IXLaunchGuardIsSafeMode(void);
-/// The process is alive (an Instagram view appeared, or several seconds passed).
-/// Clears the watchdog file. Does not turn hooks back on during a safe launch.
+/// The process has been alive for 5 seconds. Writes "alive".
+/// A safe launch does not clear the persisted disable.
 void IXLaunchGuardMarkReady(void);
 BOOL IXLaunchGuardFeedShown(void);
-/// Hold on the splash. Hooks stop for this launch. The next launch is normal.
+/// Hold on the splash. Hooks stay off until Exit safe mode.
 void IXLaunchGuardEngageBypass(void);
-/// Leave safe mode now and allow hooks to install on this launch.
+/// Leave safe mode now. Hooks may install. Dying again within 5s returns to safe mode.
 void IXLaunchGuardExitSafeMode(void);
 
 void IXLaunchGuardAppendLog(const char * _Nullable line);

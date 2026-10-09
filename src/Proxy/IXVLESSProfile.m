@@ -691,7 +691,7 @@ static NSError *IXURIError(NSString *message) {
             @{
                 @"tag": @"direct",
                 @"protocol": @"freedom",
-                @"settings": @{@"domainStrategy": @"UseIP"},
+                @"settings": @{@"domainStrategy": @"UseIPv4"},
                 @"streamSettings": @{
                     @"sockopt": self.outboundInterface.length ? @{@"interface": self.outboundInterface} : @{}
                 }

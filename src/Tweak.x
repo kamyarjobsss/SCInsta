@@ -21,7 +21,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.2.3";
+NSString *SCIVersionString = @"v2.2.4";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -254,7 +254,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
             if (!presenter) return;
             while (presenter.presentedViewController) presenter = presenter.presentedViewController;
             UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Instagram X safe mode"
-                                                                           message:@"VPN hooks are off for this launch only. The next launch installs them again. Exit safe mode installs them now."
+                                                                           message:@"The last launch died within 5 seconds, so VPN hooks stay off. Exit safe mode installs them now."
                                                                     preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"Exit safe mode" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
                 [IXProxyManager.shared exitSafeMode];
@@ -302,15 +302,6 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 static void IXMarkFeedReady(void) {
     IXLaunchGuardMarkReady();
 }
-
-%hook UIViewController
-- (void)viewDidAppear:(BOOL)animated {
-    %orig;
-    if (IXLaunchGuardFeedShown()) return;
-    NSString *name = NSStringFromClass(self.class);
-    if ([name hasPrefix:@"IG"]) IXLaunchGuardMarkReady();
-}
-%end
 
 %hook IGMainFeedViewController
 - (void)viewDidAppear:(BOOL)animated {

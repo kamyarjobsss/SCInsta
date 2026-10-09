@@ -26,4 +26,17 @@ int IXSOCKSDial(int fd, const struct sockaddr *proxy, socklen_t proxyLen, const 
 // the handshake. Later application writes go through the real libc.
 int IXSOCKSSendAll(int fd, const void *buf, size_t len);
 
+// lookup4 returns 1 and writes a hostname when addrNetwork is a fake IPv4
+// that must be dialed by name. Returns 0 to keep the numeric address.
+// IXSOCKSDestFromIPv4 always leaves a non-empty inet_pton-valid IPv4, or a
+// hostname with no zone, brackets, or colon. Returns 1 (domain), 0 (numeric),
+// or -1 (refused: empty or malformed).
+typedef int (*IXSOCKSLookup4)(uint32_t addrNetwork, char *host, size_t hostLen, void *ctx);
+int IXSOCKSDestFromIPv4(uint32_t addrNetwork, char *host, size_t hostLen, IXSOCKSLookup4 lookup, void *ctx);
+
+// Accepts SOCKS5 on 127.0.0.1:listenPort and dials 127.0.0.1:upstreamPort.
+// IPv4 destinations in 198.18.0.0/15 are rewritten through lookup4. IPv6
+// destinations are refused. Safe to call once; later calls are ignored.
+void IXSOCKSFrontStart(uint16_t listenPort, uint16_t upstreamPort, IXSOCKSLookup4 lookup, void *ctx);
+
 #endif

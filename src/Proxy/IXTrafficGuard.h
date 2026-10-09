@@ -25,6 +25,9 @@ BOOL IXTrafficGuardKillSwitch(void);
 BOOL IXTrafficGuardBlockUDP(void);
 uint16_t IXTrafficGuardSocksPort(void);
 uint16_t IXTrafficGuardHTTPPort(void);
+/// Local SOCKS translator. Fake 198.18 addresses become the mapped hostname
+/// before they reach Xray. Network.framework is pointed here, not at Xray.
+uint16_t IXTrafficGuardFrontPort(void);
 
 /// Original libc symbols (never re-enter the hooks).
 int IXOrigConnect(int fd, const struct sockaddr *addr, socklen_t len);
@@ -35,7 +38,7 @@ NSDictionary *IXTrafficGuardProxyDictionary(void);
 /// If `host` is a fake address minted by the DNS hook, the original hostname.
 NSString * _Nullable IXTrafficGuardLookupHost(NSString * _Nullable host);
 
-/// Mint the same fake addresses getaddrinfo returns, without calling the system resolver.
+/// Mint the IPv4 fake getaddrinfo returns. v6 is cleared and never filled.
 BOOL IXTrafficGuardFakeSockaddrs(const char * _Nullable host, struct sockaddr_in * _Nullable v4, struct sockaddr_in6 * _Nullable v6);
 
 /// Newest last. Keys: image, api, path, host, port, up, down, reason (tunneled or blocked).

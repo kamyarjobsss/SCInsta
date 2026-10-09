@@ -4,6 +4,17 @@
 #include <netdb.h>
 #include <string.h>
 
+uint32_t IXFakeIPv4Bits(uint32_t token) {
+    if (token == 0 || token > 0x0001FFFFu) return 0;
+    return htonl(0xC6120000u | token);
+}
+
+uint32_t IXFakeIPv4Token(uint32_t addrNetwork) {
+    uint32_t host = ntohl(addrNetwork);
+    if ((host & 0xFFFE0000u) != 0xC6120000u) return 0;
+    return host & 0x0001FFFFu;
+}
+
 int IXAddrFillInet(struct sockaddr_in *out, uint32_t addrNetwork, uint16_t portNetwork) {
     if (!out) return -1;
     memset(out, 0, sizeof(*out));

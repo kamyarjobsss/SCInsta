@@ -24,6 +24,7 @@ static _Atomic int ix_kill = 1;
 static _Atomic int ix_block_udp = 1;
 static _Atomic uint16_t ix_socks_port = 61850;
 static _Atomic uint16_t ix_http_port = 61851;
+static const uint16_t ix_front_port = 61852;
 
 static char ix_proxy_host[256];
 static _Atomic uint16_t ix_proxy_port = 0;
@@ -38,7 +39,6 @@ static int (*ix_orig_connectx)(int, const sa_endpoints_t *, sae_associd_t, unsig
 static int (*ix_orig_getpeername)(int, struct sockaddr *, socklen_t *) = NULL;
 static int (*ix_orig_close)(int) = NULL;
 static int (*ix_orig_socket)(int, int, int) = NULL;
-static int (*ix_orig_getnameinfo)(const struct sockaddr *, socklen_t, char *, socklen_t, char *, socklen_t, int) = NULL;
 static int (*ix_dns_getaddrinfo)(void **, uint32_t, uint32_t, uint32_t, const char *, void *, void *) = NULL;
 
 static pthread_mutex_t ix_ready_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -165,27 +165,9 @@ static BOOL IXIsNumericHost(const char *node) {
     return inet_pton(AF_INET, node, &v4) == 1 || inet_pton(AF_INET6, node, &v6) == 1;
 }
 
-// 198.18.0.0/15, the fake-ip range used by Clash and Surge.
-// 240.0.0.0/4 is IN_BADCLASS. iOS refuses it before connect(), then cancels
-// the HTTP CONNECT that was already open, which is the broken pipe on http-in.
-static uint32_t IXFakeIPv4(uint32_t token) {
-    return htonl(0xC6120000u | (token & 0x0001FFFFu));
-}
-
-static uint32_t IXTokenFromIPv4(uint32_t addrNetwork) {
-    uint32_t host = ntohl(addrNetwork);
-    if ((host & 0xFFFE0000u) != 0xC6120000u) return 0;
-    return host & 0x0001FFFFu;
-}
-
-// fd00::/8, token in the last 32 bits. Not a public route, so a missed hook
-// cannot send the packet onto the real network as a valid destination.
-static void IXFillFakeV6(struct in6_addr *out, uint32_t token) {
-    memset(out, 0, sizeof(*out));
-    out->s6_addr[0] = 0xfd;
-    uint32_t net = htonl(token);
-    memcpy(out->s6_addr + 12, &net, 4);
-}
+// 198.18.0.0/15. A missed hook cannot route it, and inet_ntop of it is a
+// dotted quad folly::IPAddress accepts. IPv6 fakes are not minted: a scoped
+// or bracketed v6 string is what that constructor throws on.
 
 static uint32_t IXTokenFromV6(const struct in6_addr *addr) {
     if (!addr || addr->s6_addr[0] != 0xfd) return 0;
@@ -207,9 +189,28 @@ void IXTrafficGuardSetRuntime(BOOL vpnOn, BOOL proxyUp, BOOL killSwitch, BOOL bl
     pthread_mutex_unlock(&ix_ready_mu);
 }
 
+static int ix_front_arm = 0;
+static int IXFrontLookup(uint32_t addrNetwork, char *host, size_t hostLen, void *ctx);
+
 void IXTrafficGuardSetPorts(uint16_t socksPort, uint16_t httpPort) {
     if (socksPort) atomic_store(&ix_socks_port, socksPort);
     if (httpPort) atomic_store(&ix_http_port, httpPort);
+    if (ix_front_arm) IXSOCKSFrontStart(ix_front_port, atomic_load(&ix_socks_port), IXFrontLookup, NULL);
+}
+
+uint16_t IXTrafficGuardFrontPort(void) { return ix_front_port; }
+
+static int IXFrontLookup(uint32_t addrNetwork, char *host, size_t hostLen, void *ctx) {
+    (void)ctx;
+    if (!host || hostLen < 2) return 0;
+    host[0] = 0;
+    uint32_t token = IXFakeIPv4Token(addrNetwork);
+    if (!token) return 0;
+    if (!IXLookupToken(token, host, hostLen) || !IXHostLooksSafe(host)) {
+        host[0] = 0;
+        return 0;
+    }
+    return 1;
 }
 
 void IXTrafficGuardSetProxyHost(const char *host, uint16_t port) {
@@ -267,7 +268,7 @@ NSString *IXTrafficGuardLookupHost(NSString *host) {
     if (host.length == 0) return nil;
     struct in_addr v4;
     if (inet_pton(AF_INET, host.UTF8String, &v4) == 1) {
-        uint32_t token = IXTokenFromIPv4(v4.s_addr);
+        uint32_t token = IXFakeIPv4Token(v4.s_addr);
         char name[256];
         if (token && IXLookupToken(token, name, sizeof(name))) {
             return [NSString stringWithUTF8String:name];
@@ -285,18 +286,17 @@ NSString *IXTrafficGuardLookupHost(NSString *host) {
 }
 
 BOOL IXTrafficGuardFakeSockaddrs(const char *host, struct sockaddr_in *v4, struct sockaddr_in6 *v6) {
+    if (v6) memset(v6, 0, sizeof(*v6));
     if (!host || !host[0] || IXIsNumericHost(host)) return NO;
     uint32_t token = IXRememberHost(host);
-    if (!token) return NO;
-    struct in6_addr raw;
-    IXFillFakeV6(&raw, token);
-    if (v4 && IXAddrFillInet(v4, IXFakeIPv4(token), 0) != 0) return NO;
-    if (v6 && IXAddrFillInet6(v6, &raw, 0) != 0) return NO;
-    char numeric[INET6_ADDRSTRLEN];
-    if (v4 && IXAddrWriteNumeric((struct sockaddr *)v4, sizeof(*v4), numeric, sizeof(numeric)) != 0) return NO;
-    if (v6 && IXAddrWriteNumeric((struct sockaddr *)v6, sizeof(*v6), numeric, sizeof(numeric)) != 0) return NO;
+    uint32_t bits = IXFakeIPv4Bits(token);
+    if (!bits || !v4) return NO;
+    if (IXAddrFillInet(v4, bits, 0) != 0) return NO;
+    char numeric[INET_ADDRSTRLEN];
+    struct in_addr back;
+    if (IXAddrWriteNumeric((struct sockaddr *)v4, sizeof(*v4), numeric, sizeof(numeric)) != 0) return NO;
+    if (!numeric[0] || inet_pton(AF_INET, numeric, &back) != 1 || back.s_addr != bits) return NO;
     return YES;
-}
 
 static BOOL IXAddrIsLoopback(const struct sockaddr *addr) {
     if (!addr) return NO;
@@ -335,7 +335,7 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
     if (addr->sa_family == AF_INET) {
         const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
         *port = ntohs(in->sin_port);
-        uint32_t token = IXTokenFromIPv4(in->sin_addr.s_addr);
+        uint32_t token = IXFakeIPv4Token(in->sin_addr.s_addr);
         if (token && IXLookupToken(token, host, hostLen)) return YES;
         return inet_ntop(AF_INET, &in->sin_addr, host, (socklen_t)hostLen) != NULL;
     }
@@ -347,7 +347,7 @@ static BOOL IXDescribe(const struct sockaddr *addr, char *host, size_t hostLen, 
         if (IN6_IS_ADDR_V4MAPPED(&in6->sin6_addr)) {
             struct in_addr v4;
             memcpy(&v4, in6->sin6_addr.s6_addr + 12, 4);
-            uint32_t mapped = IXTokenFromIPv4(v4.s_addr);
+            uint32_t mapped = IXFakeIPv4Token(v4.s_addr);
             if (mapped && IXLookupToken(mapped, host, hostLen)) return YES;
         }
         return inet_ntop(AF_INET6, &in6->sin6_addr, host, (socklen_t)hostLen) != NULL;
@@ -518,6 +518,60 @@ static void IXProxyAddress(int fd, struct sockaddr_storage *out, socklen_t *outL
     *outLen = sizeof(*local);
 }
 
+static uint32_t IXTokenHash(const char *host) {
+    uint32_t h = 2166136261u;
+    if (!host) return 1;
+    for (const unsigned char *p = (const unsigned char *)host; *p; p++) {
+        h ^= *p;
+        h *= 16777619u;
+    }
+    h &= 0x0001FFFFu;
+    return h ? h : 1;
+}
+
+// The address getpeername will report. Always a complete IPv4 sockaddr.
+// Never 127.0.0.1 and never an IPv6 form, so a later numeric conversion cannot
+// be empty, scoped, or bracketed.
+static void IXPeerV4(const struct sockaddr *addr, const char *host, uint16_t port, struct sockaddr_in *out) {
+    uint16_t portNet = htons(port);
+    uint32_t be = 0;
+    int have = 0;
+    if (addr && addr->sa_family == AF_INET) {
+        const struct sockaddr_in *in = (const struct sockaddr_in *)addr;
+        be = in->sin_addr.s_addr;
+        if (in->sin_port) portNet = in->sin_port;
+        uint32_t token = IXFakeIPv4Token(be);
+        if (token) be = IXFakeIPv4Bits(token);
+        have = (ntohl(be) >> 24) != 127;
+    } else if (addr && addr->sa_family == AF_INET6) {
+        const struct sockaddr_in6 *in6 = (const struct sockaddr_in6 *)addr;
+        if (in6->sin6_port) portNet = in6->sin6_port;
+        uint32_t token = IXTokenFromV6(&in6->sin6_addr);
+        if (!token && IN6_IS_ADDR_V4MAPPED(&in6->sin6_addr)) {
+            memcpy(&be, in6->sin6_addr.s6_addr + 12, 4);
+            token = IXFakeIPv4Token(be);
+            if (token) be = IXFakeIPv4Bits(token);
+            have = be != 0 && (ntohl(be) >> 24) != 127;
+        } else if (token) {
+            be = IXFakeIPv4Bits(token);
+            have = be != 0;
+        }
+    }
+    if (!have && host) {
+        struct in_addr parsed;
+        if (inet_pton(AF_INET, host, &parsed) == 1 && (ntohl(parsed.s_addr) >> 24) != 127) {
+            be = parsed.s_addr;
+            have = 1;
+        }
+    }
+    if (!have) {
+        uint32_t token = (host && !IXIsNumericHost(host)) ? IXRememberHost(host) : 0;
+        if (!token) token = IXTokenHash(host && host[0] ? host : "peer");
+        be = IXFakeIPv4Bits(token);
+    }
+    IXAddrFillInet(out, be, portNet);
+}
+
 static int IXProxiedConnect(int fd, const struct sockaddr *addr, socklen_t len, const char *api, const char *image) {
     char host[256];
     uint16_t port = 0;
@@ -548,7 +602,9 @@ static int IXProxiedConnect(int fd, const struct sockaddr *addr, socklen_t len, 
         errno = ECONNREFUSED;
         return -1;
     }
-    IXTrackFD(fd, addr, len, host, port, image, api);
+    struct sockaddr_in peer4;
+    IXPeerV4(addr, host, port, &peer4);
+    IXTrackFD(fd, (const struct sockaddr *)&peer4, sizeof(peer4), host, port, image, api);
     IXPushLog(image, "connect", host, port, 0, 0, "tunneled");
     if (dialed == IX_SOCKS_IN_PROGRESS) {
         errno = EINPROGRESS;
@@ -632,41 +688,27 @@ static int IXConnectX(int fd, const sa_endpoints_t *endpoints, sae_associd_t ass
     return ix_orig_connectx(fd, endpoints, associd, flags, iov, iovcnt, len, connid);
 }
 
-static struct addrinfo *IXMakeAddrInfo(int family, int socktype, int protocol, uint16_t port, uint32_t token) {
+static struct addrinfo *IXMakeAddrInfo(int socktype, int protocol, uint16_t port, uint32_t token) {
+    uint32_t bits = IXFakeIPv4Bits(token);
+    if (!bits) return NULL;
     struct addrinfo *ai = calloc(1, sizeof(*ai));
-    if (!ai) return NULL;
-    char numeric[INET6_ADDRSTRLEN];
-    if (family == AF_INET) {
-        struct sockaddr_in *sa = calloc(1, sizeof(*sa));
-        if (!sa || IXAddrFillInet(sa, IXFakeIPv4(token), htons(port)) != 0 ||
-            IXAddrWriteNumeric((struct sockaddr *)sa, sizeof(*sa), numeric, sizeof(numeric)) != 0) {
-            free(sa);
-            free(ai);
-            return NULL;
-        }
-        ai->ai_addr = (struct sockaddr *)sa;
-        ai->ai_addrlen = sizeof(*sa);
-    } else if (family == AF_INET6) {
-        struct sockaddr_in6 *sa = calloc(1, sizeof(*sa));
-        struct in6_addr raw;
-        IXFillFakeV6(&raw, token);
-        if (!sa || IXAddrFillInet6(sa, &raw, htons(port)) != 0 ||
-            IXAddrWriteNumeric((struct sockaddr *)sa, sizeof(*sa), numeric, sizeof(numeric)) != 0) {
-            free(sa);
-            free(ai);
-            return NULL;
-        }
-        ai->ai_addr = (struct sockaddr *)sa;
-        ai->ai_addrlen = sizeof(*sa);
-    } else {
+    struct sockaddr_in *sa = calloc(1, sizeof(*sa));
+    char numeric[INET_ADDRSTRLEN];
+    struct in_addr back;
+    if (!ai || !sa || IXAddrFillInet(sa, bits, htons(port)) != 0 ||
+        IXAddrWriteNumeric((struct sockaddr *)sa, sizeof(*sa), numeric, sizeof(numeric)) != 0 ||
+        !numeric[0] || inet_pton(AF_INET, numeric, &back) != 1) {
+        free(sa);
         free(ai);
         return NULL;
     }
+    ai->ai_addr = (struct sockaddr *)sa;
+    ai->ai_addrlen = sizeof(*sa);
     ai->ai_flags = 0;
-    ai->ai_family = family;
+    ai->ai_family = AF_INET;
     ai->ai_socktype = socktype;
     ai->ai_protocol = protocol;
-    // Leave ai_canonname NULL. A hostname here is what folly::IPAddress throws on.
+    // NULL, not the hostname. folly::IPAddress throws on a domain in this field.
     ai->ai_canonname = NULL;
     ai->ai_next = NULL;
     return ai;
@@ -682,7 +724,11 @@ static int IXGetAddrInfo(const char *node, const char *service, const struct add
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     int family = hints ? hints->ai_family : AF_UNSPEC;
-    if (family != AF_UNSPEC && family != AF_INET && family != AF_INET6) {
+    if (family == AF_INET6) {
+        if (res) *res = NULL;
+        return EAI_FAMILY;
+    }
+    if (family != AF_UNSPEC && family != AF_INET) {
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     uint32_t token = IXRememberHost(node);
@@ -704,13 +750,14 @@ static int IXGetAddrInfo(const char *node, const char *service, const struct add
         else if (socktype == SOCK_DGRAM) protocol = IPPROTO_UDP;
     }
 
-    struct addrinfo *v4 = NULL;
-    struct addrinfo *v6 = NULL;
-    if (family != AF_INET6) v4 = IXMakeAddrInfo(AF_INET, socktype, protocol, port, token);
-    if (family != AF_INET) v6 = IXMakeAddrInfo(AF_INET6, socktype, protocol, port, token);
-    if (!v4 && !v6) return EAI_FAIL;
-    if (v4 && v6) v4->ai_next = v6;
-    *res = v4 ? v4 : v6;
+    struct addrinfo *v4 = IXMakeAddrInfo(socktype, protocol, port, token);
+    if (!v4) return EAI_FAIL;
+    if (!res) {
+        free(v4->ai_addr);
+        free(v4);
+        return EAI_FAIL;
+    }
+    *res = v4;
     return 0;
 }
 
@@ -734,7 +781,7 @@ static struct hostent *IXGetHostByName(const char *name) {
     static __thread struct hostent ent;
     char numeric[INET_ADDRSTRLEN];
     struct sockaddr_in check;
-    if (IXAddrFillInet(&check, IXFakeIPv4(token), 0) != 0 ||
+    if (IXAddrFillInet(&check, IXFakeIPv4Bits(token), 0) != 0 ||
         IXAddrWriteNumeric((struct sockaddr *)&check, sizeof(check), numeric, sizeof(numeric)) != 0) {
         h_errno = HOST_NOT_FOUND;
         return NULL;
@@ -773,31 +820,28 @@ static int IXGetPeerName(int fd, struct sockaddr *addr, socklen_t *len) {
     if (ix_depth) return ix_orig_getpeername ? ix_orig_getpeername(fd, addr, len) : (errno = ENOSYS, -1);
     ix_depth++;
     __attribute__((cleanup(IXDepthLeave))) int ix_held = 1;
-    if ((unsigned)fd < IX_FD_MAX && addr && len && *len > 0 && atomic_load(&ix_live[fd].on)) {
+    if ((unsigned)fd < IX_FD_MAX && addr && len && atomic_load(&ix_live[fd].on)) {
+        if (*len < (socklen_t)sizeof(struct sockaddr_in)) {
+            errno = ENOBUFS;
+            return -1;
+        }
         pthread_mutex_lock(&ix_fd_mu);
-        struct sockaddr_storage canon;
-        socklen_t have = 0;
-        int ok = atomic_load(&ix_live[fd].on) && IXAddrCanonical((struct sockaddr *)&ix_live[fd].addr, ix_live[fd].addrLen, &canon, &have) == 0;
+        struct sockaddr_in peer;
+        char remembered[80];
+        remembered[0] = 0;
+        int tracked = atomic_load(&ix_live[fd].on);
+        if (tracked) {
+            strlcpy(remembered, ix_live[fd].host, sizeof(remembered));
+            IXPeerV4((const struct sockaddr *)&ix_live[fd].addr, remembered, ix_live[fd].port, &peer);
+        }
         pthread_mutex_unlock(&ix_fd_mu);
-        if (ok) {
-            if (*len < have && canon.ss_family == AF_INET6 && *len >= (socklen_t)sizeof(struct sockaddr_in)) {
-                uint32_t token = IXTokenFromV6(&((struct sockaddr_in6 *)&canon)->sin6_addr);
-                if (token) {
-                    struct sockaddr_in v4;
-                    IXAddrFillInet(&v4, IXFakeIPv4(token), ((struct sockaddr_in6 *)&canon)->sin6_port);
-                    memcpy(addr, &v4, sizeof(v4));
-                    *len = (socklen_t)sizeof(v4);
-                    return 0;
-                }
-            }
-            if (*len < have) {
-                errno = ENOBUFS;
-                return -1;
-            }
-            memcpy(addr, &canon, have);
-            *len = have;
+        if (tracked && peer.sin_family == AF_INET && (ntohl(peer.sin_addr.s_addr) >> 24) != 127) {
+            memcpy(addr, &peer, sizeof(peer));
+            *len = (socklen_t)sizeof(peer);
             return 0;
         }
+        errno = EAFNOSUPPORT;
+        return -1;
     }
     if (!ix_orig_getpeername) {
         errno = ENOSYS;
@@ -878,51 +922,6 @@ static int IXSocket(int domain, int type, int protocol) {
     return fd;
 }
 
-static int IXWritePort(const struct sockaddr *sa, char *serv, socklen_t servlen) {
-    if (!serv) return 0;
-    if (servlen == 0) return EAI_OVERFLOW;
-    uint16_t port = 0;
-    if (sa->sa_family == AF_INET) port = ntohs(((const struct sockaddr_in *)sa)->sin_port);
-    else if (sa->sa_family == AF_INET6) port = ntohs(((const struct sockaddr_in6 *)sa)->sin6_port);
-    char tmp[8];
-    int n = snprintf(tmp, sizeof(tmp), "%u", port);
-    if (n <= 0 || (socklen_t)n + 1 > servlen) return EAI_OVERFLOW;
-    memcpy(serv, tmp, (size_t)n + 1);
-    return 0;
-}
-
-static int IXGetNameInfo(const struct sockaddr *sa, socklen_t salen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int flags) {
-    if (ix_depth) return ix_orig_getnameinfo ? ix_orig_getnameinfo(sa, salen, host, hostlen, serv, servlen, flags) : EAI_FAIL;
-    ix_depth++;
-    __attribute__((cleanup(IXDepthLeave))) int ix_held = 1;
-    uint32_t token = 0;
-    if (sa && sa->sa_family == AF_INET && salen >= sizeof(struct sockaddr_in)) {
-        token = IXTokenFromIPv4(((const struct sockaddr_in *)sa)->sin_addr.s_addr);
-    } else if (sa && sa->sa_family == AF_INET6 && salen >= sizeof(struct sockaddr_in6)) {
-        token = IXTokenFromV6(&((const struct sockaddr_in6 *)sa)->sin6_addr);
-    }
-    // 198.18.0.0/15 has no reverse DNS. The system would return the numeric
-    // form. Returning the original hostname makes folly::IPAddress throw
-    // inside facebook::tigon::helpers::isHostThirdParty.
-    if (IXTrafficGuardVPNOn() && token && !IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) {
-        if ((flags & NI_NAMEREQD) && !(flags & NI_NUMERICHOST)) {
-            char name[256];
-            if (!host || hostlen == 0) return EAI_NONAME;
-            if (!IXLookupToken(token, name, sizeof(name)) || !IXHostLooksSafe(name)) return EAI_NONAME;
-            if (strlen(name) + 1 > hostlen) return EAI_OVERFLOW;
-            memcpy(host, name, strlen(name) + 1);
-            return IXWritePort(sa, serv, servlen);
-        }
-        if (host && hostlen) {
-            int rc = IXAddrWriteNumeric(sa, salen, host, hostlen);
-            if (rc != 0) return rc;
-        }
-        return IXWritePort(sa, serv, servlen);
-    }
-    if (!ix_orig_getnameinfo) return EAI_FAIL;
-    return ix_orig_getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
-}
-
 typedef void (*IXDNSReply)(void *, uint32_t, uint32_t, int32_t, const char *, const struct sockaddr *, uint32_t, void *);
 
 typedef struct {
@@ -940,22 +939,19 @@ static void IXDNSIgnore(void *sdRef, uint32_t flags, uint32_t interfaceIndex, in
     if (!box->delivered && box->callback) {
         box->delivered = 1;
         struct sockaddr_in v4;
-        struct sockaddr_in6 v6;
-        struct in6_addr raw;
-        IXFillFakeV6(&raw, box->token);
-        char v4text[INET6_ADDRSTRLEN];
-        char v6text[INET6_ADDRSTRLEN];
-        if (IXAddrFillInet(&v4, IXFakeIPv4(box->token), 0) != 0 ||
-            IXAddrFillInet6(&v6, &raw, 0) != 0 ||
+        char v4text[INET_ADDRSTRLEN];
+        struct in_addr back;
+        uint32_t bits = IXFakeIPv4Bits(box->token);
+        // One IPv4 answer. A second fd00:: result is what Tigon stringified
+        // into a host folly::IPAddress cannot parse. hostname stays the
+        // queried name, matching DNSServiceGetAddrInfo; the sockaddr is the IP.
+        if (!bits || IXAddrFillInet(&v4, bits, 0) != 0 ||
             IXAddrWriteNumeric((struct sockaddr *)&v4, sizeof(v4), v4text, sizeof(v4text)) != 0 ||
-            IXAddrWriteNumeric((struct sockaddr *)&v6, sizeof(v6), v6text, sizeof(v6text)) != 0) {
-            box->callback(sdRef, 0, interfaceIndex, -65563, box->host[0] ? box->host : NULL, NULL, 0, box->context);
+            !v4text[0] || inet_pton(AF_INET, v4text, &back) != 1) {
+            box->callback(sdRef, 0, interfaceIndex, -65563, NULL, NULL, 0, box->context);
         } else {
-            // hostname is the name that was queried. It is a cleaned DNS name,
-            // never a half-formatted address. The sockaddr is the IP.
-            const char *name = box->host[0] ? box->host : v4text;
-            box->callback(sdRef, 1, interfaceIndex, 0, name, (struct sockaddr *)&v4, 60, box->context);
-            box->callback(sdRef, 0, interfaceIndex, 0, name, (struct sockaddr *)&v6, 60, box->context);
+            const char *name = (box->host[0] && IXHostLooksSafe(box->host)) ? box->host : v4text;
+            box->callback(sdRef, 0, interfaceIndex, 0, name, (struct sockaddr *)&v4, 60, box->context);
         }
     }
     if ((flags & 1) == 0) free(box);
@@ -997,7 +993,6 @@ BOOL IXTrafficGuardInstall(void) {
     IXCapture("connect", (void **)&ix_orig_connect);
     IXCapture("connectx", (void **)&ix_orig_connectx);
     IXCapture("getaddrinfo", (void **)&ix_orig_getaddrinfo);
-    IXCapture("getnameinfo", (void **)&ix_orig_getnameinfo);
     IXCapture("gethostbyname", (void **)&ix_orig_gethostbyname);
     IXCapture("sendto", (void **)&ix_orig_sendto);
     IXCapture("sendmsg", (void **)&ix_orig_sendmsg);
@@ -1010,15 +1005,15 @@ BOOL IXTrafficGuardInstall(void) {
     IXPathHookPrepare();
     const char *names[64];
     void *replacements[64];
-    // FBSharedFramework imports connect, connectx, getaddrinfo, DNSServiceGetAddrInfo,
-    // getpeername, sendto, sendmsg, and close. read/write/poll/kevent/select stay
-    // unbound: wrapping them stalled folly's EventBase after a few kilobytes.
+    // getnameinfo, inet_ntop, and inet_ntoa stay on libc. Hooking them handed
+    // Tigon a hostname, an empty buffer, or a scoped v6 string, and
+    // folly::IPAddress throws inside isHostThirdParty with nobody catching it.
+    // read/write/poll/kevent/select stay unbound: wrapping them stalled EventBase.
     struct { const char *name; void *repl; void *orig; } rows[] = {
         {"socket", (void *)IXSocket, (void *)ix_orig_socket},
         {"connect", (void *)IXConnect, (void *)ix_orig_connect},
         {"connectx", (void *)IXConnectX, (void *)ix_orig_connectx},
         {"getaddrinfo", (void *)IXGetAddrInfo, (void *)ix_orig_getaddrinfo},
-        {"getnameinfo", (void *)IXGetNameInfo, (void *)ix_orig_getnameinfo},
         {"gethostbyname", (void *)IXGetHostByName, (void *)ix_orig_gethostbyname},
         {"sendto", (void *)IXSendTo, (void *)ix_orig_sendto},
         {"sendmsg", (void *)IXSendMsg, (void *)ix_orig_sendmsg},
@@ -1040,6 +1035,8 @@ BOOL IXTrafficGuardInstall(void) {
         return NO;
     }
     ix_installed = YES;
+    ix_front_arm = 1;
+    IXSOCKSFrontStart(ix_front_port, atomic_load(&ix_socks_port), IXFrontLookup, NULL);
     IXTrafficHooksInstall();
     NSLog(@"[InstagramX] rebound %d symbol pointers", patched);
     return YES;

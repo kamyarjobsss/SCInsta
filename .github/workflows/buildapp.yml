@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.2.3"
+                description: "Publish a prerelease tagged instagram-x-v2.2.4"
                 default: true
                 required: false
                 type: boolean
@@ -168,6 +168,10 @@ jobs:
                   tests/IXAddrCheckTest.c src/Proxy/IXAddrCheck.c \
                   -o /tmp/ix-addr-test
                 /tmp/ix-addr-test
+                clang \
+                  tests/IXLaunchGuardTest.c src/Launch/IXLaunchGuardLogic.c \
+                  -o /tmp/ix-guard-test
+                /tmp/ix-guard-test
 
             - name: Build Instagram X for sideloading (as IPA)
               run: |
@@ -233,9 +237,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.2.3
+                tag_name: instagram-x-v2.2.4
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.2.3
+                name: Instagram X 2.2.4
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -249,7 +253,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.2.3 clears safe mode after one launch. 2.2.2 left the watchdog on "starting" unless three specific screens stayed up for 8 seconds, so every later launch skipped the connect hooks and only Check IP was tunneled. An Instagram view, or 5 seconds alive, clears the flag. Exit safe mode installs the hooks on this launch. The log records whether connect hooks installed and the per-image slot count. A tunneled TCP connect is logged as "FBSharedFramework connect host:443 tunneled". UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+                  v2.2.4 stops the folly::IPAddress crash in tigon::helpers::isHostThirdParty. 2.2.2 and 2.2.3 still handed Tigon a host string that is not an IP: getnameinfo could return the original hostname or an empty buffer, and DNS, CFHost, and Network.framework still produced IPv6 fakes (fd00::, scoped, or bracketed). Those hooks are gone. Resolver answers are IPv4 in 198.18.0.0/15 only, ai_canonname stays empty, and getpeername returns that IPv4 instead of the SOCKS peer 127.0.0.1. getnameinfo and inet_ntop are not hooked. If a launch dies within 5 seconds, VPN hooks and Xray autostart stay off until Exit safe mode. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -262,4 +266,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.3"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.4"

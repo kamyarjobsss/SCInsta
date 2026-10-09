@@ -20,4 +20,10 @@ int IXAddrCanonical(const struct sockaddr *in, socklen_t inLen, struct sockaddr_
 // port, or trailing dot. Returns 0, or an EAI_* code.
 int IXAddrWriteNumeric(const struct sockaddr *sa, socklen_t salen, char *host, size_t hostLen);
 
+// 198.18.0.0/15 in network byte order. token is 1..0x1FFFF. Returns 0 if token
+// is outside that range. folly::IPAddress accepts the dotted form of this value.
+uint32_t IXFakeIPv4Bits(uint32_t token);
+// Inverse of IXFakeIPv4Bits. Returns 0 when addrNetwork is not in 198.18.0.0/15.
+uint32_t IXFakeIPv4Token(uint32_t addrNetwork);
+
 #endif

@@ -1,5 +1,7 @@
 #import "IXLaunchGuard.h"
+#import "IXLaunchGuardLogic.h"
 
+#import <dispatch/dispatch.h>
 #import <pthread.h>
 #import <stdio.h>
 #import <stdlib.h>
@@ -11,7 +13,14 @@
 static volatile int ix_safe_mode = 0;
 static volatile int ix_feed_shown = 0;
 static int ix_marked = 0;
+static int64_t ix_record_ms = 0;
 static pthread_mutex_t ix_log_mu = PTHREAD_MUTEX_INITIALIZER;
+
+static int64_t IXMonoMs(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000 + (int64_t)ts.tv_nsec / 1000000;
+}
 
 static int IXHomePath(char *out, size_t outLen, const char *name) {
     const char *home = getenv("HOME");
@@ -95,11 +104,10 @@ NSString *IXLaunchGuardPersistedLog(void) {
     return text ?: @"";
 }
 
-static void IXClearWatchdog(void) {
+static void IXWriteState(IXGuardState state) {
     char path[1024];
-    if (IXHomePath(path, sizeof(path), "ix_launch_guard")) IXGuardWrite(path, "clear\n");
-    char bpath[1024];
-    if (IXHomePath(bpath, sizeof(bpath), "ix_launch_bypass")) unlink(bpath);
+    if (!IXHomePath(path, sizeof(path), "ix_launch_guard")) return;
+    IXGuardWrite(path, IXLaunchGuardFormat(state));
 }
 
 void IXLaunchGuardRecord(void) {
@@ -110,33 +118,25 @@ void IXLaunchGuardRecord(void) {
         bypass = 1;
         unlink(bpath);
     }
-    if (!IXHomePath(path, sizeof(path), "ix_launch_guard")) {
-        if (bypass) {
-            ix_safe_mode = 1;
-            IXLaunchGuardAppendLog("safe mode: this launch only, next launch installs hooks");
+    ix_record_ms = IXMonoMs();
+    ix_marked = 0;
+    ix_feed_shown = 0;
+    IXGuardState previous = IX_GUARD_NONE;
+    if (IXHomePath(path, sizeof(path), "ix_launch_guard")) {
+        FILE *file = fopen(path, "r");
+        if (file) {
+            char buf[64];
+            if (fgets(buf, sizeof(buf), file)) previous = IXLaunchGuardParse(buf);
+            fclose(file);
         }
-        return;
     }
-
-    int wasStarting = 0;
-    FILE *file = fopen(path, "r");
-    if (file) {
-        char buf[64];
-        if (fgets(buf, sizeof(buf), file) && strncmp(buf, "starting", 8) == 0) wasStarting = 1;
-        fclose(file);
+    IXGuardState next = IXLaunchGuardDecide(previous, bypass);
+    ix_safe_mode = next == IX_GUARD_SAFE;
+    IXWriteState(next);
+    if (ix_safe_mode) {
+        fprintf(stderr, "[InstagramX] safe mode: hooks stay off until Exit safe mode\n");
+        IXLaunchGuardAppendLog("safe mode: previous launch died before 5s, hooks stay off");
     }
-
-    if (wasStarting || bypass) {
-        // One launch only. The file is cleared before this process can die,
-        // so the following launch installs the hooks even if this one is killed.
-        ix_safe_mode = 1;
-        IXGuardWrite(path, "clear\n");
-        fprintf(stderr, "[InstagramX] safe mode: this launch only\n");
-        IXLaunchGuardAppendLog("safe mode: this launch only, next launch installs hooks");
-        return;
-    }
-    ix_safe_mode = 0;
-    IXGuardWrite(path, "starting\n");
 }
 
 BOOL IXLaunchGuardIsSafeMode(void) {
@@ -148,26 +148,33 @@ BOOL IXLaunchGuardFeedShown(void) {
 }
 
 void IXLaunchGuardMarkReady(void) {
+    if (ix_safe_mode) return;
+    if (ix_record_ms == 0 || IXMonoMs() - ix_record_ms < 5000) return;
     ix_feed_shown = 1;
     if (ix_marked) return;
     ix_marked = 1;
-    IXClearWatchdog();
-    IXLaunchGuardAppendLog("watchdog cleared");
+    IXWriteState(IX_GUARD_ALIVE);
+    IXLaunchGuardAppendLog("watchdog cleared after 5s");
 }
 
 void IXLaunchGuardEngageBypass(void) {
     if (ix_feed_shown) return;
     ix_safe_mode = 1;
-    IXClearWatchdog();
-    IXLaunchGuardAppendLog("manual bypass: VPN hooks off for this launch only");
+    ix_marked = 0;
+    IXWriteState(IX_GUARD_SAFE);
+    IXLaunchGuardAppendLog("manual bypass: VPN hooks stay off until Exit safe mode");
     fprintf(stderr, "[InstagramX] manual bypass\n");
 }
 
 void IXLaunchGuardExitSafeMode(void) {
     ix_safe_mode = 0;
-    ix_feed_shown = 1;
-    ix_marked = 1;
-    IXClearWatchdog();
+    ix_feed_shown = 0;
+    ix_marked = 0;
+    ix_record_ms = IXMonoMs();
+    IXWriteState(IX_GUARD_STARTING);
     IXLaunchGuardAppendLog("safe mode exited");
     fprintf(stderr, "[InstagramX] safe mode exited\n");
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXLaunchGuardMarkReady();
+    });
 }

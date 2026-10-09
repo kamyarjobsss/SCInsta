@@ -275,16 +275,6 @@ static void IXReleaseNW(ix_nw_t object) {
     else CFRelease(object);
 }
 
-static ix_nw_t IXRewrite(ix_nw_t endpoint, char *host, size_t hostLen, uint16_t *port) {
-    if (!ix_endpoint_host || !host || !host[0]) return NULL;
-    NSString *name = IXTrafficGuardLookupHost([NSString stringWithUTF8String:host]);
-    if (name.length == 0) return NULL;
-    strlcpy(host, name.UTF8String, hostLen);
-    char portText[8];
-    snprintf(portText, sizeof(portText), "%u", *port);
-    return ix_endpoint_host(host, portText);
-}
-
 static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
     if (!ix_orig_create) return NULL;
     if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0))) return ix_orig_create(endpoint, parameters);
@@ -312,10 +302,12 @@ static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
     ix_nw_t params = parameters;
     ix_nw_t copied = IXCopyParams(parameters);
     if (copied) params = copied;
-    BOOL applied = IXApplyProxyPort(params, ix_socks_proxy ? IXTrafficGuardSocksPort() : IXTrafficGuardHTTPPort());
-    ix_nw_t rewritten = IXRewrite(endpoint, host, sizeof(host), &port);
-    ix_nw_t conn = ix_orig_create(rewritten ?: endpoint, params);
-    if (rewritten) IXReleaseNW(rewritten);
+    // Keep the caller's endpoint. Replacing it with a hostname made
+    // nw_endpoint_get_hostname return a domain on the response path, and
+    // TigonRequest::requestCategory passed that string to folly::IPAddress.
+    // The front translator turns 198.18.x.x into the mapped name for Xray.
+    BOOL applied = IXApplyProxyPort(params, ix_socks_proxy ? IXTrafficGuardFrontPort() : IXTrafficGuardHTTPPort());
+    ix_nw_t conn = ix_orig_create(endpoint, params);
     if (copied) IXReleaseNW(copied);
     IXNWRemember(conn, host, port, 0);
     IXTrafficGuardNote(@"nw_connection", @(host), port, applied ? @"tunneled" : @"direct (no proxy config)");
@@ -472,14 +464,12 @@ static void IXHostClear(void *host) {
 
 static CFArrayRef IXFakeAddressArray(const char *name) {
     struct sockaddr_in v4;
-    struct sockaddr_in6 v6;
-    if (!IXTrafficGuardFakeSockaddrs(name, &v4, &v6)) return NULL;
+    if (!IXTrafficGuardFakeSockaddrs(name, &v4, NULL)) return NULL;
     CFDataRef a = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)&v4, sizeof(v4));
-    CFDataRef b = CFDataCreate(kCFAllocatorDefault, (const UInt8 *)&v6, sizeof(v6));
-    const void *values[2] = {a, b};
-    CFArrayRef array = CFArrayCreate(kCFAllocatorDefault, values, 2, &kCFTypeArrayCallBacks);
-    if (a) CFRelease(a);
-    if (b) CFRelease(b);
+    if (!a) return NULL;
+    const void *values[1] = {a};
+    CFArrayRef array = CFArrayCreate(kCFAllocatorDefault, values, 1, &kCFTypeArrayCallBacks);
+    CFRelease(a);
     return array;
 }
 
@@ -668,7 +658,7 @@ id IXPathHookProxyObjectOnPort(uint16_t port) {
 }
 
 id IXPathHookProxyObject(void) {
-    uint16_t port = ix_socks_proxy ? IXTrafficGuardSocksPort() : IXTrafficGuardHTTPPort();
+    uint16_t port = ix_socks_proxy ? IXTrafficGuardFrontPort() : IXTrafficGuardHTTPPort();
     return IXPathHookProxyObjectOnPort(port);
 }
 

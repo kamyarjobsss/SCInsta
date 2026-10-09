@@ -5,6 +5,10 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -205,4 +209,229 @@ int IXSOCKSSendAll(int fd, const void *buf, size_t len) {
         return -1;
     }
     return IXWriteFull(fd, buf, len, IXNowMs() + IX_SOCKS_BUDGET_MS);
+}
+
+static int IXHostRejected(const char *host) {
+    if (!host || !host[0]) return 1;
+    size_t n = strlen(host);
+    if (n > 253) return 1;
+    for (size_t i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)host[i];
+        if (c <= 32 || c >= 127) return 1;
+        if (c == '%' || c == '[' || c == ']' || c == '/' || c == '\\' || c == ' ' || c == ':') return 1;
+    }
+    return 0;
+}
+
+int IXSOCKSDestFromIPv4(uint32_t addrNetwork, char *host, size_t hostLen, IXSOCKSLookup4 lookup, void *ctx) {
+    if (!host || hostLen < 8) return -1;
+    host[0] = 0;
+    if (lookup && lookup(addrNetwork, host, hostLen, ctx) == 1 && !IXHostRejected(host)) return 1;
+    host[0] = 0;
+    if (!inet_ntop(AF_INET, &addrNetwork, host, (socklen_t)hostLen)) {
+        host[0] = 0;
+        return -1;
+    }
+    struct in_addr back;
+    if (host[0] == 0 || inet_pton(AF_INET, host, &back) != 1 || back.s_addr != addrNetwork) {
+        host[0] = 0;
+        return -1;
+    }
+    return 0;
+}
+
+static _Atomic uint16_t ix_front_upstream = 0;
+static IXSOCKSLookup4 ix_front_lookup = NULL;
+static void *ix_front_ctx = NULL;
+static _Atomic int ix_front_started = 0;
+
+static int IXFrontReply(int fd, uint8_t code) {
+    uint8_t reply[10] = {0x05, code, 0x00, 0x01, 0, 0, 0, 0, 0, 0};
+    return IXWriteFull(fd, reply, sizeof(reply), IXNowMs() + IX_SOCKS_BUDGET_MS);
+}
+
+static int IXFrontReadDest(int fd, char *host, size_t hostLen, uint16_t *port) {
+    uint8_t head[4];
+    if (IXReadFull(fd, head, sizeof(head), IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+    if (head[0] != 0x05 || head[1] != 0x01) return -1;
+    if (head[3] == 0x04) return -2;
+    if (head[3] == 0x01) {
+        uint8_t raw[4];
+        uint8_t p[2];
+        if (IXReadFull(fd, raw, 4, IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+        if (IXReadFull(fd, p, 2, IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+        uint32_t be = 0;
+        memcpy(&be, raw, 4);
+        *port = (uint16_t)((p[0] << 8) | p[1]);
+        return IXSOCKSDestFromIPv4(be, host, hostLen, ix_front_lookup, ix_front_ctx) < 0 ? -1 : 0;
+    }
+    if (head[3] == 0x03) {
+        uint8_t nlen = 0;
+        uint8_t p[2];
+        if (IXReadFull(fd, &nlen, 1, IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+        if (nlen == 0 || (size_t)nlen + 1 > hostLen) return -1;
+        if (IXReadFull(fd, host, nlen, IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+        host[nlen] = 0;
+        if (IXReadFull(fd, p, 2, IXNowMs() + IX_SOCKS_BUDGET_MS) != 0) return -1;
+        *port = (uint16_t)((p[0] << 8) | p[1]);
+        if (IXHostRejected(host)) return -1;
+        struct in_addr v4;
+        if (inet_pton(AF_INET, host, &v4) == 1) {
+            return IXSOCKSDestFromIPv4(v4.s_addr, host, hostLen, ix_front_lookup, ix_front_ctx) < 0 ? -1 : 0;
+        }
+        return 0;
+    }
+    return -2;
+}
+
+static void IXFrontSplice(int a, int b) {
+    int fa = fcntl(a, F_GETFL, 0);
+    int fb = fcntl(b, F_GETFL, 0);
+    if (fa >= 0) fcntl(a, F_SETFL, fa | O_NONBLOCK);
+    if (fb >= 0) fcntl(b, F_SETFL, fb | O_NONBLOCK);
+    uint8_t buf[4096];
+    for (;;) {
+        struct pollfd pfds[2];
+        pfds[0].fd = a;
+        pfds[0].events = POLLIN;
+        pfds[1].fd = b;
+        pfds[1].events = POLLIN;
+        int rc = poll(pfds, 2, 60000);
+        if (rc <= 0) {
+            if (rc < 0 && errno == EINTR) continue;
+            return;
+        }
+        for (int i = 0; i < 2; i++) {
+            if (!(pfds[i].revents & (POLLIN | POLLHUP | POLLERR))) continue;
+            int src = pfds[i].fd;
+            int dst = src == a ? b : a;
+            ssize_t n = recv(src, buf, sizeof(buf), 0);
+            if (n <= 0) return;
+            if (IXWriteFull(dst, buf, (size_t)n, IXNowMs() + 30000) != 0) return;
+        }
+    }
+}
+
+static void IXNoSigPipe(int fd) {
+#ifdef SO_NOSIGPIPE
+    int nosig = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosig, sizeof(nosig));
+#else
+    (void)fd;
+#endif
+}
+
+static void *IXFrontClient(void *arg) {
+    int fd = (int)(intptr_t)arg;
+    IXNoSigPipe(fd);
+    uint8_t hello[2];
+    int64_t deadline = IXNowMs() + IX_SOCKS_BUDGET_MS;
+    if (IXReadFull(fd, hello, 2, deadline) != 0 || hello[0] != 0x05 || hello[1] == 0) {
+        close(fd);
+        return NULL;
+    }
+    uint8_t methods[32];
+    size_t nmethods = hello[1];
+    if (nmethods > sizeof(methods) || IXReadFull(fd, methods, nmethods, deadline) != 0) {
+        close(fd);
+        return NULL;
+    }
+    uint8_t method[2] = {0x05, 0x00};
+    if (IXWriteFull(fd, method, 2, deadline) != 0) {
+        close(fd);
+        return NULL;
+    }
+    char host[256];
+    uint16_t port = 0;
+    host[0] = 0;
+    int dest = IXFrontReadDest(fd, host, sizeof(host), &port);
+    if (dest != 0 || port == 0 || host[0] == 0) {
+        IXFrontReply(fd, dest == -2 ? 0x08 : 0x01);
+        close(fd);
+        return NULL;
+    }
+    int up = socket(AF_INET, SOCK_STREAM, 0);
+    if (up < 0) {
+        IXFrontReply(fd, 0x01);
+        close(fd);
+        return NULL;
+    }
+    IXNoSigPipe(up);
+    struct sockaddr_in proxy;
+    memset(&proxy, 0, sizeof(proxy));
+    proxy.sin_family = AF_INET;
+#ifdef __APPLE__
+    proxy.sin_len = sizeof(proxy);
+#endif
+    proxy.sin_port = htons(atomic_load(&ix_front_upstream));
+    proxy.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    int dialed = IXSOCKSDial(up, (const struct sockaddr *)&proxy, sizeof(proxy), host, port);
+    if (dialed == IX_SOCKS_REFUSED) {
+        IXFrontReply(fd, 0x05);
+        close(up);
+        close(fd);
+        return NULL;
+    }
+    if (IXFrontReply(fd, 0x00) != 0) {
+        close(up);
+        close(fd);
+        return NULL;
+    }
+    IXFrontSplice(fd, up);
+    close(up);
+    close(fd);
+    return NULL;
+}
+
+static void *IXFrontAccept(void *arg) {
+    int lfd = (int)(intptr_t)arg;
+    for (;;) {
+        int fd = accept(lfd, NULL, NULL);
+        if (fd < 0) {
+            if (errno == EINTR) continue;
+            continue;
+        }
+        pthread_t thread;
+        if (pthread_create(&thread, NULL, IXFrontClient, (void *)(intptr_t)fd) != 0) {
+            close(fd);
+            continue;
+        }
+        pthread_detach(thread);
+    }
+    return NULL;
+}
+
+void IXSOCKSFrontStart(uint16_t listenPort, uint16_t upstreamPort, IXSOCKSLookup4 lookup, void *ctx) {
+    if (!listenPort || !upstreamPort) return;
+    atomic_store(&ix_front_upstream, upstreamPort);
+    ix_front_lookup = lookup;
+    ix_front_ctx = ctx;
+    if (atomic_exchange(&ix_front_started, 1)) return;
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        atomic_store(&ix_front_started, 0);
+        return;
+    }
+    int yes = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+#ifdef __APPLE__
+    addr.sin_len = sizeof(addr);
+#endif
+    addr.sin_port = htons(listenPort);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0 || listen(fd, 64) != 0) {
+        close(fd);
+        atomic_store(&ix_front_started, 0);
+        return;
+    }
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, IXFrontAccept, (void *)(intptr_t)fd) != 0) {
+        close(fd);
+        atomic_store(&ix_front_started, 0);
+        return;
+    }
+    pthread_detach(thread);
 }
