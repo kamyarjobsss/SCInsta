@@ -151,6 +151,9 @@ static NSString *IXBytes(uint64_t n) {
 @property (nonatomic, strong) NSTimer *refreshTimer;
 @property (nonatomic, copy) NSString *exitSummary;
 @property (nonatomic) BOOL checkingIP;
+@property (nonatomic) BOOL developerMode;
+@property (nonatomic) NSInteger versionTaps;
+@property (nonatomic) NSTimeInterval lastVersionTap;
 @end
 
 @implementation IXProxyViewController
@@ -159,11 +162,21 @@ static NSString *IXBytes(uint64_t n) {
     return [super initWithStyle:UITableViewStyleInsetGrouped];
 }
 
+- (void)ixUpdateChrome {
+    if (!self.developerMode) {
+        self.navigationItem.rightBarButtonItem = nil;
+        return;
+    }
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:IXT(@"Copy", @"کپی") style:UIBarButtonItemStylePlain target:self action:@selector(copyDiagnostics)];
+    self.navigationItem.rightBarButtonItem.accessibilityLabel = IXT(@"Copy diagnostics", @"کپی گزارش");
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = IXT(@"VPN", @"فیلترشکن");
-    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:IXT(@"Copy", @"کپی") style:UIBarButtonItemStylePlain target:self action:@selector(copyDiagnostics)];
-    self.navigationItem.rightBarButtonItem.accessibilityLabel = IXT(@"Copy diagnostics", @"کپی گزارش");
+    self.developerMode = [[NSUserDefaults standardUserDefaults] boolForKey:@"ix_vpn_developer"];
+    [IXProxyManager.shared setKillSwitch:YES];
+    [self ixUpdateChrome];
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 52;
 }
@@ -182,15 +195,23 @@ static NSString *IXBytes(uint64_t n) {
 }
 
 - (void)refreshStats {
+    if (!self.developerMode) {
+        UITableViewCell *cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+        NSString *now = IXProxyManager.shared.statusText ?: @"";
+        if (cell && ![cell.detailTextLabel.text isEqualToString:now]) [self.tableView reloadData];
+        return;
+    }
     if (IXProxyManager.shared.status != IXProxyStatusConnected) return;
     [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:IXProxySectionTraffic] withRowAnimation:UITableViewRowAnimationNone];
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
+    if (!self.developerMode) return 1;
     return IXProxySectionCount;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    if (!self.developerMode) return 1;
     if (section == IXProxySectionProfiles) return MAX([IXProxyManager.shared profiles].count, 1);
     if (section == IXProxySectionControls) return IXLaunchGuardIsSafeMode() ? 5 : 4;
     if (section == IXProxySectionAdd) return 2;
@@ -199,6 +220,7 @@ static NSString *IXBytes(uint64_t n) {
 }
 
 - (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section {
+    if (!self.developerMode) return nil;
     switch (section) {
         case IXProxySectionStatus: return IXT(@"Status", @"وضعیت");
         case IXProxySectionTraffic: return IXT(@"Traffic", @"ترافیک");
@@ -208,7 +230,41 @@ static NSString *IXBytes(uint64_t n) {
     }
 }
 
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section {
+    if (self.developerMode || section != 0) return nil;
+    UIView *wrap = [[UIView alloc] initWithFrame:CGRectMake(0, 0, tableView.bounds.size.width, 44)];
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    button.frame = wrap.bounds;
+    button.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [button setTitle:SCIVersionString ?: @"" forState:UIControlStateNormal];
+    [button setTitleColor:[UIColor secondaryLabelColor] forState:UIControlStateNormal];
+    button.titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
+    [button addTarget:self action:@selector(versionTapped) forControlEvents:UIControlEventTouchUpInside];
+    button.accessibilityLabel = IXT(@"Version", @"نسخه");
+    [wrap addSubview:button];
+    return wrap;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section {
+    if (!self.developerMode && section == 0) return 44;
+    return UITableViewAutomaticDimension;
+}
+
+- (void)versionTapped {
+    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
+    if (now - self.lastVersionTap > 2.0) self.versionTaps = 0;
+    self.lastVersionTap = now;
+    self.versionTaps += 1;
+    if (self.versionTaps < 7) return;
+    self.versionTaps = 0;
+    self.developerMode = YES;
+    [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"ix_vpn_developer"];
+    [self ixUpdateChrome];
+    [self.tableView reloadData];
+}
+
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    if (!self.developerMode) return nil;
     if (section != IXProxySectionAdd) return nil;
     return [NSString stringWithFormat:IXT(@"Engine: %@.\n\nConnected means a request through the tunnel reached generate_204. This is an in-app proxy, not the phone's VPN switch. With the kill switch on, every other path fails until the tunnel is up. UDP stays blocked so QUIC falls back to TCP. Copy sends tunneled, blocked, and direct connections.", @"موتور: %@.\n\n«متصل» یعنی یک درخواست واقعی از تونل به generate_204 رسیده است. این فیلترشکن داخل خود اینستاگرام است و با VPN سیستم فرق دارد. با قطع اضطراری، تا وقتی تونل بالا نیامده هیچ مسیر دیگری وصل نمی‌شود. UDP بسته است تا QUIC به TCP برگردد. کپی فهرست تونل، بسته‌شده و مستقیم را می‌فرستد."), IXProxyManager.shared.engineName];
 }
@@ -218,6 +274,18 @@ static NSString *IXBytes(uint64_t n) {
     cell.textLabel.numberOfLines = 0;
     cell.detailTextLabel.numberOfLines = 0;
     IXProxyManager *manager = IXProxyManager.shared;
+
+    if (!self.developerMode) {
+        UISwitch *toggle = [[UISwitch alloc] initWithFrame:CGRectZero];
+        toggle.tag = 0;
+        [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = toggle;
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        cell.textLabel.text = IXT(@"VPN", @"فیلترشکن");
+        cell.detailTextLabel.text = manager.statusText;
+        toggle.on = manager.isEnabled || manager.status == IXProxyStatusConnected || manager.status == IXProxyStatusConnecting;
+        return cell;
+    }
 
     if (indexPath.section == IXProxySectionStatus) {
         NSString *status = manager.statusText;
@@ -284,9 +352,9 @@ static NSString *IXBytes(uint64_t n) {
             cell.detailTextLabel.text = IXT(@"Turns the in-app proxy on for this process.", @"پروکسی داخل برنامه را برای همین اینستاگرام روشن می‌کند.");
             toggle.on = manager.isEnabled || manager.status == IXProxyStatusConnected || manager.status == IXProxyStatusConnecting;
         } else if (indexPath.row == 1) {
+            cell.accessoryView = nil;
             cell.textLabel.text = IXT(@"Kill switch", @"قطع اضطراری");
-            cell.detailTextLabel.text = IXT(@"If the proxy is down, block Instagram instead of leaking the real IP.", @"اگر پروکسی قطع باشد، به‌جای لو رفتن IP واقعی، اینستاگرام بسته می‌شود.");
-            toggle.on = manager.killSwitch;
+            cell.detailTextLabel.text = IXT(@"Always on.", @"همیشه روشن است.");
         } else if (indexPath.row == 2) {
             cell.textLabel.text = IXT(@"Block UDP and calls", @"بستن UDP و تماس");
             cell.detailTextLabel.text = IXT(@"Stops call media from bypassing the tunnel. Turning this off can reveal your IP.", @"نمی‌گذارد صدای تماس از کنار تونل رد شود. خاموش کردنش می‌تواند IP را لو بدهد.");
@@ -351,7 +419,8 @@ static NSString *IXBytes(uint64_t n) {
 - (void)switchChanged:(UISwitch *)sender {
     IXProxyManager *manager = IXProxyManager.shared;
     if (sender.tag == 1) {
-        [manager setKillSwitch:sender.on];
+        sender.on = YES;
+        [manager setKillSwitch:YES];
         return;
     }
     if (sender.tag == 2) {
@@ -373,6 +442,7 @@ static NSString *IXBytes(uint64_t n) {
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    if (!self.developerMode) return;
     IXProxyManager *manager = IXProxyManager.shared;
     if (indexPath.section == IXProxySectionTraffic) {
         if (indexPath.row == 2) {
@@ -477,6 +547,7 @@ static NSString *IXBytes(uint64_t n) {
 }
 
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
+    if (!self.developerMode) return NO;
     return indexPath.section == IXProxySectionProfiles && [IXProxyManager.shared profiles].count > 0;
 }
 

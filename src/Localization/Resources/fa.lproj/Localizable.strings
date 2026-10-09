@@ -883,3 +883,5 @@
 "Change location" = "عوض کردن مکان";
 "Add location" = "افزودن مکان";
 "Settings…" = "تنظیمات…";
+"US region signals" = "سیگنال منطقهٔ آمریکا";
+"Country, carrier, storefront, and location hints use the United States. Language and time zone stay as they are." = "کشور، اپراتور، فروشگاه و نشانه‌های مکان روی آمریکا می‌مانند. زبان و منطقهٔ زمانی عوض نمی‌شوند.";

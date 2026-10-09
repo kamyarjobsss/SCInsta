@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.2.4"
+                description: "Publish a prerelease tagged instagram-x-v2.3.0"
                 default: true
                 required: false
                 type: boolean
@@ -237,9 +237,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.2.4
+                tag_name: instagram-x-v2.3.0
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.2.4
+                name: Instagram X 2.3.0
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -253,7 +253,7 @@ jobs:
 
                   This release is the full build only.
 
-                  v2.2.4 stops the folly::IPAddress crash in tigon::helpers::isHostThirdParty. 2.2.2 and 2.2.3 still handed Tigon a host string that is not an IP: getnameinfo could return the original hostname or an empty buffer, and DNS, CFHost, and Network.framework still produced IPv6 fakes (fd00::, scoped, or bracketed). Those hooks are gone. Resolver answers are IPv4 in 198.18.0.0/15 only, ai_canonname stays empty, and getpeername returns that IPv4 instead of the SOCKS peer 127.0.0.1. getnameinfo and inet_ntop are not hooked. If a launch dies within 5 seconds, VPN hooks and Xray autostart stay off until Exit safe mode. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+                  v2.3.0 keeps the v2.2.4 tunnel. Logged-in accounts stay in the app-group container across a force-close, and keychain groups are rewritten from the signed application-identifier prefix so a Sideloadly or LiveContainer resign still lands in an entitled group. The fake-location default is Los Angeles. US region signals default on: carrier MCC 310 MNC 410, locale country and currency, storefront, country headers, and Los Angeles when fake location is off. Language and time zone are unchanged. The VPN screen is one switch; the kill switch stays on. Tap the version seven times for the server link, mode, log, and Check IP. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -266,4 +266,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.2.4"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.3.0"

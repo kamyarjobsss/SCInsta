@@ -282,11 +282,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         [suite setBool:enabled forKey:IXProxyEnabledKey];
         [standard setBool:enabled forKey:IXProxyEnabledKey];
     }
-    if (payload[@"killswitch"]) {
-        BOOL on = [payload[@"killswitch"] boolValue];
-        [suite setBool:on forKey:IXProxyKillSwitchKey];
-        [standard setBool:on forKey:IXProxyKillSwitchKey];
-    }
+    [suite setBool:YES forKey:IXProxyKillSwitchKey];
+    [standard setBool:YES forKey:IXProxyKillSwitchKey];
     if (payload[@"blockudp"]) {
         BOOL on = [payload[@"blockudp"] boolValue];
         [suite setBool:on forKey:IXProxyBlockUDPKey];
@@ -304,7 +301,8 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSUserDefaults *suite = IXProxySuite();
     NSArray *profiles = [suite arrayForKey:IXProxyProfilesKey] ?: @[];
     NSString *selected = [suite stringForKey:IXProxySelectedKey] ?: @"";
-    BOOL kill = [suite objectForKey:IXProxyKillSwitchKey] ? [suite boolForKey:IXProxyKillSwitchKey] : YES;
+    BOOL kill = YES;
+    [suite setBool:YES forKey:IXProxyKillSwitchKey];
     BOOL block = [suite objectForKey:IXProxyBlockUDPKey] ? [suite boolForKey:IXProxyBlockUDPKey] : YES;
     BOOL enabled = [suite boolForKey:IXProxyEnabledKey];
     NSUserDefaults *standard = [NSUserDefaults standardUserDefaults];
@@ -361,10 +359,7 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 
 - (BOOL)killSwitch {
-    NSUserDefaults *store = [self settingsStore];
-    id value = [store objectForKey:IXProxyKillSwitchKey];
-    if (!value) return YES;
-    return [store boolForKey:IXProxyKillSwitchKey];
+    return YES;
 }
 
 - (BOOL)blockUDP {
@@ -398,9 +393,10 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 
 - (void)setKillSwitch:(BOOL)on {
-    [[self settingsStore] setBool:on forKey:IXProxyKillSwitchKey];
+    (void)on;
+    [[self settingsStore] setBool:YES forKey:IXProxyKillSwitchKey];
     [self persistSettings];
-    IXTrafficGuardSetRuntime(IXTrafficGuardVPNOn(), IXTrafficGuardProxyUp(), on, [self blockUDP]);
+    IXTrafficGuardSetRuntime(IXTrafficGuardVPNOn(), IXTrafficGuardProxyUp(), YES, [self blockUDP]);
 }
 
 - (void)setBlockUDP:(BOOL)on {

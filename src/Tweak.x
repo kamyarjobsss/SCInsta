@@ -10,6 +10,7 @@
 #include "../modules/fishhook/fishhook.h"
 
 extern void SCIFakeLocationInstall(void);
+extern void IXUSRegionInstall(void);
 
 ///////////////////////////////////////////////////////////
 
@@ -21,7 +22,7 @@ extern void SCIFakeLocationInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.2.4";
+NSString *SCIVersionString = @"v2.3.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -92,9 +93,9 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         @"hide_video_call_button": @(NO),
         @"fake_location_enabled": @(NO),
         @"show_fake_location_map_button": @(NO),
-        @"fake_location_lat": @(48.8584),
-        @"fake_location_lon": @(2.2945),
-        @"fake_location_name": @"Eiffel Tower",
+        @"fake_location_lat": @(34.0522),
+        @"fake_location_lon": @(-118.2437),
+        @"fake_location_name": @"Los Angeles",
         @"fake_location_presets": @[],
         @"messages_only": @(NO),
         @"messages_only_hide_tabbar": @(NO),
@@ -219,7 +220,8 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         @"ix_block_udp": @(YES),
         @"ix_vless_enabled": @(NO),
         @"fake_location_spoof_tz": @(NO),
-        @"fake_location_spoof_locale": @(NO)
+        @"fake_location_spoof_locale": @(NO),
+        @"ix_us_region": @(YES)
     };
     [[NSUserDefaults standardUserDefaults] registerDefaults:sciDefaults];
     [SCIUtils setSciRegisteredDefaults:sciDefaults];
@@ -237,6 +239,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
     %orig;
 
+    IXUSRegionInstall();
     BOOL safeMode = IXLaunchGuardIsSafeMode();
     if (!safeMode) {
         if ([[NSUserDefaults standardUserDefaults] boolForKey:@"fake_location_enabled"]) {

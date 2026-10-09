@@ -94,7 +94,7 @@
     [self setupCard];
 
     CLLocationCoordinate2D coord = CLLocationCoordinate2DIsValid(self.initialCoord)
-        ? self.initialCoord : CLLocationCoordinate2DMake(48.8584, 2.2945);
+        ? self.initialCoord : CLLocationCoordinate2DMake(34.0522, -118.2437);
     [self.mapView setRegion:MKCoordinateRegionMakeWithDistance(coord, 1500, 1500) animated:NO];
     self.resultsVC.region = self.mapView.region;
 

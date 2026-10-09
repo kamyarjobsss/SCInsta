@@ -474,8 +474,8 @@ static void *ix_saved_repl[IX_REBIND_NAMES];
 static unsigned ix_saved_count = 0;
 static int ix_rebind_live = 0;
 static int ix_image_callback = 0;
-static const char *ix_perm_names[4];
-static void *ix_perm_repl[4];
+static const char *ix_perm_names[16];
+static void *ix_perm_repl[16];
 static unsigned ix_perm_count = 0;
 
 static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
@@ -554,7 +554,7 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
 int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count) {
     if (!names || !replacements || count == 0) return 0;
     pthread_mutex_lock(&ix_rebind_mu);
-    unsigned kept = count > 4 ? 4 : count;
+    unsigned kept = count > 16 ? 16 : count;
     for (unsigned i = 0; i < kept; i++) {
         int found = 0;
         for (unsigned j = 0; j < ix_perm_count; j++) {
@@ -564,7 +564,7 @@ int IXSymbolRebindPermanent(const char *const *names, void *const *replacements,
                 break;
             }
         }
-        if (!found && ix_perm_count < 4) {
+        if (!found && ix_perm_count < 16) {
             ix_perm_names[ix_perm_count] = names[i];
             ix_perm_repl[ix_perm_count] = replacements[i];
             ix_perm_count++;

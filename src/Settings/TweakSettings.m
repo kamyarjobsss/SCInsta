@@ -141,7 +141,10 @@ static void IXOpenK8myarProfile(void) {
                 [SCISetting navigationCellWithTitle:SCILocalized(@"VPN")
                                            subtitle:[IXProxyManager statusSubtitle]
                                                icon:[SCISymbol symbolWithName:@"lock.shield"]
-                                     viewController:[IXProxyViewController new]]
+                                     viewController:[IXProxyViewController new]],
+                [SCISetting switchCellWithTitle:SCILocalized(@"US region signals")
+                                       subtitle:SCILocalized(@"Country, carrier, storefront, and location hints use the United States. Language and time zone stay as they are.")
+                                     defaultsKey:@"ix_us_region"]
             ]
         },
         @{
