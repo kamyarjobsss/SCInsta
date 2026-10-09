@@ -21,6 +21,8 @@
 @property (nonatomic, assign) NSInteger checksSinceSave;
 @property (nonatomic, copy) NSString *rankToken;
 @property (nonatomic, strong) NSMutableSet<NSString *> *skippedPKs;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *statusAttempts;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *searchAttempts;
 @property (nonatomic, copy) SCIPAIncremental incremental;
 @property (nonatomic, strong, readwrite) SCIProfileAnalyzerSnapshot *liveSnapshot;
 @end
@@ -74,6 +76,8 @@
     self.searchFailures = 0;
     self.checksSinceSave = 0;
     self.skippedPKs = [NSMutableSet set];
+    self.statusAttempts = [NSMutableDictionary dictionary];
+    self.searchAttempts = [NSMutableDictionary dictionary];
     self.rankToken = [[NSUUID UUID] UUIDString];
     self.incremental = incremental;
     self.liveSnapshot = nil;
@@ -312,10 +316,10 @@
     if (!map.count) return 0;
     NSUInteger applied = 0;
     for (SCIProfileAnalyzerUser *user in users) {
-        if (user.followsYou >= 0 || !user.pk.length) continue;
+        if (!user.pk.length) continue;
         NSInteger value = [self followsYouInRow:map[user.pk]];
         if (value < 0) continue;
-        user.followsYou = value;
+        [self noteStatus:value user:user];
         applied++;
     }
     return applied;
@@ -377,13 +381,59 @@
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(ms * NSEC_PER_MSEC)), dispatch_get_main_queue(), block);
 }
 
-- (NSArray<SCIProfileAnalyzerUser *> *)nextBatch:(NSArray<SCIProfileAnalyzerUser *> *)users limit:(NSUInteger)limit {
+- (int)attemptsIn:(NSDictionary *)map pk:(NSString *)pk {
+    if (!pk.length) return 0;
+    return [map[pk] intValue];
+}
+
+- (void)setAttempt:(int)value in:(NSMutableDictionary *)map pk:(NSString *)pk {
+    if (!pk.length || value < 0) return;
+    int current = [map[pk] intValue];
+    if (value > current) map[pk] = @(value);
+}
+
+- (void)reclassify:(SCIProfileAnalyzerUser *)user {
+    user.followsYou = IXPAClassify((int)user.followStatus, (int)user.followSearch);
+}
+
+- (void)noteStatus:(NSInteger)value user:(SCIProfileAnalyzerUser *)user {
+    if (value < 0 || !user) return;
+    if (value > 0 || user.followStatus < 0) user.followStatus = value > 0 ? 1 : 0;
+    [self reclassify:user];
+}
+
+- (void)noteSearch:(NSInteger)value user:(SCIProfileAnalyzerUser *)user {
+    if (value < 0 || !user) return;
+    if (value > 0 || user.followSearch < 0) user.followSearch = value > 0 ? 1 : 0;
+    [self reclassify:user];
+}
+
+- (void)applyKnown:(NSNumber *)cached toUser:(SCIProfileAnalyzerUser *)user {
+    if (!cached || user.followsYou >= 0) return;
+    NSInteger value = cached.integerValue;
+    if (value > 0) user.followStatus = 1;
+    else if (value == 0) {
+        user.followStatus = 0;
+        user.followSearch = 0;
+    }
+    [self reclassify:user];
+}
+
+- (int)workForUser:(SCIProfileAnalyzerUser *)user {
+    if (!user.pk.length || [self.skippedPKs containsObject:user.pk]) return 0;
+    return IXPANextCheck((int)user.followStatus, (int)user.followSearch,
+                          [self attemptsIn:self.statusAttempts pk:user.pk],
+                          [self attemptsIn:self.searchAttempts pk:user.pk]);
+}
+
+- (NSArray<SCIProfileAnalyzerUser *> *)usersNeedingWork:(int)work
+                                                  users:(NSArray<SCIProfileAnalyzerUser *> *)users
+                                                  limit:(NSUInteger)limit {
     NSMutableArray *batch = [NSMutableArray array];
     for (SCIProfileAnalyzerUser *user in users) {
-        if (user.followsYou >= 0 || !user.pk.length) continue;
-        if ([self.skippedPKs containsObject:user.pk]) continue;
+        if ([self workForUser:user] != work) continue;
         [batch addObject:user];
-        if (batch.count >= limit) break;
+        if (limit && batch.count >= limit) break;
     }
     return batch;
 }
@@ -419,8 +469,10 @@
             return;
         }
         NSInteger cap = self.showManyLimit > 0 ? self.showManyLimit : SCI_PA_SHOW_MANY;
-        NSArray<SCIProfileAnalyzerUser *> *batch = [self nextBatch:users limit:self.showManyDead ? 1 : (NSUInteger)cap];
-        if (batch.count == 0) {
+        NSArray<SCIProfileAnalyzerUser *> *bulk = self.showManyDead ? @[] : [self usersNeedingWork:1 users:users limit:(NSUInteger)cap];
+        NSArray<SCIProfileAnalyzerUser *> *search = bulk.count ? @[] : [self usersNeedingWork:2 users:users limit:1];
+        NSArray<SCIProfileAnalyzerUser *> *single = (bulk.count || search.count) ? @[] : [self usersNeedingWork:3 users:users limit:1];
+        if (bulk.count == 0 && search.count == 0 && single.count == 0) {
             NSInteger leftover = 0;
             for (SCIProfileAnalyzerUser *user in users) if (user.followsYou < 0 && user.pk.length) leftover++;
             NSError *error = leftover > 0
@@ -432,11 +484,13 @@
         [self publishUsers:users snapshot:snap progress:progress
                     status:[self mutualStatusForUsers:users]
                   fraction:[self mutualFractionForUsers:users]];
-        if (self.showManyDead) {
-            [self searchUser:batch.firstObject users:users pk:pk snapshot:snap progress:progress completion:completion];
-            return;
+        if (bulk.count) {
+            [self showMany:bulk users:users pk:pk snapshot:snap progress:progress completion:completion];
+        } else if (search.count) {
+            [self searchUser:search.firstObject page:@"" pages:0 users:users pk:pk snapshot:snap progress:progress completion:completion];
+        } else {
+            [self showOne:single.firstObject users:users pk:pk snapshot:snap progress:progress completion:completion];
         }
-        [self showMany:batch users:users pk:pk snapshot:snap progress:progress completion:completion];
     } @catch (__unused NSException *e) {
         [self finishClassified:users pk:pk snapshot:snap
                          error:[self errorWithCode:SCIProfileAnalyzerErrorNetwork
@@ -479,11 +533,13 @@
             return;
         }
         if (!error) {
-            NSUInteger applied = [strongSelf applyStatusMap:[strongSelf statusMapFromResponse:resp] toUsers:users];
+            for (SCIProfileAnalyzerUser *user in batch) [strongSelf setAttempt:1 in:strongSelf.statusAttempts pk:user.pk];
+            NSUInteger applied = [strongSelf applyStatusMap:[strongSelf statusMapFromResponse:resp] toUsers:batch];
             if (applied == 0) strongSelf.showManyDead = YES;
         } else if (strongSelf.showManyLimit > 20) {
             strongSelf.showManyLimit = MAX(20, strongSelf.showManyLimit / 2);
         } else {
+            for (SCIProfileAnalyzerUser *user in batch) [strongSelf setAttempt:1 in:strongSelf.statusAttempts pk:user.pk];
             strongSelf.showManyDead = YES;
         }
         [strongSelf publishUsers:users snapshot:snap progress:progress
@@ -496,9 +552,9 @@
     }];
 }
 
-- (BOOL)page:(NSDictionary *)resp containsExactUsername:(NSString *)username valid:(BOOL *)valid {
+- (BOOL)page:(NSDictionary *)resp matchesUser:(SCIProfileAnalyzerUser *)user valid:(BOOL *)valid {
     if (valid) *valid = NO;
-    if (![resp isKindOfClass:[NSDictionary class]] || !username.length) return NO;
+    if (![resp isKindOfClass:[NSDictionary class]] || !user) return NO;
     id lists[2] = { resp[@"users"], resp[@"items"] };
     BOOL saw = NO;
     BOOL match = NO;
@@ -508,9 +564,9 @@
             saw = YES;
             for (id item in (NSArray *)lists[i]) {
                 if (![item isKindOfClass:[NSDictionary class]]) continue;
-                NSString *name = item[@"username"];
-                if (![name isKindOfClass:[NSString class]]) continue;
-                if (IXPAUsernameExact(username.UTF8String, name.UTF8String)) {
+                NSString *name = [item[@"username"] isKindOfClass:[NSString class]] ? item[@"username"] : @"";
+                NSString *itemPK = [self pkString:item[@"pk"] ?: item[@"pk_id"] ?: item[@"id"]];
+                if (IXPASameAccount(user.username.UTF8String, user.pk.UTF8String, name.UTF8String, itemPK.UTF8String)) {
                     match = YES;
                     break;
                 }
@@ -522,19 +578,38 @@
     return match;
 }
 
+- (BOOL)pageHasMore:(NSDictionary *)resp {
+    if (![resp isKindOfClass:[NSDictionary class]]) return NO;
+    id more = resp[@"has_more"] ?: resp[@"more_available"];
+    if ([more respondsToSelector:@selector(boolValue)] && [more boolValue]) return YES;
+    id next = resp[@"next_max_id"];
+    if ([next isKindOfClass:[NSString class]]) return [(NSString *)next length] > 0;
+    if ([next respondsToSelector:@selector(stringValue)]) return [[next stringValue] length] > 0;
+    return NO;
+}
+
+- (NSString *)pageCursor:(NSDictionary *)resp {
+    id next = [resp isKindOfClass:[NSDictionary class]] ? resp[@"next_max_id"] : nil;
+    if ([next isKindOfClass:[NSString class]]) return next;
+    if ([next respondsToSelector:@selector(stringValue)]) return [next stringValue];
+    return @"";
+}
+
 - (NSString *)queryToken:(NSString *)username {
     NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._"];
     return [username stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
 }
 
 - (void)searchUser:(SCIProfileAnalyzerUser *)user
-             users:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
-                pk:(NSString *)pk
-          snapshot:(SCIProfileAnalyzerSnapshot *)snap
-          progress:(SCIPAProgress)progress
-        completion:(SCIPACompletion)completion {
+                page:(NSString *)cursor
+               pages:(NSInteger)pages
+               users:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+                  pk:(NSString *)pk
+            snapshot:(SCIProfileAnalyzerSnapshot *)snap
+            progress:(SCIPAProgress)progress
+          completion:(SCIPACompletion)completion {
     if (!user.username.length) {
-        if (user.pk.length) [self.skippedPKs addObject:user.pk];
+        [self setAttempt:1 in:self.searchAttempts pk:user.pk];
         __weak typeof(self) weakSelf = self;
         dispatch_async(dispatch_get_main_queue(), ^{
             [weakSelf stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
@@ -545,6 +620,10 @@
     NSString *rank = [self queryToken:self.rankToken ?: @""];
     NSString *path = [NSString stringWithFormat:@"friendships/%@/followers/?query=%@&search_surface=follow_list_page&rank_token=%@",
                       pk, query, rank];
+    if (cursor.length) {
+        NSString *escaped = [cursor stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLPathAllowedCharacterSet]] ?: @"";
+        if (escaped.length) path = [path stringByAppendingFormat:@"&max_id=%@", escaped];
+    }
     __weak typeof(self) weakSelf = self;
     [self requestPath:path method:@"GET" body:nil attempt:0 progress:progress completion:^(NSDictionary *resp, NSError *error) {
         typeof(self) strongSelf = weakSelf;
@@ -562,21 +641,30 @@
         }
         if (error) {
             strongSelf.searchFailures++;
-            if (user.pk.length) [strongSelf.skippedPKs addObject:user.pk];
+            [strongSelf setAttempt:1 in:strongSelf.searchAttempts pk:user.pk];
             if (strongSelf.searchFailures >= 3) {
                 [strongSelf finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
                 return;
             }
         } else {
             BOOL valid = NO;
-            BOOL match = [strongSelf page:resp containsExactUsername:user.username valid:&valid];
+            BOOL match = [strongSelf page:resp matchesUser:user valid:&valid];
             NSString *status = [resp[@"status"] isKindOfClass:[NSString class]] ? resp[@"status"] : @"";
             if (status.length && ![status isEqualToString:@"ok"]) valid = NO;
-            if (valid && user.followsYou < 0) {
-                user.followsYou = match ? 1 : 0;
+            BOOL more = [strongSelf pageHasMore:resp];
+            int verdict = IXPASearchVerdict(match, valid, more);
+            if (verdict == -1 && more && pages < 2) {
+                NSString *next = [strongSelf pageCursor:resp];
+                if (next.length && ![next isEqualToString:cursor ?: @""]) {
+                    [strongSelf searchUser:user page:next pages:pages + 1 users:users pk:pk snapshot:snap progress:progress completion:completion];
+                    return;
+                }
+            }
+            [strongSelf setAttempt:1 in:strongSelf.searchAttempts pk:user.pk];
+            if (verdict >= 0) {
+                [strongSelf noteSearch:verdict user:user];
                 strongSelf.searchFailures = 0;
-            } else if (user.pk.length) {
-                [strongSelf.skippedPKs addObject:user.pk];
+            } else {
                 strongSelf.searchFailures++;
                 if (strongSelf.searchFailures >= 3) {
                     [strongSelf finishClassified:users pk:pk snapshot:snap
@@ -586,6 +674,47 @@
                     return;
                 }
             }
+        }
+        [strongSelf publishUsers:users snapshot:snap progress:progress
+                          status:[strongSelf mutualStatusForUsers:users]
+                        fraction:[strongSelf mutualFractionForUsers:users]];
+        [strongSelf persistIfNeeded:users pk:pk force:NO];
+        [strongSelf afterGate:^{
+            [weakSelf stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
+        } progress:progress];
+    }];
+}
+
+- (void)showOne:(SCIProfileAnalyzerUser *)user
+          users:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+             pk:(NSString *)pk
+       snapshot:(SCIProfileAnalyzerSnapshot *)snap
+       progress:(SCIPAProgress)progress
+     completion:(SCIPACompletion)completion {
+    if (!user.pk.length) {
+        [self stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
+        return;
+    }
+    NSString *path = [NSString stringWithFormat:@"friendships/show/%@/", user.pk];
+    __weak typeof(self) weakSelf = self;
+    [self requestPath:path method:@"GET" body:nil attempt:0 progress:progress completion:^(NSDictionary *resp, NSError *error) {
+        typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        if (strongSelf.cancelled || error.code == SCIProfileAnalyzerErrorCancelled) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap
+                                   error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled
+                                                            message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")]
+                                progress:progress completion:completion];
+            return;
+        }
+        if (error.code == SCIProfileAnalyzerErrorRateLimited) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
+            return;
+        }
+        [strongSelf setAttempt:2 in:strongSelf.statusAttempts pk:user.pk];
+        if (!error) {
+            NSInteger value = [strongSelf followsYouInRow:resp];
+            if (value >= 0) [strongSelf noteStatus:value user:user];
         }
         [strongSelf publishUsers:users snapshot:snap progress:progress
                           status:[strongSelf mutualStatusForUsers:users]
@@ -623,10 +752,7 @@
             if (![item isKindOfClass:[NSDictionary class]]) continue;
             SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromJSONDict:item];
             if (!user.pk.length || [seen containsObject:user.pk]) continue;
-            if (user.followsYou < 0) {
-                NSNumber *cached = known[user.pk];
-                if (cached) user.followsYou = cached.integerValue;
-            }
+            if (user.followsYou < 0) [self applyKnown:known[user.pk] toUser:user];
             [seen addObject:user.pk];
             [acc addObject:user];
         }
@@ -672,10 +798,7 @@
             if (![item isKindOfClass:[NSDictionary class]]) continue;
             SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromAPIDict:item];
             if (!user.pk.length || [seen containsObject:user.pk]) continue;
-            if (user.followsYou < 0) {
-                NSNumber *cached = known[user.pk];
-                if (cached) user.followsYou = cached.integerValue;
-            }
+            if (user.followsYou < 0) [self applyKnown:known[user.pk] toUser:user];
             [seen addObject:user.pk];
             [acc addObject:user];
         }

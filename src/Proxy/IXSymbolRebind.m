@@ -55,6 +55,25 @@ static IXReboundSlot *ix_slots = NULL;
 static unsigned ix_slot_count = 0;
 static unsigned ix_slot_cap = 0;
 static pthread_mutex_t ix_rebind_mu = PTHREAD_MUTEX_INITIALIZER;
+static const char *ix_perm_names[16];
+static void *ix_perm_repl[16];
+static void *ix_perm_prev[16];
+static unsigned ix_perm_count = 0;
+
+static void *IXStrip(void *pointer);
+
+static void IXNotePrevious(const char *name, void *existing, void *replacement) {
+    void *stripped = IXStrip(existing);
+    if (!name || !stripped || stripped == replacement) return;
+    for (unsigned i = 0; i < ix_perm_count; i++) {
+        if (!ix_perm_names[i] || strcmp(ix_perm_names[i], name) != 0) continue;
+        void *real = dlsym(RTLD_DEFAULT, name);
+        if (!ix_perm_prev[i] || ix_perm_prev[i] == real) {
+            if (stripped != real || !ix_perm_prev[i]) ix_perm_prev[i] = stripped;
+        }
+        return;
+    }
+}
 
 static void *IXStrip(void *pointer) {
 #if __has_feature(ptrauth_calls)
@@ -363,6 +382,7 @@ static int IXRebindChained(const struct mach_header *header, const char *path,
                             if (replacement && slot) {
                                 void *existing = *slot;
                                 if (IXStrip(existing) != replacement) {
+                                    if (!remember) IXNotePrevious(names[which], existing, replacement);
                                     if (IXMakeDataWritable(slot, sizeof(void *))) {
                                         if (!remember || IXRemember(slot, existing)) {
                                             *slot = IXSignLike(slot, existing, replacement);
@@ -453,6 +473,7 @@ static int IXRebindImage(const struct mach_header *header, intptr_t slide, const
                     if (!replacement) continue;
                     void *existing = slots[index];
                     if (IXStrip(existing) == replacement) continue;
+                    if (!remember) IXNotePrevious(names[which], existing, replacement);
                     if (!writable) {
                         if (!IXMakeDataWritable(slots, sect->size)) break;
                         writable = 1;
@@ -474,9 +495,6 @@ static void *ix_saved_repl[IX_REBIND_NAMES];
 static unsigned ix_saved_count = 0;
 static int ix_rebind_live = 0;
 static int ix_image_callback = 0;
-static const char *ix_perm_names[16];
-static void *ix_perm_repl[16];
-static unsigned ix_perm_count = 0;
 
 static void IXOnNewImage(const struct mach_header *header, intptr_t slide) {
     pthread_mutex_lock(&ix_rebind_mu);
@@ -585,6 +603,20 @@ int IXSymbolRebindPermanent(const char *const *names, void *const *replacements,
     pthread_mutex_unlock(&ix_rebind_mu);
     if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);
     return patched;
+}
+
+void *IXSymbolPrevious(const char *name) {
+    void *prev = NULL;
+    if (!name) return NULL;
+    pthread_mutex_lock(&ix_rebind_mu);
+    for (unsigned i = 0; i < ix_perm_count; i++) {
+        if (ix_perm_names[i] && strcmp(ix_perm_names[i], name) == 0) {
+            prev = ix_perm_prev[i];
+            break;
+        }
+    }
+    pthread_mutex_unlock(&ix_rebind_mu);
+    return prev;
 }
 
 void IXSymbolRebindRestore(void) {

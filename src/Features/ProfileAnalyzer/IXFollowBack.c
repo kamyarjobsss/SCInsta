@@ -41,3 +41,30 @@ int IXPAUsernameExact(const char *query, const char *name) {
         if (a == 0) return 1;
     }
 }
+
+int IXPAClassify(int status, int search) {
+    if (status > 0 || search > 0) return 1;
+    if (status == 0 && search == 0) return 0;
+    return -1;
+}
+
+int IXPASearchVerdict(int exact, int page_valid, int has_more) {
+    if (exact) return 1;
+    if (!page_valid || has_more) return -1;
+    return 0;
+}
+
+int IXPASameAccount(const char *query_name, const char *query_pk, const char *name, const char *pk) {
+    if (query_pk && query_pk[0] && pk && pk[0] && strcmp(query_pk, pk) == 0) return 1;
+    return IXPAUsernameExact(query_name, name);
+}
+
+int IXPANextCheck(int status, int search, int status_attempts, int search_attempts) {
+    if (IXPAClassify(status, search) >= 0) return 0;
+    if (status_attempts < 0) status_attempts = 0;
+    if (search_attempts < 0) search_attempts = 0;
+    if (status < 0 && status_attempts == 0) return 1;
+    if (search < 0 && search_attempts == 0) return 2;
+    if (status < 0 && status_attempts < 2) return 3;
+    return 0;
+}

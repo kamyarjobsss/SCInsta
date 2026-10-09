@@ -57,6 +57,15 @@ def main() -> int:
             ipad["CFBundlePrimaryIcon"] = ipad_primary
             info["CFBundleIcons~ipad"] = ipad
 
+        ats = info.get("NSAppTransportSecurity")
+        if not isinstance(ats, dict):
+            ats = {}
+        # IP-literal HTTPS is not an NSExceptionDomains entry. Without this,
+        # ATS drops the panel handshake before the pin delegate runs.
+        ats["NSAllowsArbitraryLoads"] = True
+        ats["NSAllowsLocalNetworking"] = True
+        info["NSAppTransportSecurity"] = ats
+
         if bundle_id and old_id and bundle_id != old_id:
             info["CFBundleIdentifier"] = bundle_id
             _retarget_extensions(app, old_id, bundle_id)

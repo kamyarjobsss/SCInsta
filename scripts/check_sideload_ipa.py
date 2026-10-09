@@ -71,6 +71,9 @@ def main() -> int:
     icon_files = primary.get("CFBundleIconFiles") or []
     if "IXAppIcon60x60" not in icon_files:
         return fail(f"primary icon files are {icon_files}")
+    ats = info.get("NSAppTransportSecurity") or {}
+    if ats.get("NSAllowsArbitraryLoads") is not True:
+        return fail("NSAllowsArbitraryLoads is not set; IP-literal HTTPS can fail before the pin check")
 
     required = [
         f"Payload/{app_name}/Frameworks/SCInsta.dylib",

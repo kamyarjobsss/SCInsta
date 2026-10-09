@@ -67,6 +67,10 @@ int main(void) {
 
     char tiny[4];
     expect(IXAddrWriteNumeric((struct sockaddr *)&v4, sizeof(v4), tiny, sizeof(tiny)) == EAI_OVERFLOW, "short buffer fails cleanly");
+    expect(IXEndpointSkipsTunnel(1, 443) == 1, "direct host skips the tunnel");
+    expect(IXEndpointSkipsTunnel(0, 9443) == 1, "panel port skips the tunnel");
+    expect(IXEndpointSkipsTunnel(0, 443) == 0, "other ports stay eligible");
+    expect(IXEndpointSkipsTunnel(0, 0) == 0, "missing port stays eligible");
 
     if (gFailures) {
         fprintf(stderr, "%d address checks failed\n", gFailures);

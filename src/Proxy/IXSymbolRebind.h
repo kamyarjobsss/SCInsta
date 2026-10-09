@@ -25,6 +25,11 @@ void IXSymbolRebindRestore(void);
 /// symbols Instagram calls directly after login.
 int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count);
 
+/// The function a permanent rebind replaced, when one was already installed.
+/// NULL until IXSymbolRebindPermanent has seen that name. The raw export is
+/// returned when no earlier hook was in the slot.
+void *IXSymbolPrevious(const char *name);
+
 #ifdef __cplusplus
 }
 #endif

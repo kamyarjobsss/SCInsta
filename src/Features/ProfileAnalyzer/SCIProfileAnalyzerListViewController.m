@@ -28,6 +28,7 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
 @property (nonatomic, strong) NSLayoutConstraint *usernameTrailingToButton;
 @property (nonatomic, strong) NSLayoutConstraint *usernameTrailingToEdge;
 @property (nonatomic, copy) void(^onActionTap)(SCIPAUserCell *);
+@property (nonatomic, copy) void(^onOpen)(SCIPAUserCell *);
 @end
 
 @implementation SCIPAUserCell
@@ -42,6 +43,8 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     _avatar.layer.cornerRadius = 24;
     _avatar.layer.masksToBounds = YES;
     _avatar.contentMode = UIViewContentModeScaleAspectFill;
+    _avatar.userInteractionEnabled = YES;
+    [_avatar addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(onOpenTap)]];
     [self.contentView addSubview:_avatar];
 
     _usernameLabel = [UILabel new];
@@ -50,6 +53,8 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     _usernameLabel.textColor = [UIColor labelColor];
     [_usernameLabel setContentHuggingPriority:UILayoutPriorityDefaultHigh forAxis:UILayoutConstraintAxisHorizontal];
     [_usernameLabel setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+    _usernameLabel.userInteractionEnabled = YES;
+    [_usernameLabel addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(onOpenTap)]];
     [self.contentView addSubview:_usernameLabel];
 
     _verifiedBadge = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"checkmark.seal.fill"]];
@@ -114,10 +119,12 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
 }
 
 - (void)onAction { if (self.onActionTap) self.onActionTap(self); }
+- (void)onOpenTap { if (self.onOpen) self.onOpen(self); }
 - (void)prepareForReuse {
     [super prepareForReuse];
     self.avatar.image = nil;
     self.onActionTap = nil;
+    self.onOpen = nil;
     self.verifiedBadge.hidden = YES;
 }
 @end
@@ -196,6 +203,7 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     self.tableView.delegate = self;
     self.tableView.rowHeight = 72;
     self.tableView.separatorInset = UIEdgeInsetsMake(0, 78, 0, 0);
+    self.tableView.allowsSelection = YES;
     self.tableView.allowsMultipleSelection = NO;
     [self.tableView registerClass:[SCIPAUserCell class] forCellReuseIdentifier:@"cell"];
     [self.view addSubview:self.tableView];
@@ -565,6 +573,11 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
 }
 
 - (void)configureActionForCell:(SCIPAUserCell *)cell user:(SCIProfileAnalyzerUser *)user {
+    __weak typeof(self) weakSelf = self;
+    cell.onOpen = ^(SCIPAUserCell *c) {
+        NSIndexPath *path = [weakSelf.tableView indexPathForCell:c];
+        if (path) [weakSelf tableView:weakSelf.tableView didSelectRowAtIndexPath:path];
+    };
     BOOL hasButton = !self.selectionMode
         && (self.kind == SCIPAListKindFollow || self.kind == SCIPAListKindUnfollow);
     [cell setActionVisible:hasButton];
@@ -583,7 +596,6 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     cell.actionButton.enabled = !pending;
     cell.actionButton.alpha = pending ? 0.5 : 1.0;
 
-    __weak typeof(self) weakSelf = self;
     cell.onActionTap = ^(SCIPAUserCell *c) { [weakSelf performActionForUser:user]; };
 }
 
@@ -672,8 +684,11 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     }
 
     if (!user.username.length) return;
-    NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"instagram://user?username=%@", user.username]];
-    [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._"];
+    NSString *encoded = [user.username stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
+    if (!encoded.length) return;
+    NSURL *url = [NSURL URLWithString:[NSString stringWithFormat:@"instagram://user?username=%@", encoded]];
+    if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
 }
 
 #pragma mark - Multi-select

@@ -26,4 +26,9 @@ uint32_t IXFakeIPv4Bits(uint32_t token);
 // Inverse of IXFakeIPv4Bits. Returns 0 when addrNetwork is not in 198.18.0.0/15.
 uint32_t IXFakeIPv4Token(uint32_t addrNetwork);
 
+/* 1 when this socket must not enter the SOCKS redirect.
+   A direct host is always exempt. Port 9443 is the panel listener and is
+   exempt even when the address text is an IPv4-mapped form of that host. */
+int IXEndpointSkipsTunnel(int host_is_direct, int port);
+
 #endif

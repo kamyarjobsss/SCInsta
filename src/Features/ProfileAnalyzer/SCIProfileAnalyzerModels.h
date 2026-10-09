@@ -15,7 +15,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL isPrivate;
 @property (nonatomic, assign) BOOL isVerified;
 // 1 when this account follows the viewer, 0 when it does not, -1 when unknown.
+// A 0 is stored only after followed_by and an exact follower search both say no.
 @property (nonatomic, assign) NSInteger followsYou;
+// Evidence behind followsYou. 1 yes, 0 no, -1 unknown.
+@property (nonatomic, assign) NSInteger followStatus;
+@property (nonatomic, assign) NSInteger followSearch;
 
 + (nullable instancetype)userFromAPIDict:(NSDictionary *)dict;
 + (nullable instancetype)userFromJSONDict:(NSDictionary *)dict;

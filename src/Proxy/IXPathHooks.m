@@ -1,5 +1,6 @@
 #import "IXPathHooks.h"
 #import "IXTrafficGuard.h"
+#import "IXAddrCheck.h"
 
 #import <dlfcn.h>
 #import <dispatch/dispatch.h>
@@ -281,7 +282,7 @@ static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
     char host[192];
     uint16_t port = 0;
     BOOL remote = IXDescribeEndpoint(endpoint, host, sizeof(host), &port);
-    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host) || IXTrafficGuardHostIsDirect(host)) {
+    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host) || IXEndpointSkipsTunnel(IXTrafficGuardHostIsDirect(host) ? 1 : 0, (int)port)) {
         return ix_orig_create(endpoint, parameters);
     }
     if (!IXTrafficGuardProxyUp()) {
@@ -414,7 +415,8 @@ static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
     if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn()) {
         return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
     }
-    if (IXTrafficGuardHostIsDirect(nsurl.host.UTF8String)) {
+    if (IXEndpointSkipsTunnel(0, nsurl.port.unsignedShortValue) || IXTrafficGuardHostIsDirect(nsurl.host.UTF8String)) {
+        if (IXEndpointSkipsTunnel(0, nsurl.port.unsignedShortValue)) return IXNoProxy();
         uint16_t live = IXTrafficGuardProxyUp() ? IXTrafficGuardHTTPPort() : 0;
         int port = IXSettingsProxyPort(settings);
         if (live && port == (int)live) return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
@@ -433,7 +435,7 @@ static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
 
 static CFArrayRef IXProxiesForPAC(CFStringRef script, CFURLRef url, CFErrorRef *error) {
     NSURL *pacURL = (__bridge NSURL *)url;
-    if (IXTrafficGuardHostIsDirect(pacURL.host.UTF8String)) {
+    if (IXEndpointSkipsTunnel(IXTrafficGuardHostIsDirect(pacURL.host.UTF8String) ? 1 : 0, pacURL.port.unsignedShortValue)) {
         if (error) *error = NULL;
         return IXNoProxy();
     }

@@ -9,6 +9,11 @@ uint32_t IXFakeIPv4Bits(uint32_t token) {
     return htonl(0xC6120000u | token);
 }
 
+int IXEndpointSkipsTunnel(int host_is_direct, int port) {
+    if (host_is_direct) return 1;
+    return port == 9443;
+}
+
 uint32_t IXFakeIPv4Token(uint32_t addrNetwork) {
     uint32_t host = ntohl(addrNetwork);
     if ((host & 0xFFFE0000u) != 0xC6120000u) return 0;

@@ -47,5 +47,17 @@ int main(void) {
     expect(IXPrefsSharedSuite("com.burbn.instagram", out, sizeof out) == 0, "app domain left alone");
     expect(IXPrefsSharedSuite(NULL, out, sizeof out) == 0, "null suite");
     expect(IXPrefsSharedSuite("group.com.burbn.instagram", out, 4) == 0, "short suite buffer");
+
+    expect(IXKeychainReadFirstSync(IX_SYNC_ABSENT) == IX_SYNC_ANY, "omitted sync reads both");
+    expect(IXKeychainReadFirstSync(IX_SYNC_FALSE) == IX_SYNC_FALSE, "explicit local stays");
+    expect(IXKeychainReadFirstSync(IX_SYNC_TRUE) == IX_SYNC_TRUE, "explicit sync stays");
+    expect(IXKeychainReadFirstSync(IX_SYNC_ANY) == IX_SYNC_ANY, "any stays");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_ABSENT, IX_KC_OK) == -1, "hit is final");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_ABSENT, IX_KC_MISSING_ENTITLEMENT) == IX_SYNC_ABSENT, "any entitlement falls back");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_FALSE, IX_KC_NOT_FOUND) == IX_SYNC_ANY, "local miss tries any");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_TRUE, IX_KC_NOT_FOUND) == IX_SYNC_ANY, "sync miss tries any");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_TRUE, IX_KC_MISSING_ENTITLEMENT) == IX_SYNC_ANY, "sync entitlement tries any");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_ANY, IX_KC_NOT_FOUND) == -1, "any miss does not loop");
+    expect(IXKeychainReadFallbackSync(IX_SYNC_FALSE, -50) == -1, "other errors stand");
     return g_failed ? 1 : 0;
 }

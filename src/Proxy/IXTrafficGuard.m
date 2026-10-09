@@ -259,6 +259,17 @@ BOOL IXTrafficGuardHostIsDirect(const char *host) {
     return match;
 }
 
+static int IXServicePort(const char *service) {
+    if (!service || !service[0]) return 0;
+    int parsed = atoi(service);
+    if (parsed <= 0 || parsed > 65535) return 0;
+    return parsed;
+}
+
+static BOOL IXSkipTunnelHost(const char *host, int port) {
+    return IXEndpointSkipsTunnel(IXTrafficGuardHostIsDirect(host) ? 1 : 0, port) ? YES : NO;
+}
+
 BOOL IXTrafficGuardThreadBypass(void) {
     return ix_tls_bypass != 0;
 }
@@ -525,7 +536,7 @@ static BOOL IXShouldRedirect(int fd, const struct sockaddr *addr) {
     char host[256];
     uint16_t port = 0;
     if (!IXDescribe(addr, host, sizeof(host), &port)) return NO;
-    if (IXTrafficGuardHostIsDirect(host)) return NO;
+    if (IXSkipTunnelHost(host, (int)port)) return NO;
     return YES;
 }
 
@@ -772,7 +783,8 @@ static int IXGetAddrInfo(const char *node, const char *service, const struct add
     __attribute__((cleanup(IXDepthLeave))) int ix_held = 1;
     if (!ix_orig_getaddrinfo) return EAI_FAIL;
     BOOL vpn = IXTrafficGuardVPNOn();
-    if (!vpn || !node || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(node)) {
+    if (!vpn || !node || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(node) ||
+        IXSkipTunnelHost(node, IXServicePort(service))) {
         return ix_orig_getaddrinfo(node, service, hints, res);
     }
     int family = hints ? hints->ai_family : AF_UNSPEC;
@@ -821,7 +833,8 @@ static struct hostent *IXGetHostByName(const char *name) {
         h_errno = HOST_NOT_FOUND;
         return NULL;
     }
-    if (!IXTrafficGuardVPNOn() || !name || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(name)) {
+    if (!IXTrafficGuardVPNOn() || !name || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(name) ||
+        IXSkipTunnelHost(name, 0)) {
         return ix_orig_gethostbyname(name);
     }
     uint32_t token = IXRememberHost(name);
@@ -1014,7 +1027,8 @@ static int IXDNSGetAddrInfo(void **sdRef, uint32_t flags, uint32_t interfaceInde
     ix_depth++;
     __attribute__((cleanup(IXDepthLeave))) int ix_held = 1;
     if (!ix_dns_getaddrinfo) return -65537;
-    if (!IXTrafficGuardVPNOn() || !hostname || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(hostname)) {
+    if (!IXTrafficGuardVPNOn() || !hostname || IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || IXIsNumericHost(hostname) ||
+        IXSkipTunnelHost(hostname, 0)) {
         return ix_dns_getaddrinfo(sdRef, flags, interfaceIndex, protocol, hostname, (void *)callback, context);
     }
     uint32_t token = IXRememberHost(hostname);

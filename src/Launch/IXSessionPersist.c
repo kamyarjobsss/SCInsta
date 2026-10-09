@@ -40,3 +40,18 @@ int IXPrefsSharedSuite(const char *suite, char *out, size_t outLen) {
     }
     return ix_copy(out, outLen, "instagramx.appgroup");
 }
+
+int IXKeychainReadFirstSync(int incoming) {
+    if (incoming == IX_SYNC_FALSE || incoming == IX_SYNC_TRUE || incoming == IX_SYNC_ANY) return incoming;
+    return IX_SYNC_ANY;
+}
+
+int IXKeychainReadFallbackSync(int incoming, int status) {
+    int first;
+    if (status == IX_KC_OK) return -1;
+    if (status != IX_KC_NOT_FOUND && status != IX_KC_MISSING_ENTITLEMENT) return -1;
+    first = IXKeychainReadFirstSync(incoming);
+    if (incoming == IX_SYNC_ABSENT && first == IX_SYNC_ANY) return IX_SYNC_ABSENT;
+    if (first != IX_SYNC_ANY) return IX_SYNC_ANY;
+    return -1;
+}

@@ -1,4 +1,5 @@
 #import "IXTrafficGuard.h"
+#import "IXAddrCheck.h"
 #import "IXPathHooks.h"
 #import "IXProxyManager.h"
 #import "../Utils.h"
@@ -374,7 +375,7 @@ static void IXMediaAttach(AVURLAsset *asset) {
 %hook NSURLSessionTask
 - (void)resume {
     NSURL *url = self.originalRequest.URL ?: self.currentRequest.URL;
-    if (IXTrafficGuardHostIsDirect(url.host.UTF8String)) {
+    if (IXEndpointSkipsTunnel(IXTrafficGuardHostIsDirect(url.host.UTF8String) ? 1 : 0, url.port.unsignedShortValue)) {
         IXWatchTask(self);
         %orig;
         return;

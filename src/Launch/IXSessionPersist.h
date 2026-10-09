@@ -25,4 +25,25 @@ int IXSessionContainerComponent(const char *identifier, char *out, size_t outLen
 // itself, return 0 so the mapping cannot recurse.
 int IXPrefsSharedSuite(const char *suite, char *out, size_t outLen);
 
+/* How a SecItem read asked about iCloud keychain.
+   ABSENT means the query omitted kSecAttrSynchronizable, which by default
+   searches only the local partition and misses a synchronizable login item. */
+#define IX_SYNC_ABSENT 0
+#define IX_SYNC_FALSE 1
+#define IX_SYNC_TRUE 2
+#define IX_SYNC_ANY 3
+
+#define IX_KC_OK 0
+#define IX_KC_NOT_FOUND (-25300)
+#define IX_KC_MISSING_ENTITLEMENT (-34018)
+
+/* First synchronizable mode to use. An omitted attribute becomes Any so
+   one read sees both partitions. An explicit true, false, or Any is kept. */
+int IXKeychainReadFirstSync(int incoming);
+
+/* Second mode after `status`, or -1 when the first result stands.
+   Not-found and a missing iCloud entitlement try the other partition.
+   Success is never repeated. */
+int IXKeychainReadFallbackSync(int incoming, int status);
+
 #endif

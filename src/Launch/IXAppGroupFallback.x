@@ -22,8 +22,13 @@
 // group.com.burbn.instagram* and group.com.facebook.family suites are stored
 // as instagramx.appgroup in the app sandbox, and the fresh-install keys are
 // copied to Documents so the next launch can put them back before Instagram
-// reads them. SecItemAdd/Copy/Update are still not hooked. SecItemDelete is
-// logged with the caller image and symbol, then passed through unchanged.
+// reads them. SecItemAdd and SecItemUpdate stay unhooked. SecItemDelete is
+// logged with the caller image, symbol, and query attributes, then passed
+// through the previous hook. SecItemCopyMatching retries a read with
+// kSecAttrSynchronizableAny when the first partition does not contain the
+// item, because Instagram stores login items as synchronizable keychain
+// items and a sideload has no iCloud keychain entitlement. Access groups
+// are not rewritten.
 
 static NSString *IXGroupLeaf(id name) {
     if ([name isKindOfClass:[NSString class]] && [(NSString *)name length]) {
@@ -288,47 +293,131 @@ static void IXRememberSuite(NSUserDefaults *defaults, NSString *suite) {
 }
 
 static OSStatus (*ix_sec_delete)(CFDictionaryRef query);
+static OSStatus (*ix_sec_copy)(CFDictionaryRef query, CFTypeRef *result);
+static OSStatus (*ix_real_delete)(CFDictionaryRef query);
+static OSStatus (*ix_real_copy)(CFDictionaryRef query, CFTypeRef *result);
 static int ix_delete_logs;
+static __thread int ix_delete_depth;
+static __thread int ix_copy_depth;
+
+static int IXSyncMode(CFDictionaryRef query) {
+    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return IX_SYNC_ABSENT;
+    CFTypeRef value = CFDictionaryGetValue(query, kSecAttrSynchronizable);
+    if (!value) return IX_SYNC_ABSENT;
+    if (CFEqual(value, kSecAttrSynchronizableAny)) return IX_SYNC_ANY;
+    if (CFGetTypeID(value) == CFBooleanGetTypeID()) return CFBooleanGetValue((CFBooleanRef)value) ? IX_SYNC_TRUE : IX_SYNC_FALSE;
+    return IX_SYNC_ABSENT;
+}
+
+static NSString *IXAttrText(id value) {
+    if ([value isKindOfClass:[NSString class]]) {
+        NSString *text = (NSString *)value;
+        if (text.length == 0 || text.length > 32) return [NSString stringWithFormat:@"len:%lu", (unsigned long)text.length];
+        NSCharacterSet *safe = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"];
+        if ([text rangeOfCharacterFromSet:safe.invertedSet].location != NSNotFound) return @"redacted";
+        return text;
+    }
+    if ([value isKindOfClass:[NSData class]]) return [NSString stringWithFormat:@"data:%lu", (unsigned long)[(NSData *)value length]];
+    if ([value isKindOfClass:[NSNumber class]]) return @"num";
+    return @"-";
+}
+
+static NSString *IXQuerySummary(CFDictionaryRef query) {
+    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return @"class=- svc=- acct=- sync=absent agrp=0";
+    NSDictionary *row = (__bridge NSDictionary *)query;
+    id kind = row[(__bridge id)kSecClass];
+    NSString *cls = @"other";
+    if (kind == (__bridge id)kSecClassGenericPassword) cls = @"genp";
+    else if (kind == (__bridge id)kSecClassInternetPassword) cls = @"inet";
+    else if (kind == (__bridge id)kSecClassCertificate) cls = @"cert";
+    else if (kind == (__bridge id)kSecClassKey) cls = @"key";
+    else if (kind == (__bridge id)kSecClassIdentity) cls = @"idnt";
+    int sync = IXSyncMode(query);
+    NSString *syncText = sync == IX_SYNC_ANY ? @"any" : sync == IX_SYNC_TRUE ? @"true" : sync == IX_SYNC_FALSE ? @"false" : @"absent";
+    int group = row[(__bridge id)kSecAttrAccessGroup] ? 1 : 0;
+    return [NSString stringWithFormat:@"class=%@ svc=%@ acct=%@ sync=%@ agrp=%d",
+            cls, IXAttrText(row[(__bridge id)kSecAttrService]), IXAttrText(row[(__bridge id)kSecAttrAccount]), syncText, group];
+}
+
+static CFDictionaryRef IXQueryWithSync(CFDictionaryRef query, int mode) {
+    NSMutableDictionary *copy = query && CFGetTypeID(query) == CFDictionaryGetTypeID() ? [(__bridge NSDictionary *)query mutableCopy] : [NSMutableDictionary dictionary];
+    id key = (__bridge id)kSecAttrSynchronizable;
+    if (mode == IX_SYNC_ABSENT) [copy removeObjectForKey:key];
+    else if (mode == IX_SYNC_ANY) copy[key] = (__bridge id)kSecAttrSynchronizableAny;
+    else if (mode == IX_SYNC_TRUE) copy[key] = @YES;
+    else copy[key] = @NO;
+    return (CFDictionaryRef)CFBridgingRetain(copy);
+}
 
 static OSStatus IXObserveDelete(CFDictionaryRef query) {
+    if (ix_delete_depth) return ix_real_delete ? ix_real_delete(query) : errSecParam;
+    ix_delete_depth++;
     OSStatus status = ix_sec_delete ? ix_sec_delete(query) : errSecParam;
-    if (ix_delete_logs >= 24) return status;
-    ix_delete_logs++;
-    int supplied = 0;
-    if (query && CFGetTypeID(query) == CFDictionaryGetTypeID() &&
-        CFDictionaryGetValue(query, kSecAttrAccessGroup)) {
-        supplied = 1;
+    if (ix_delete_logs < 24) {
+        ix_delete_logs++;
+        void *frames[8];
+        int count = backtrace(frames, 8);
+        NSMutableString *who = [NSMutableString string];
+        for (int i = 1; i < count && who.length < 160; i++) {
+            Dl_info info;
+            memset(&info, 0, sizeof info);
+            if (!dladdr(frames[i], &info) || !info.dli_fname) continue;
+            const char *image = strrchr(info.dli_fname, '/');
+            image = image ? image + 1 : info.dli_fname;
+            if (strstr(image, "SCInsta") || strstr(image, "InstagramX")) continue;
+            const char *symbol = info.dli_sname ?: "?";
+            if (who.length) [who appendString:@" < "];
+            [who appendFormat:@"%.32s:%.40s", image, symbol];
+        }
+        IXSessionDiagLine([NSString stringWithFormat:@"kc op=delete status=%d %@ who=%@",
+                           (int)status, IXQuerySummary(query), who.length ? who : @"-"]);
     }
-    void *frames[8];
-    int count = backtrace(frames, 8);
-    NSMutableString *who = [NSMutableString string];
-    for (int i = 1; i < count && who.length < 220; i++) {
-        Dl_info info;
-        memset(&info, 0, sizeof info);
-        if (!dladdr(frames[i], &info) || !info.dli_fname) continue;
-        const char *image = strrchr(info.dli_fname, '/');
-        image = image ? image + 1 : info.dli_fname;
-        if (strstr(image, "SCInsta") || strstr(image, "InstagramX")) continue;
-        const char *symbol = info.dli_sname ?: "?";
-        if (who.length) [who appendString:@" < "];
-        [who appendFormat:@"%.40s:%.48s", image, symbol];
-    }
-    IXSessionDiagLine([NSString stringWithFormat:@"kc op=delete status=%d caller=%d who=%@",
-                       (int)status, supplied, who.length ? who : @"-"]);
+    ix_delete_depth--;
     return status;
 }
 
-static void IXInstallDeleteLog(void) {
-    ix_sec_delete = (OSStatus (*)(CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemDelete");
-    if (!ix_sec_delete) {
-        IXSessionDiagLine(@"kc op=delete status=missing who=-");
-        return;
+static OSStatus IXObserveCopy(CFDictionaryRef query, CFTypeRef *result) {
+    if (ix_copy_depth || !ix_sec_copy) return ix_real_copy ? ix_real_copy(query, result) : errSecParam;
+    ix_copy_depth++;
+    int incoming = IXSyncMode(query);
+    int first = IXKeychainReadFirstSync(incoming);
+    CFDictionaryRef primary = first == incoming ? query : IXQueryWithSync(query, first);
+    CFTypeRef found = NULL;
+    OSStatus status = ix_sec_copy(primary, result ? &found : NULL);
+    int fallback = IXKeychainReadFallbackSync(incoming, (int)status);
+    if (fallback >= 0) {
+        if (found) {
+            CFRelease(found);
+            found = NULL;
+        }
+        CFDictionaryRef second = IXQueryWithSync(query, fallback);
+        status = ix_sec_copy(second, result ? &found : NULL);
+        if (second) CFRelease(second);
     }
-    union { OSStatus (*fn)(CFDictionaryRef); void *ptr; } bits;
-    bits.fn = IXObserveDelete;
-    const char *names[1] = { "SecItemDelete" };
-    void *replacements[1] = { bits.ptr };
-    IXSymbolRebindPermanent(names, replacements, 1);
+    if (primary && primary != query) CFRelease(primary);
+    if (result) *result = found;
+    else if (found) CFRelease(found);
+    ix_copy_depth--;
+    return status;
+}
+
+static void IXInstallKeychainHooks(void) {
+    ix_real_delete = (OSStatus (*)(CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemDelete");
+    ix_real_copy = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
+    union { OSStatus (*fn)(CFDictionaryRef); void *ptr; } deleteBits;
+    union { OSStatus (*fn)(CFDictionaryRef, CFTypeRef *); void *ptr; } copyBits;
+    deleteBits.fn = IXObserveDelete;
+    copyBits.fn = IXObserveCopy;
+    const char *names[2] = { "SecItemDelete", "SecItemCopyMatching" };
+    void *replacements[2] = { deleteBits.ptr, copyBits.ptr };
+    IXSymbolRebindPermanent(names, replacements, 2);
+    void *deletePrev = IXSymbolPrevious("SecItemDelete");
+    void *copyPrev = IXSymbolPrevious("SecItemCopyMatching");
+    ix_sec_delete = deletePrev ? (OSStatus (*)(CFDictionaryRef))deletePrev : ix_real_delete;
+    ix_sec_copy = copyPrev ? (OSStatus (*)(CFDictionaryRef, CFTypeRef *))copyPrev : ix_real_copy;
+    IXSessionDiagLine([NSString stringWithFormat:@"kc op=hook delete=%d copy=%d",
+                       deletePrev && deletePrev != (void *)ix_real_delete ? 1 : 0,
+                       copyPrev && copyPrev != (void *)ix_real_copy ? 1 : 0]);
 }
 
 void IXPrefsSeedFreshMarkers(void) {
@@ -483,6 +572,6 @@ void IXPrefsSeedFreshMarkers(void) {
 %ctor {
     %init;
     IXInstallDirectAppGroup();
-    IXInstallDeleteLog();
+    IXInstallKeychainHooks();
     IXPrefsSeedFreshMarkers();
 }

@@ -40,7 +40,12 @@ static NSInteger SCIFollowsYou(NSDictionary *d) {
     else if ([pid respondsToSelector:@selector(stringValue)]) u.profilePicID = [pid stringValue];
     u.isPrivate = [d[@"is_private"] boolValue];
     u.isVerified = [d[@"is_verified"] boolValue];
-    u.followsYou = SCIFollowsYou(d);
+    // A false flag on the following list is one method, not a result.
+    // It stays unknown until an exact follower search agrees.
+    NSInteger parsed = SCIFollowsYou(d);
+    u.followStatus = parsed > 0 ? 1 : -1;
+    u.followSearch = -1;
+    u.followsYou = IXPAClassify((int)u.followStatus, (int)u.followSearch);
     return u;
 }
 
@@ -54,7 +59,17 @@ static NSInteger SCIFollowsYou(NSDictionary *d) {
     u.profilePicID = d[@"profile_pic_id"];
     u.isPrivate = [d[@"is_private"] boolValue];
     u.isVerified = [d[@"is_verified"] boolValue];
-    u.followsYou = d[@"follows_you"] == nil ? -1 : [d[@"follows_you"] integerValue];
+    BOOL hasEvidence = d[@"follow_status"] != nil || d[@"follow_search"] != nil;
+    if (hasEvidence) {
+        u.followStatus = d[@"follow_status"] == nil ? -1 : [d[@"follow_status"] integerValue];
+        u.followSearch = d[@"follow_search"] == nil ? -1 : [d[@"follow_search"] integerValue];
+    } else {
+        // Older saves treated a single no as final. Those rows are checked again.
+        NSInteger old = d[@"follows_you"] == nil ? -1 : [d[@"follows_you"] integerValue];
+        u.followStatus = old > 0 ? 1 : -1;
+        u.followSearch = -1;
+    }
+    u.followsYou = IXPAClassify((int)u.followStatus, (int)u.followSearch);
     return u;
 }
 
@@ -67,6 +82,8 @@ static NSInteger SCIFollowsYou(NSDictionary *d) {
     if (self.profilePicID)  d[@"profile_pic_id"]  = self.profilePicID;
     d[@"is_private"] = @(self.isPrivate);
     d[@"is_verified"] = @(self.isVerified);
+    d[@"follow_status"] = @(self.followStatus);
+    d[@"follow_search"] = @(self.followSearch);
     d[@"follows_you"] = @(self.followsYou);
     return d;
 }
@@ -80,6 +97,8 @@ static NSInteger SCIFollowsYou(NSDictionary *d) {
     u.profilePicID = self.profilePicID;
     u.isPrivate = self.isPrivate;
     u.isVerified = self.isVerified;
+    u.followStatus = self.followStatus;
+    u.followSearch = self.followSearch;
     u.followsYou = self.followsYou;
     return u;
 }

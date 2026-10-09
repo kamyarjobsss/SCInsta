@@ -1,5 +1,6 @@
 #import "IXBackend.h"
 #import "IXCrypto.h"
+#import "IXPin.h"
 #import "../Launch/IXSessionDiag.h"
 #import "../Proxy/IXTrafficGuard.h"
 
@@ -8,6 +9,9 @@
 #import <CoreGraphics/CoreGraphics.h>
 #import <CoreText/CoreText.h>
 #import <Security/Security.h>
+#if __has_include(<Security/SecProtocolTypes.h>)
+#import <Security/SecProtocolTypes.h>
+#endif
 #import <UIKit/UIKit.h>
 #import <sys/utsname.h>
 #import <objc/message.h>
@@ -25,10 +29,6 @@ static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
 static NSString *const kAppVersion = @"2.4.3";
 static NSString *const kService = @"instagramx.backend";
-static const uint8_t kSPKIHeader[] = {
-    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00
-};
 
 static dispatch_queue_t ix_q;
 static pthread_mutex_t ix_state_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -55,6 +55,7 @@ static NSString *ix_panel_url;
 static NSString *ix_panel_result;
 static NSString *ix_panel_route;
 static NSString *ix_panel_when;
+static NSString *ix_panel_pins;
 static NSInteger ix_panel_http;
 static dispatch_source_t ix_heartbeat_timer;
 
@@ -63,42 +64,92 @@ NSString *const IXBackendStatusDidChangeNotification = @"IXBackendStatusDidChang
 @interface IXPinnedSession : NSObject <NSURLSessionDelegate>
 @end
 
-static BOOL IXLeafPinMatches(SecTrustRef trust) {
-    if (!trust) return NO;
-    CFArrayRef chain = SecTrustCopyCertificateChain(trust);
-    SecCertificateRef leaf = (chain && CFArrayGetCount(chain) > 0) ? (SecCertificateRef)CFArrayGetValueAtIndex(chain, 0) : NULL;
-    if (!leaf) leaf = SecTrustGetCertificateAtIndex(trust, 0);
-    SecKeyRef key = leaf ? SecCertificateCopyKey(leaf) : NULL;
-    CFDataRef raw = key ? SecKeyCopyExternalRepresentation(key, NULL) : NULL;
-    BOOL match = NO;
-    if (raw && CFDataGetLength(raw) == 65) {
-        NSMutableData *spki = [NSMutableData dataWithBytes:kSPKIHeader length:sizeof(kSPKIHeader)];
-        [spki appendBytes:CFDataGetBytePtr(raw) length:(NSUInteger)CFDataGetLength(raw)];
-        uint8_t dig[32];
-        ix_sha256(spki.bytes, spki.length, dig);
-        NSString *b64 = [[NSData dataWithBytes:dig length:32] base64EncodedStringWithOptions:0];
-        match = [b64 isEqualToString:kPinA] || [b64 isEqualToString:kPinB];
-    }
-    if (raw) CFRelease(raw);
-    if (key) CFRelease(key);
-    if (chain) CFRelease(chain);
-    return match;
+static void IXSetPins(NSString *pins) {
+    NSString *safe = pins.length ? pins : @"none";
+    if (safe.length > 220) safe = [[safe substringToIndex:220] stringByAppendingString:@"…"];
+    pthread_mutex_lock(&ix_state_mu);
+    ix_panel_pins = [safe copy];
+    pthread_mutex_unlock(&ix_state_mu);
 }
 
-@implementation IXPinnedSession
-- (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
-    (void)session;
+static NSString *IXGetPins(void) {
+    pthread_mutex_lock(&ix_state_mu);
+    NSString *pins = ix_panel_pins ?: @"none";
+    pthread_mutex_unlock(&ix_state_mu);
+    return pins;
+}
+
+static NSString *IXPinForKey(SecKeyRef key, BOOL *matched) {
+    if (!key) return @"nokey";
+    CFDataRef raw = SecKeyCopyExternalRepresentation(key, NULL);
+    NSString *label = @"nokey";
+    if (raw && CFDataGetLength(raw) == IX_SPKI_P256_POINT_LEN) {
+        uint8_t spki[IX_SPKI_P256_HEADER_LEN + IX_SPKI_P256_POINT_LEN];
+        size_t n = 0;
+        if (IXSPKIBuildP256(CFDataGetBytePtr(raw), (size_t)CFDataGetLength(raw), spki, sizeof spki, &n)) {
+            uint8_t dig[32];
+            ix_sha256(spki, n, dig);
+            label = [[NSData dataWithBytes:dig length:32] base64EncodedStringWithOptions:0] ?: @"nokey";
+            if (matched && IXSPKIPinAccept(label.UTF8String, kPinA.UTF8String, kPinB.UTF8String)) *matched = YES;
+        }
+    } else if (raw) {
+        label = [NSString stringWithFormat:@"len:%ld", (long)CFDataGetLength(raw)];
+    }
+    if (raw) CFRelease(raw);
+    return label;
+}
+
+static NSString *IXChainPins(SecTrustRef trust, BOOL *matched) {
+    if (matched) *matched = NO;
+    if (!trust) return @"none";
+    NSMutableArray<NSString *> *pins = [NSMutableArray array];
+    CFArrayRef chain = SecTrustCopyCertificateChain(trust);
+    CFIndex count = chain ? CFArrayGetCount(chain) : 0;
+    if (count <= 0) {
+        SecCertificateRef leaf = SecTrustGetCertificateAtIndex(trust, 0);
+        SecKeyRef key = leaf ? SecCertificateCopyKey(leaf) : NULL;
+        if (key) {
+            [pins addObject:IXPinForKey(key, matched)];
+            CFRelease(key);
+        }
+    }
+    for (CFIndex i = 0; i < count && i < 4; i++) {
+        SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(chain, i);
+        SecKeyRef key = cert ? SecCertificateCopyKey(cert) : NULL;
+        [pins addObject:IXPinForKey(key, matched)];
+        if (key) CFRelease(key);
+    }
+    if (chain) CFRelease(chain);
+    if (!pins.count) return @"none";
+    return [pins componentsJoinedByString:@"|"];
+}
+
+static void IXResolveTrust(NSURLAuthenticationChallenge *challenge, void (^completionHandler)(NSURLSessionAuthChallengeDisposition, NSURLCredential *)) {
     if (![challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
         completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
         return;
     }
     SecTrustRef trust = challenge.protectionSpace.serverTrust;
-    if (IXLeafPinMatches(trust)) {
+    BOOL matched = NO;
+    NSString *pins = IXChainPins(trust, &matched);
+    IXSetPins(pins);
+    if (matched && trust) {
         completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:trust]);
         return;
     }
     atomic_store(&ix_pin_mismatch, 1);
     completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+}
+
+@implementation IXPinnedSession
+- (void)URLSession:(NSURLSession *)session didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
+    (void)session;
+    IXResolveTrust(challenge, completionHandler);
+}
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
+    (void)session;
+    (void)task;
+    IXResolveTrust(challenge, completionHandler);
 }
 @end
 
@@ -414,6 +465,7 @@ static void IXNotePanel(NSString *url, NSString *result, NSInteger http, NSStrin
     NSString *safeURL = url.length ? url : @"-";
     if (safeURL.length > 180) safeURL = [safeURL substringToIndex:180];
     NSString *safeResult = result.length ? result : @"-";
+    if (safeResult.length > 220) safeResult = [[safeResult substringToIndex:220] stringByAppendingString:@"…"];
     NSString *safeRoute = route.length ? route : @"-";
     NSString *when = IXPanelWhen();
     NSInteger config = 0;
@@ -442,18 +494,27 @@ static void IXNotePanel(NSString *url, NSString *result, NSInteger http, NSStrin
     });
 }
 
-static NSURLSession *IXMakeDirectSession(void) {
-    IXTrafficGuardSetThreadBypass(YES);
-    NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    config.connectionProxyDictionary = @{
-        @"HTTPEnable": @NO,
-        @"HTTPSEnable": @NO,
-        @"SOCKSEnable": @NO
-    };
+static void IXConfigurePanelSession(NSURLSessionConfiguration *config, BOOL direct) {
+    if (direct) {
+        config.connectionProxyDictionary = @{
+            @"HTTPEnable": @NO,
+            @"HTTPSEnable": @NO,
+            @"SOCKSEnable": @NO
+        };
+    }
+    if (@available(iOS 13.0, *)) {
+        config.TLSMinimumSupportedProtocolVersion = tls_protocol_version_TLSv12;
+    }
     config.timeoutIntervalForRequest = 15;
     config.timeoutIntervalForResource = 20;
     config.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
     config.waitsForConnectivity = NO;
+}
+
+static NSURLSession *IXMakeDirectSession(void) {
+    IXTrafficGuardSetThreadBypass(YES);
+    NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    IXConfigurePanelSession(config, YES);
     NSURLSession *session = [NSURLSession sessionWithConfiguration:config delegate:[IXPinnedSession new] delegateQueue:nil];
     IXTrafficGuardSetThreadBypass(NO);
     return session;
@@ -461,10 +522,7 @@ static NSURLSession *IXMakeDirectSession(void) {
 
 static NSURLSession *IXMakeTunnelSession(void) {
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration ephemeralSessionConfiguration];
-    config.timeoutIntervalForRequest = 15;
-    config.timeoutIntervalForResource = 20;
-    config.requestCachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
-    config.waitsForConnectivity = NO;
+    IXConfigurePanelSession(config, NO);
     return [NSURLSession sessionWithConfiguration:config delegate:[IXPinnedSession new] delegateQueue:nil];
 }
 
@@ -482,6 +540,7 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
     request.HTTPMethod = method.length ? method : @"GET";
     request.timeoutInterval = 15;
     request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    if (@available(iOS 15.0, *)) request.assumesHTTP3Capable = NO;
     [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
     [headers enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         (void)stop;
@@ -500,6 +559,7 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
         [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
     }
     atomic_store(&ix_pin_mismatch, 0);
+    IXSetPins(@"none");
     __block NSData *result = nil;
     __block NSURLResponse *response = nil;
     __block NSError *error = nil;
@@ -515,12 +575,13 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
     NSInteger status = http ? (NSInteger)http.statusCode : 0;
     BOOL pinFailed = atomic_load(&ix_pin_mismatch) != 0;
     BOOL reached = http != nil && !pinFailed;
-    NSString *outcome = @"OK";
-    if (pinFailed) outcome = @"pin mismatch";
+    NSString *pins = IXGetPins();
+    NSString *outcome = [NSString stringWithFormat:@"OK pins=%@", pins];
+    if (pinFailed) outcome = [NSString stringWithFormat:@"pin mismatch pins=%@", pins];
     else if (!http) {
-        if (timedOut != 0) outcome = @"error NSURLErrorDomain -1001";
-        else if (error) outcome = [NSString stringWithFormat:@"error %@ %ld", error.domain.length ? error.domain : @"NSURLErrorDomain", (long)error.code];
-        else outcome = @"error NSURLErrorDomain -1";
+        if (timedOut != 0) outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1001 pins=%@", pins];
+        else if (error) outcome = [NSString stringWithFormat:@"error %@ %ld pins=%@", error.domain.length ? error.domain : @"NSURLErrorDomain", (long)error.code, pins];
+        else outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1 pins=%@", pins];
     }
     if (statusOut) *statusOut = status;
     if (headerOut) *headerOut = http.allHeaderFields;
@@ -948,7 +1009,8 @@ static NSDictionary *IXPanelSnapshot(void) {
         @"registered": ix_token.length ? @"yes" : @"no",
         @"config_version": @(ix_config_version),
         @"fonts": @(ix_fonts.count),
-        @"announcements": @([ix_payload[@"announcements"] isKindOfClass:[NSArray class]] ? [ix_payload[@"announcements"] count] : 0)
+        @"announcements": @([ix_payload[@"announcements"] isKindOfClass:[NSArray class]] ? [ix_payload[@"announcements"] count] : 0),
+        @"pins": ix_panel_pins ?: @"none"
     };
     NSInteger stickers = 0;
     for (id pack in ix_stickers[@"packs"]) {
@@ -967,7 +1029,7 @@ NSDictionary *IXBackendPanelStatus(void) {
 
 NSString *IXBackendPanelReport(void) {
     NSDictionary *row = IXPanelSnapshot();
-    return [NSString stringWithFormat:@"Panel connection\nurl=%@\nlast_attempt=%@\nresult=%@\nhttp_status=%@\nroute=%@\nregistered=%@\nconfig_version=%@\nannouncements=%@\nfonts=%@\nstickers=%@\n",
+    return [NSString stringWithFormat:@"Panel connection\nurl=%@\nlast_attempt=%@\nresult=%@\nhttp_status=%@\nroute=%@\nregistered=%@\nconfig_version=%@\nannouncements=%@\nfonts=%@\nstickers=%@\npins=%@\n",
             row[@"url"] ?: @"-",
             row[@"last_attempt"] ?: @"-",
             row[@"result"] ?: @"not yet",
@@ -977,7 +1039,8 @@ NSString *IXBackendPanelReport(void) {
             row[@"config_version"] ?: @0,
             row[@"announcements"] ?: @0,
             row[@"fonts"] ?: @0,
-            row[@"stickers"] ?: @0];
+            row[@"stickers"] ?: @0,
+            row[@"pins"] ?: @"none"];
 }
 
 void IXBackendRetryNow(void) {
@@ -1025,7 +1088,7 @@ void IXBackendRetryNow(void) {
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     (void)tableView;
-    return section == 0 ? 9 : 1;
+    return section == 0 ? 10 : 1;
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
@@ -1059,6 +1122,9 @@ void IXBackendRetryNow(void) {
     if (indexPath.row == 8) {
         cell.textLabel.text = SCILocalized(@"Fonts");
         cell.detailTextLabel.text = [NSString stringWithFormat:SCILocalized(@"%@ fonts · %@ stickers"), row[@"fonts"] ?: @0, row[@"stickers"] ?: @0];
+    } else if (indexPath.row == 9) {
+        cell.textLabel.text = SCILocalized(@"Certificate pins");
+        cell.detailTextLabel.text = row[@"pins"] ?: @"none";
     } else {
         cell.textLabel.text = pairs[indexPath.row][0];
         cell.detailTextLabel.text = [pairs[indexPath.row][1] description];
