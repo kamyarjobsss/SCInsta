@@ -456,7 +456,6 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
             typeof(self) strongSelf = weakSelf;
             if (strongSelf.isViewLoaded && strongSelf.view.window) {
                 [strongSelf paintHeaderFromUserInfo:user];
-                [strongSelf applyFollowerLimitGateFor:[user[@"follower_count"] integerValue]];
             }
         }
         [sender endRefreshing];
@@ -551,7 +550,6 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 
     if (cached[@"username"] || [cached[@"follower_count"] integerValue] > 0) {
         [self paintHeaderFromUserInfo:cached];
-        [self applyFollowerLimitGateFor:[cached[@"follower_count"] integerValue]];
     } else if (!snap) {
         self.headerView.fullNameLabel.text = SCILocalized(@"No scan yet");
         self.headerView.usernameLabel.text = @"";
