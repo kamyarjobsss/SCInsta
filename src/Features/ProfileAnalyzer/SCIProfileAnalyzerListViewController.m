@@ -276,8 +276,58 @@ typedef NS_ENUM(NSInteger, SCIPASortMode) {
     return self.kind == SCIPAListKindUnfollow || self.kind == SCIPAListKindFollow;
 }
 
+- (NSString *)exportText {
+    NSMutableArray *lines = [NSMutableArray array];
+    for (SCIProfileAnalyzerUser *user in self.filteredUsers) {
+        if (user.username.length) [lines addObject:[NSString stringWithFormat:@"@%@", user.username]];
+    }
+    return [lines componentsJoinedByString:@"\n"];
+}
+
+- (void)copyUsernames {
+    NSString *text = [self exportText];
+    if (!text.length) {
+        [SCIUtils showToastForDuration:1.5 title:SCILocalized(@"Nothing to copy") subtitle:@""];
+        return;
+    }
+    [UIPasteboard generalPasteboard].string = text;
+    NSUInteger count = [[text componentsSeparatedByString:@"\n"] count];
+    [SCIUtils showToastForDuration:1.6 title:SCILocalized(@"Copy")
+                          subtitle:[NSString stringWithFormat:SCILocalized(@"Copied %lu usernames"), (unsigned long)count]];
+}
+
+- (void)exportList {
+    NSString *text = [self exportText];
+    if (!text.length) {
+        [SCIUtils showToastForDuration:1.5 title:SCILocalized(@"Nothing to copy") subtitle:@""];
+        return;
+    }
+    UIActivityViewController *sheet = [[UIActivityViewController alloc] initWithActivityItems:@[text] applicationActivities:nil];
+    sheet.popoverPresentationController.barButtonItem = self.navigationItem.rightBarButtonItems.lastObject;
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (UIMenu *)exportMenu {
+    __weak typeof(self) weakSelf = self;
+    UIAction *copy = [UIAction actionWithTitle:SCILocalized(@"Copy usernames")
+                                         image:[UIImage systemImageNamed:@"doc.on.doc"]
+                                    identifier:nil
+                                       handler:^(__kindof UIAction *_) { [weakSelf copyUsernames]; }];
+    UIAction *share = [UIAction actionWithTitle:SCILocalized(@"Export list")
+                                          image:[UIImage systemImageNamed:@"square.and.arrow.up"]
+                                     identifier:nil
+                                        handler:^(__kindof UIAction *_) { [weakSelf exportList]; }];
+    return [UIMenu menuWithChildren:@[copy, share]];
+}
+
 - (void)updateNavBar {
     NSMutableArray *rights = [NSMutableArray array];
+    if (self.kind != SCIPAListKindProfileUpdate) {
+        UIBarButtonItem *share = [[UIBarButtonItem alloc] initWithImage:[UIImage systemImageNamed:@"square.and.arrow.up"]
+                                                                  menu:[self exportMenu]];
+        share.accessibilityLabel = SCILocalized(@"Export list");
+        [rights addObject:share];
+    }
     if (self.supportsBatchAction) {
         NSString *t = self.selectionMode ? SCILocalized(@"Done") : SCILocalized(@"Select");
         UIBarButtonItem *sel = [[UIBarButtonItem alloc] initWithTitle:t

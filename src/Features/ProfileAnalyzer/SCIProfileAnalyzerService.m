@@ -1,16 +1,28 @@
 #import "SCIProfileAnalyzerService.h"
 #import "SCIProfileAnalyzerStorage.h"
+#import "IXFollowBack.h"
 #import <math.h>
+#import <stdlib.h>
 #import "../../Networking/SCIInstagramAPI.h"
 #import "../../Utils.h"
 
-#define SCI_PA_PAGE_DELAY_S 0.6
 #define SCI_PA_MAX_ATTEMPTS 6
 #define SCI_PA_MAX_PAGES 10000
+#define SCI_PA_SHOW_MANY 100
+#define SCI_PA_SAVE_EVERY 10
 
 @interface SCIProfileAnalyzerService ()
 @property (nonatomic, assign) BOOL cancelled;
 @property (nonatomic, assign) BOOL isRunning;
+@property (nonatomic, assign, readwrite, getter=isPaused) BOOL paused;
+@property (nonatomic, assign) BOOL showManyDead;
+@property (nonatomic, assign) NSInteger showManyLimit;
+@property (nonatomic, assign) NSInteger searchFailures;
+@property (nonatomic, assign) NSInteger checksSinceSave;
+@property (nonatomic, copy) NSString *rankToken;
+@property (nonatomic, strong) NSMutableSet<NSString *> *skippedPKs;
+@property (nonatomic, copy) SCIPAIncremental incremental;
+@property (nonatomic, strong, readwrite) SCIProfileAnalyzerSnapshot *liveSnapshot;
 @end
 
 @implementation SCIProfileAnalyzerService
@@ -23,10 +35,15 @@
 }
 
 - (void)cancel { self.cancelled = YES; }
+- (void)pause { if (self.isRunning) self.paused = YES; }
+- (void)resume { self.paused = NO; }
 
 - (void)finishWithSnapshot:(SCIProfileAnalyzerSnapshot *)s error:(NSError *)e completion:(SCIPACompletion)completion {
     self.isRunning = NO;
     self.cancelled = NO;
+    self.paused = NO;
+    self.liveSnapshot = s;
+    self.incremental = nil;
     if (completion) dispatch_async(dispatch_get_main_queue(), ^{ completion(s, e); });
 }
 
@@ -42,6 +59,7 @@
 
 - (void)runForSelfWithHeaderInfo:(SCIPAHeaderInfo)headerInfo
                         progress:(SCIPAProgress)progress
+                     incremental:(SCIPAIncremental)incremental
                       completion:(SCIPACompletion)completion {
     if (self.isRunning) {
         if (completion) completion(nil, [self errorWithCode:SCIProfileAnalyzerErrorCancelled
@@ -50,6 +68,15 @@
     }
     self.isRunning = YES;
     self.cancelled = NO;
+    self.paused = NO;
+    self.showManyDead = NO;
+    self.showManyLimit = SCI_PA_SHOW_MANY;
+    self.searchFailures = 0;
+    self.checksSinceSave = 0;
+    self.skippedPKs = [NSMutableSet set];
+    self.rankToken = [[NSUUID UUID] UUIDString];
+    self.incremental = incremental;
+    self.liveSnapshot = nil;
 
     NSString *selfPK = [SCIUtils currentUserPK];
     if (!selfPK.length) {
@@ -93,15 +120,32 @@
         snap.scanDate = [NSDate date];
         snap.followers = @[];
         snap.following = @[];
+        strongSelf.liveSnapshot = snap;
         if (headerInfo) dispatch_async(dispatch_get_main_queue(), ^{ headerInfo(user); });
         [strongSelf fetchFollowingForPK:selfPK snapshot:snap progress:progress completion:completion];
     }];
 }
 
+- (BOOL)challenged:(NSDictionary *)resp {
+    if (![resp isKindOfClass:[NSDictionary class]]) return NO;
+    if (resp[@"challenge"] || resp[@"checkpoint_url"]) return YES;
+    NSString *message = [resp[@"message"] isKindOfClass:[NSString class]] ? resp[@"message"] : @"";
+    NSString *errorType = [resp[@"error_type"] isKindOfClass:[NSString class]] ? resp[@"error_type"] : @"";
+    return [message isEqualToString:@"challenge_required"]
+        || [message isEqualToString:@"checkpoint_required"]
+        || [errorType isEqualToString:@"challenge_required"]
+        || [errorType isEqualToString:@"checkpoint_required"];
+}
+
 - (BOOL)rateLimited:(NSInteger)status body:(NSDictionary *)resp {
     if (status == 429) return YES;
+    if ([self challenged:resp]) return YES;
     NSString *message = [resp[@"message"] isKindOfClass:[NSString class]] ? resp[@"message"] : @"";
-    return [message isEqualToString:@"feedback_required"] || [message isEqualToString:@"rate_limit_error"];
+    NSString *errorType = [resp[@"error_type"] isKindOfClass:[NSString class]] ? resp[@"error_type"] : @"";
+    return [message isEqualToString:@"feedback_required"]
+        || [message isEqualToString:@"rate_limit_error"]
+        || [errorType isEqualToString:@"rate_limit_error"]
+        || [errorType isEqualToString:@"feedback_required"];
 }
 
 - (void)requestPath:(NSString *)path
@@ -114,34 +158,55 @@
         completion(nil, [self errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Cancelled")]);
         return;
     }
+    if (self.paused) {
+        __weak typeof(self) weakSelf = self;
+        [self reportProgress:progress status:SCILocalized(@"Paused") fraction:-1];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [weakSelf requestPath:path method:method body:body attempt:attempt progress:progress completion:completion];
+        });
+        return;
+    }
     __weak typeof(self) weakSelf = self;
     [SCIInstagramAPI sendRequestWithMethod:method path:path body:body httpHandler:^(NSDictionary *response, NSError *error, NSInteger statusCode, NSTimeInterval retryAfter) {
         typeof(self) strongSelf = weakSelf;
         if (!strongSelf) return;
-        BOOL limited = [strongSelf rateLimited:statusCode body:response];
-        if (!limited && !error) {
-            completion(response, nil);
-            return;
+        @try {
+            BOOL limited = [strongSelf rateLimited:statusCode body:response];
+            if (!limited && !error) {
+                completion(response, nil);
+                return;
+            }
+            BOOL clientError = statusCode >= 400 && statusCode < 500 && !limited;
+            if (strongSelf.cancelled || (clientError && attempt >= 1) || attempt + 1 >= SCI_PA_MAX_ATTEMPTS) {
+                BOOL challenge = [strongSelf challenged:response];
+                NSString *msg = challenge
+                    ? SCILocalized(@"Instagram challenged the follow-back check. Showing the accounts already checked.")
+                    : (limited
+                        ? SCILocalized(@"Rate limited too many times. Run analysis again to resume.")
+                        : (error.localizedDescription ?: SCILocalized(@"Couldn't check every follow-back. Showing the accounts already checked.")));
+                SCIProfileAnalyzerError code = strongSelf.cancelled ? SCIProfileAnalyzerErrorCancelled
+                    : (limited ? SCIProfileAnalyzerErrorRateLimited : SCIProfileAnalyzerErrorNetwork);
+                completion(nil, [strongSelf errorWithCode:code message:msg]);
+                return;
+            }
+            NSTimeInterval wait = retryAfter > 0 ? retryAfter : MIN(60.0, 2.0 * pow(2, attempt));
+            [strongSelf reportProgress:progress status:SCILocalized(@"Waiting for Instagram rate limit…") fraction:-1];
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [weakSelf requestPath:path method:method body:body attempt:attempt + 1 progress:progress completion:completion];
+            });
+        } @catch (__unused NSException *ex) {
+            completion(nil, [strongSelf errorWithCode:SCIProfileAnalyzerErrorNetwork
+                                              message:SCILocalized(@"Couldn't check every follow-back. Showing the accounts already checked.")]);
         }
-        if (strongSelf.cancelled || attempt + 1 >= SCI_PA_MAX_ATTEMPTS) {
-            NSString *msg = limited
-                ? SCILocalized(@"Rate limited too many times. Run analysis again to resume.")
-                : (error.localizedDescription ?: SCILocalized(@"Couldn't fetch profile information"));
-            completion(nil, [strongSelf errorWithCode:strongSelf.cancelled ? SCIProfileAnalyzerErrorCancelled : SCIProfileAnalyzerErrorNetwork message:msg]);
-            return;
-        }
-        NSTimeInterval wait = retryAfter > 0 ? retryAfter : MIN(60.0, 2.0 * pow(2, attempt));
-        [strongSelf reportProgress:progress status:SCILocalized(@"Waiting for Instagram rate limit…") fraction:-1];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [weakSelf requestPath:path method:method body:body attempt:attempt + 1 progress:progress completion:completion];
-        });
     }];
 }
 
 - (NSArray *)jsonUsers:(NSArray<SCIProfileAnalyzerUser *> *)users {
     NSMutableArray *out = [NSMutableArray arrayWithCapacity:users.count];
-    for (SCIProfileAnalyzerUser *user in users) {
-        if (user.pk.length) [out addObject:[user toJSONDict]];
+    @autoreleasepool {
+        for (SCIProfileAnalyzerUser *user in users) {
+            if (user.pk.length) [out addObject:[user toJSONDict]];
+        }
     }
     return out;
 }
@@ -153,10 +218,10 @@
     return queue;
 }
 
-- (void)saveProgressUsers:(NSArray<SCIProfileAnalyzerUser *> *)users next:(NSString *)next pk:(NSString *)pk {
+- (void)saveProgressUsers:(NSArray<SCIProfileAnalyzerUser *> *)users next:(NSString *)next phase:(NSString *)phase pk:(NSString *)pk {
     if (!pk.length) return;
     NSArray *json = [self jsonUsers:users];
-    NSDictionary *payload = @{ @"next_max_id": next ?: @"", @"users": json };
+    NSDictionary *payload = @{ @"next_max_id": next ?: @"", @"phase": phase ?: @"following", @"users": json };
     dispatch_async([self progressQueue], ^{
         [SCIProfileAnalyzerStorage saveProgress:payload forUserPK:pk];
     });
@@ -169,55 +234,379 @@
     });
 }
 
-- (void)applyStatuses:(NSDictionary *)statuses toUsers:(NSMutableArray<SCIProfileAnalyzerUser *> *)users {
-    if (![statuses isKindOfClass:[NSDictionary class]]) return;
-    for (SCIProfileAnalyzerUser *user in users) {
-        if (user.followsYou >= 0) continue;
-        NSDictionary *row = [statuses[user.pk] isKindOfClass:[NSDictionary class]] ? statuses[user.pk] : nil;
-        if (!row) continue;
-        for (NSString *key in @[@"followed_by", @"followed_by_viewer", @"follows_viewer"]) {
-            id value = row[key];
-            if ([value isKindOfClass:[NSNumber class]]) {
-                user.followsYou = [value boolValue] ? 1 : 0;
-                break;
-            }
+- (NSDictionary<NSString *, NSNumber *> *)knownFollowsForPK:(NSString *)pk {
+    NSMutableDictionary *map = [NSMutableDictionary dictionary];
+    @try {
+        SCIProfileAnalyzerSnapshot *cur = [SCIProfileAnalyzerStorage currentSnapshotForUserPK:pk];
+        for (SCIProfileAnalyzerUser *user in cur.following) {
+            if (user.pk.length && user.followsYou >= 0) map[user.pk] = @(user.followsYou);
         }
+    } @catch (__unused NSException *e) {}
+    return map;
+}
+
+- (NSInteger)unknownCount:(NSArray<SCIProfileAnalyzerUser *> *)users {
+    NSInteger n = 0;
+    for (SCIProfileAnalyzerUser *user in users) {
+        if (user.followsYou < 0 && user.pk.length && ![self.skippedPKs containsObject:user.pk]) n++;
+    }
+    return n;
+}
+
+- (void)countsIn:(NSArray<SCIProfileAnalyzerUser *> *)users mutuals:(NSUInteger *)m notBack:(NSUInteger *)n checked:(NSUInteger *)c {
+    NSUInteger mm = 0, nn = 0, cc = 0;
+    for (SCIProfileAnalyzerUser *user in users) {
+        if (user.followsYou > 0) { mm++; cc++; }
+        else if (user.followsYou == 0) { nn++; cc++; }
+    }
+    if (m) *m = mm;
+    if (n) *n = nn;
+    if (c) *c = cc;
+}
+
+- (NSInteger)followsYouInRow:(NSDictionary *)row {
+    if (![row isKindOfClass:[NSDictionary class]]) return -1;
+    NSDictionary *nested = [row[@"friendship_status"] isKindOfClass:[NSDictionary class]] ? row[@"friendship_status"] : nil;
+    NSArray *sources = nested ? @[row, nested] : @[row];
+    for (NSDictionary *src in sources) {
+        for (NSString *key in @[@"followed_by", @"followed_by_viewer", @"follows_viewer"]) {
+            id value = src[key];
+            int parsed = -1;
+            if ([value isKindOfClass:[NSNumber class]]) parsed = IXPAParseFollowedBy(1, [(NSNumber *)value longValue], NULL);
+            else if ([value isKindOfClass:[NSString class]]) parsed = IXPAParseFollowedBy(0, 0, [(NSString *)value UTF8String]);
+            if (parsed >= 0) return parsed;
+        }
+    }
+    return -1;
+}
+
+- (NSString *)pkString:(id)raw {
+    if ([raw isKindOfClass:[NSString class]]) return raw;
+    if ([raw respondsToSelector:@selector(stringValue)]) return [raw stringValue];
+    return nil;
+}
+
+- (NSDictionary *)statusMapFromResponse:(NSDictionary *)resp {
+    if (![resp isKindOfClass:[NSDictionary class]]) return @{};
+    id raw = resp[@"friendship_statuses"] ?: resp[@"statuses"];
+    NSMutableDictionary *map = [NSMutableDictionary dictionary];
+    if ([raw isKindOfClass:[NSDictionary class]]) {
+        for (id key in (NSDictionary *)raw) {
+            id val = ((NSDictionary *)raw)[key];
+            if (![val isKindOfClass:[NSDictionary class]]) continue;
+            NSString *pk = [self pkString:key];
+            if (!pk.length) pk = [self pkString:((NSDictionary *)val)[@"pk"] ?: ((NSDictionary *)val)[@"user_id"] ?: ((NSDictionary *)val)[@"id"]];
+            if (pk.length) map[pk] = val;
+        }
+    } else if ([raw isKindOfClass:[NSArray class]]) {
+        for (id item in (NSArray *)raw) {
+            if (![item isKindOfClass:[NSDictionary class]]) continue;
+            NSString *pk = [self pkString:item[@"pk"] ?: item[@"pk_id"] ?: item[@"user_id"] ?: item[@"id"]];
+            if (pk.length) map[pk] = item;
+        }
+    }
+    return map;
+}
+
+- (NSUInteger)applyStatusMap:(NSDictionary *)map toUsers:(NSArray<SCIProfileAnalyzerUser *> *)users {
+    if (!map.count) return 0;
+    NSUInteger applied = 0;
+    for (SCIProfileAnalyzerUser *user in users) {
+        if (user.followsYou >= 0 || !user.pk.length) continue;
+        NSInteger value = [self followsYouInRow:map[user.pk]];
+        if (value < 0) continue;
+        user.followsYou = value;
+        applied++;
+    }
+    return applied;
+}
+
+- (void)publishUsers:(NSArray<SCIProfileAnalyzerUser *> *)users
+            snapshot:(SCIProfileAnalyzerSnapshot *)snap
+            progress:(SCIPAProgress)progress
+              status:(NSString *)status
+            fraction:(double)fraction {
+    @try {
+        snap.following = [users copy] ?: @[];
+        snap.scanDate = [NSDate date];
+        self.liveSnapshot = snap;
+        SCIPAIncremental block = self.incremental;
+        if (block) dispatch_async(dispatch_get_main_queue(), ^{ block(snap); });
+        if (status) [self reportProgress:progress status:status fraction:fraction];
+    } @catch (__unused NSException *e) {}
+}
+
+- (NSString *)mutualStatusForUsers:(NSArray<SCIProfileAnalyzerUser *> *)users {
+    NSUInteger mutuals = 0, notBack = 0, checked = 0;
+    [self countsIn:users mutuals:&mutuals notBack:&notBack checked:&checked];
+    return [NSString stringWithFormat:SCILocalized(@"%lu/%lu checked · %lu mutuals · %lu not following you back"),
+            (unsigned long)checked, (unsigned long)users.count, (unsigned long)mutuals, (unsigned long)notBack];
+}
+
+- (double)mutualFractionForUsers:(NSArray<SCIProfileAnalyzerUser *> *)users {
+    if (!users.count) return 0.35;
+    NSUInteger checked = 0;
+    [self countsIn:users mutuals:NULL notBack:NULL checked:&checked];
+    return MIN(0.99, 0.35 + (double)checked / (double)users.count * 0.64);
+}
+
+- (void)persistIfNeeded:(NSArray<SCIProfileAnalyzerUser *> *)users pk:(NSString *)pk force:(BOOL)force {
+    self.checksSinceSave++;
+    if (!force && self.checksSinceSave < SCI_PA_SAVE_EVERY) return;
+    self.checksSinceSave = 0;
+    [self saveProgressUsers:users next:@"" phase:@"mutuals" pk:pk];
+    @try {
+        if (self.liveSnapshot) [SCIProfileAnalyzerStorage updateCurrentSnapshot:self.liveSnapshot forUserPK:pk];
+    } @catch (__unused NSException *e) {}
+}
+
+- (void)afterGate:(void (^)(void))block progress:(SCIPAProgress)progress {
+    if (self.cancelled) {
+        if (block) block();
+        return;
+    }
+    if (self.paused) {
+        __weak typeof(self) weakSelf = self;
+        [self reportProgress:progress status:SCILocalized(@"Paused") fraction:-1];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [weakSelf afterGate:block progress:progress];
+        });
+        return;
+    }
+    uint32_t ms = 700u + arc4random_uniform(801u);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(ms * NSEC_PER_MSEC)), dispatch_get_main_queue(), block);
+}
+
+- (NSArray<SCIProfileAnalyzerUser *> *)nextBatch:(NSArray<SCIProfileAnalyzerUser *> *)users limit:(NSUInteger)limit {
+    NSMutableArray *batch = [NSMutableArray array];
+    for (SCIProfileAnalyzerUser *user in users) {
+        if (user.followsYou >= 0 || !user.pk.length) continue;
+        if ([self.skippedPKs containsObject:user.pk]) continue;
+        [batch addObject:user];
+        if (batch.count >= limit) break;
+    }
+    return batch;
+}
+
+- (void)finishClassified:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+                       pk:(NSString *)pk
+                 snapshot:(SCIProfileAnalyzerSnapshot *)snap
+                    error:(NSError *)error
+                 progress:(SCIPAProgress)progress
+               completion:(SCIPACompletion)completion {
+    [self publishUsers:users snapshot:snap progress:progress status:nil fraction:1];
+    if (error) {
+        [self saveProgressUsers:users next:@"" phase:@"mutuals" pk:pk];
+        @try { [SCIProfileAnalyzerStorage updateCurrentSnapshot:snap forUserPK:pk]; } @catch (__unused NSException *e) {}
+    } else {
+        @try { [SCIProfileAnalyzerStorage saveSnapshot:snap forUserPK:pk]; } @catch (__unused NSException *e) {}
+        [self clearProgress:pk];
+    }
+    [self finishWithSnapshot:snap error:error completion:completion];
+}
+
+- (void)stepMutuals:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+                 pk:(NSString *)pk
+           snapshot:(SCIProfileAnalyzerSnapshot *)snap
+           progress:(SCIPAProgress)progress
+         completion:(SCIPACompletion)completion {
+    @try {
+        if (self.cancelled) {
+            [self finishClassified:users pk:pk snapshot:snap
+                             error:[self errorWithCode:SCIProfileAnalyzerErrorCancelled
+                                               message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")]
+                          progress:progress completion:completion];
+            return;
+        }
+        NSInteger cap = self.showManyLimit > 0 ? self.showManyLimit : SCI_PA_SHOW_MANY;
+        NSArray<SCIProfileAnalyzerUser *> *batch = [self nextBatch:users limit:self.showManyDead ? 1 : (NSUInteger)cap];
+        if (batch.count == 0) {
+            NSInteger leftover = 0;
+            for (SCIProfileAnalyzerUser *user in users) if (user.followsYou < 0 && user.pk.length) leftover++;
+            NSError *error = leftover > 0
+                ? [self errorWithCode:SCIProfileAnalyzerErrorNetwork message:SCILocalized(@"Couldn't check every follow-back. Showing the accounts already checked.")]
+                : nil;
+            [self finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
+            return;
+        }
+        [self publishUsers:users snapshot:snap progress:progress
+                    status:[self mutualStatusForUsers:users]
+                  fraction:[self mutualFractionForUsers:users]];
+        if (self.showManyDead) {
+            [self searchUser:batch.firstObject users:users pk:pk snapshot:snap progress:progress completion:completion];
+            return;
+        }
+        [self showMany:batch users:users pk:pk snapshot:snap progress:progress completion:completion];
+    } @catch (__unused NSException *e) {
+        [self finishClassified:users pk:pk snapshot:snap
+                         error:[self errorWithCode:SCIProfileAnalyzerErrorNetwork
+                                           message:SCILocalized(@"Couldn't check every follow-back. Showing the accounts already checked.")]
+                      progress:progress completion:completion];
     }
 }
 
-- (void)resolveUnknownIn:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
-                    from:(NSUInteger)start
-                attempt:(NSInteger)attempt
-               progress:(SCIPAProgress)progress
-             completion:(void (^)(NSError *error))completion {
-    NSMutableArray<NSString *> *missing = [NSMutableArray array];
-    NSUInteger cursor = start;
-    for (; cursor < users.count && missing.count < 40; cursor++) {
-        SCIProfileAnalyzerUser *user = users[cursor];
-        if (user.followsYou < 0 && user.pk.length) [missing addObject:user.pk];
-    }
-    if (missing.count == 0 || self.cancelled) {
-        if (completion) completion(self.cancelled ? [self errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Cancelled")] : nil);
+- (void)showMany:(NSArray<SCIProfileAnalyzerUser *> *)batch
+           users:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+              pk:(NSString *)pk
+        snapshot:(SCIProfileAnalyzerSnapshot *)snap
+        progress:(SCIPAProgress)progress
+      completion:(SCIPACompletion)completion {
+    NSMutableArray<NSString *> *ids = [NSMutableArray arrayWithCapacity:batch.count];
+    for (SCIProfileAnalyzerUser *user in batch) if (user.pk.length) [ids addObject:user.pk];
+    if (!ids.count) {
+        self.showManyDead = YES;
+        [self stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
         return;
     }
     __weak typeof(self) weakSelf = self;
     [self requestPath:@"friendships/show_many/"
                method:@"POST"
-                 body:@{ @"user_ids": [missing componentsJoinedByString:@","] }
-              attempt:attempt
+                 body:@{ @"user_ids": [ids componentsJoinedByString:@","] }
+              attempt:0
              progress:progress
            completion:^(NSDictionary *resp, NSError *error) {
         typeof(self) strongSelf = weakSelf;
-        if (!strongSelf || error || strongSelf.cancelled) {
-            if (completion) completion(error ?: [strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Cancelled")]);
+        if (!strongSelf) return;
+        if (strongSelf.cancelled || error.code == SCIProfileAnalyzerErrorCancelled) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap
+                                   error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled
+                                                            message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")]
+                                progress:progress completion:completion];
             return;
         }
-        id raw = resp[@"friendship_statuses"];
-        [strongSelf applyStatuses:[raw isKindOfClass:[NSDictionary class]] ? raw : nil toUsers:users];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(SCI_PA_PAGE_DELAY_S * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [weakSelf resolveUnknownIn:users from:cursor attempt:0 progress:progress completion:completion];
-        });
+        if (error.code == SCIProfileAnalyzerErrorRateLimited) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
+            return;
+        }
+        if (!error) {
+            NSUInteger applied = [strongSelf applyStatusMap:[strongSelf statusMapFromResponse:resp] toUsers:users];
+            if (applied == 0) strongSelf.showManyDead = YES;
+        } else if (strongSelf.showManyLimit > 20) {
+            strongSelf.showManyLimit = MAX(20, strongSelf.showManyLimit / 2);
+        } else {
+            strongSelf.showManyDead = YES;
+        }
+        [strongSelf publishUsers:users snapshot:snap progress:progress
+                          status:[strongSelf mutualStatusForUsers:users]
+                        fraction:[strongSelf mutualFractionForUsers:users]];
+        [strongSelf persistIfNeeded:users pk:pk force:YES];
+        [strongSelf afterGate:^{
+            [weakSelf stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
+        } progress:progress];
     }];
+}
+
+- (BOOL)page:(NSDictionary *)resp containsExactUsername:(NSString *)username valid:(BOOL *)valid {
+    if (valid) *valid = NO;
+    if (![resp isKindOfClass:[NSDictionary class]] || !username.length) return NO;
+    id lists[2] = { resp[@"users"], resp[@"items"] };
+    BOOL saw = NO;
+    BOOL match = NO;
+    @autoreleasepool {
+        for (int i = 0; i < 2; i++) {
+            if (![lists[i] isKindOfClass:[NSArray class]]) continue;
+            saw = YES;
+            for (id item in (NSArray *)lists[i]) {
+                if (![item isKindOfClass:[NSDictionary class]]) continue;
+                NSString *name = item[@"username"];
+                if (![name isKindOfClass:[NSString class]]) continue;
+                if (IXPAUsernameExact(username.UTF8String, name.UTF8String)) {
+                    match = YES;
+                    break;
+                }
+            }
+            if (match) break;
+        }
+    }
+    if (valid) *valid = saw;
+    return match;
+}
+
+- (NSString *)queryToken:(NSString *)username {
+    NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._"];
+    return [username stringByAddingPercentEncodingWithAllowedCharacters:allowed] ?: @"";
+}
+
+- (void)searchUser:(SCIProfileAnalyzerUser *)user
+             users:(NSMutableArray<SCIProfileAnalyzerUser *> *)users
+                pk:(NSString *)pk
+          snapshot:(SCIProfileAnalyzerSnapshot *)snap
+          progress:(SCIPAProgress)progress
+        completion:(SCIPACompletion)completion {
+    if (!user.username.length) {
+        if (user.pk.length) [self.skippedPKs addObject:user.pk];
+        __weak typeof(self) weakSelf = self;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
+        });
+        return;
+    }
+    NSString *query = [self queryToken:user.username];
+    NSString *rank = [self queryToken:self.rankToken ?: @""];
+    NSString *path = [NSString stringWithFormat:@"friendships/%@/followers/?query=%@&search_surface=follow_list_page&rank_token=%@",
+                      pk, query, rank];
+    __weak typeof(self) weakSelf = self;
+    [self requestPath:path method:@"GET" body:nil attempt:0 progress:progress completion:^(NSDictionary *resp, NSError *error) {
+        typeof(self) strongSelf = weakSelf;
+        if (!strongSelf) return;
+        if (strongSelf.cancelled || error.code == SCIProfileAnalyzerErrorCancelled) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap
+                                   error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled
+                                                            message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")]
+                                progress:progress completion:completion];
+            return;
+        }
+        if (error.code == SCIProfileAnalyzerErrorRateLimited) {
+            [strongSelf finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
+            return;
+        }
+        if (error) {
+            strongSelf.searchFailures++;
+            if (user.pk.length) [strongSelf.skippedPKs addObject:user.pk];
+            if (strongSelf.searchFailures >= 3) {
+                [strongSelf finishClassified:users pk:pk snapshot:snap error:error progress:progress completion:completion];
+                return;
+            }
+        } else {
+            BOOL valid = NO;
+            BOOL match = [strongSelf page:resp containsExactUsername:user.username valid:&valid];
+            NSString *status = [resp[@"status"] isKindOfClass:[NSString class]] ? resp[@"status"] : @"";
+            if (status.length && ![status isEqualToString:@"ok"]) valid = NO;
+            if (valid && user.followsYou < 0) {
+                user.followsYou = match ? 1 : 0;
+                strongSelf.searchFailures = 0;
+            } else if (user.pk.length) {
+                [strongSelf.skippedPKs addObject:user.pk];
+                strongSelf.searchFailures++;
+                if (strongSelf.searchFailures >= 3) {
+                    [strongSelf finishClassified:users pk:pk snapshot:snap
+                                           error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorNetwork
+                                                                   message:SCILocalized(@"Couldn't check every follow-back. Showing the accounts already checked.")]
+                                        progress:progress completion:completion];
+                    return;
+                }
+            }
+        }
+        [strongSelf publishUsers:users snapshot:snap progress:progress
+                          status:[strongSelf mutualStatusForUsers:users]
+                        fraction:[strongSelf mutualFractionForUsers:users]];
+        [strongSelf persistIfNeeded:users pk:pk force:NO];
+        [strongSelf afterGate:^{
+            [weakSelf stepMutuals:users pk:pk snapshot:snap progress:progress completion:completion];
+        } progress:progress];
+    }];
+}
+
+- (void)beginMutuals:(NSMutableArray<SCIProfileAnalyzerUser *> *)acc
+                  pk:(NSString *)pk
+            snapshot:(SCIProfileAnalyzerSnapshot *)snap
+            progress:(SCIPAProgress)progress
+          completion:(SCIPACompletion)completion {
+    [self publishUsers:acc snapshot:snap progress:progress
+                status:[self mutualStatusForUsers:acc]
+              fraction:[self mutualFractionForUsers:acc]];
+    [self saveProgressUsers:acc next:@"" phase:@"mutuals" pk:pk];
+    [self stepMutuals:acc pk:pk snapshot:snap progress:progress completion:completion];
 }
 
 - (void)fetchFollowingForPK:(NSString *)pk
@@ -226,6 +615,7 @@
                  completion:(SCIPACompletion)completion {
     NSMutableArray<SCIProfileAnalyzerUser *> *acc = [NSMutableArray array];
     NSMutableSet<NSString *> *seen = [NSMutableSet set];
+    NSDictionary *known = [self knownFollowsForPK:pk];
     NSDictionary *saved = [SCIProfileAnalyzerStorage progressForUserPK:pk];
     NSString *resume = nil;
     if ([saved isKindOfClass:[NSDictionary class]]) {
@@ -233,6 +623,10 @@
             if (![item isKindOfClass:[NSDictionary class]]) continue;
             SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromJSONDict:item];
             if (!user.pk.length || [seen containsObject:user.pk]) continue;
+            if (user.followsYou < 0) {
+                NSNumber *cached = known[user.pk];
+                if (cached) user.followsYou = cached.integerValue;
+            }
             [seen addObject:user.pk];
             [acc addObject:user];
         }
@@ -240,10 +634,17 @@
         if ([next isKindOfClass:[NSString class]]) resume = next;
         else if ([next respondsToSelector:@selector(stringValue)]) resume = [next stringValue];
     }
-    if (acc.count && resume.length == 0 && saved) {
-        snap.following = acc;
-        [self clearProgress:pk];
-        [self finishWithSnapshot:snap error:nil completion:completion];
+    int unknown = (int)MIN(INT_MAX, [self unknownCount:acc]);
+    IXPAStep step = IXPANextStep((int)MIN(INT_MAX, acc.count), (int)resume.length, unknown);
+    if (step == IXPA_STEP_FINISH) {
+        [self finishClassified:acc pk:pk snapshot:snap error:nil progress:progress completion:completion];
+        return;
+    }
+    if (step == IXPA_STEP_RESOLVE) {
+        NSString *checking = [NSString stringWithFormat:SCILocalized(@"Checking who follows you back (%lu/%lu)…"),
+                              (unsigned long)(acc.count - (NSUInteger)MAX(unknown, 0)), (unsigned long)acc.count];
+        [self reportProgress:progress status:checking fraction:0.35];
+        [self beginMutuals:acc pk:pk snapshot:snap progress:progress completion:completion];
         return;
     }
     if (acc.count) {
@@ -252,6 +653,7 @@
     [self pageFollowing:pk
                     acc:acc
                    seen:seen
+                  known:known
                   maxId:resume
                   pages:0
                   total:snap.followingCount
@@ -260,31 +662,30 @@
              completion:completion];
 }
 
-- (void)appendPageUsers:(NSArray *)raw to:(NSMutableArray<SCIProfileAnalyzerUser *> *)acc seen:(NSMutableSet<NSString *> *)seen {
+- (void)appendPageUsers:(NSArray *)raw
+                     to:(NSMutableArray<SCIProfileAnalyzerUser *> *)acc
+                   seen:(NSMutableSet<NSString *> *)seen
+                  known:(NSDictionary<NSString *, NSNumber *> *)known {
     if (![raw isKindOfClass:[NSArray class]]) return;
     @autoreleasepool {
         for (id item in raw) {
             if (![item isKindOfClass:[NSDictionary class]]) continue;
             SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromAPIDict:item];
             if (!user.pk.length || [seen containsObject:user.pk]) continue;
+            if (user.followsYou < 0) {
+                NSNumber *cached = known[user.pk];
+                if (cached) user.followsYou = cached.integerValue;
+            }
             [seen addObject:user.pk];
             [acc addObject:user];
         }
     }
 }
 
-- (void)finishFollowing:(NSMutableArray<SCIProfileAnalyzerUser *> *)acc
-                     pk:(NSString *)pk
-               snapshot:(SCIProfileAnalyzerSnapshot *)snap
-             completion:(SCIPACompletion)completion {
-    snap.following = [acc copy];
-    [self clearProgress:pk];
-    [self finishWithSnapshot:snap error:nil completion:completion];
-}
-
 - (void)pageFollowing:(NSString *)pk
                   acc:(NSMutableArray<SCIProfileAnalyzerUser *> *)acc
                  seen:(NSMutableSet<NSString *> *)seen
+                known:(NSDictionary *)known
                 maxId:(NSString *)maxId
                 pages:(NSInteger)pages
                 total:(NSInteger)total
@@ -292,12 +693,14 @@
              progress:(SCIPAProgress)progress
            completion:(SCIPACompletion)completion {
     if (self.cancelled) {
-        [self saveProgressUsers:acc next:maxId pk:pk];
-        [self finishWithSnapshot:nil error:[self errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Cancelled")] completion:completion];
+        [self saveProgressUsers:acc next:maxId phase:@"following" pk:pk];
+        [self publishUsers:acc snapshot:snap progress:progress status:nil fraction:-1];
+        @try { [SCIProfileAnalyzerStorage updateCurrentSnapshot:snap forUserPK:pk]; } @catch (__unused NSException *e) {}
+        [self finishWithSnapshot:snap error:[self errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")] completion:completion];
         return;
     }
     if (pages >= SCI_PA_MAX_PAGES) {
-        [self finishFollowing:acc pk:pk snapshot:snap completion:completion];
+        [self beginMutuals:acc pk:pk snapshot:snap progress:progress completion:completion];
         return;
     }
     NSString *base = [NSString stringWithFormat:@"friendships/%@/following/", pk];
@@ -308,14 +711,17 @@
         typeof(self) strongSelf = weakSelf;
         if (!strongSelf) return;
         if (error || strongSelf.cancelled) {
-            [strongSelf saveProgressUsers:acc next:maxId pk:pk];
-            [strongSelf finishWithSnapshot:nil
-                                    error:error ?: [strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Saved progress. Run analysis again to resume.")]
-                               completion:completion];
+            [strongSelf saveProgressUsers:acc next:maxId phase:@"following" pk:pk];
+            [strongSelf publishUsers:acc snapshot:snap progress:progress status:nil fraction:-1];
+            if (acc.count) {
+                @try { [SCIProfileAnalyzerStorage updateCurrentSnapshot:snap forUserPK:pk]; } @catch (__unused NSException *e) {}
+            }
+            NSError *out = error ?: [strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Saved progress. Run analysis again to resume.")];
+            [strongSelf finishWithSnapshot:acc.count ? snap : nil error:out completion:completion];
             return;
         }
-        [strongSelf appendPageUsers:resp[@"users"] to:acc seen:seen];
-        double frac = total > 0 ? MIN(0.98, 0.03 + (double)acc.count / (double)total * 0.95) : 0.5;
+        [strongSelf appendPageUsers:resp[@"users"] to:acc seen:seen known:known];
+        double frac = total > 0 ? MIN(0.34, 0.03 + (double)acc.count / (double)total * 0.31) : 0.2;
         [strongSelf reportProgress:progress
                             status:[NSString stringWithFormat:SCILocalized(@"Fetching following (%lu/%ld)…"), (unsigned long)acc.count, (long)total]
                           fraction:frac];
@@ -324,24 +730,19 @@
         BOOL stuck = nextMax.length && maxId.length && [nextMax isEqualToString:maxId];
         if (!nextMax.length || stuck || strongSelf.cancelled) {
             if (strongSelf.cancelled) {
-                [strongSelf saveProgressUsers:acc next:nextMax ?: maxId pk:pk];
-                [strongSelf finishWithSnapshot:nil error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Cancelled")] completion:completion];
+                [strongSelf saveProgressUsers:acc next:nextMax ?: maxId phase:@"following" pk:pk];
+                [strongSelf publishUsers:acc snapshot:snap progress:progress status:nil fraction:frac];
+                @try { [SCIProfileAnalyzerStorage updateCurrentSnapshot:snap forUserPK:pk]; } @catch (__unused NSException *e) {}
+                [strongSelf finishWithSnapshot:snap error:[strongSelf errorWithCode:SCIProfileAnalyzerErrorCancelled message:SCILocalized(@"Analysis stopped. Showing the accounts already checked.")] completion:completion];
                 return;
             }
-            [strongSelf resolveUnknownIn:acc from:0 attempt:0 progress:progress completion:^(NSError *resolveError) {
-                if (resolveError && resolveError.code == SCIProfileAnalyzerErrorCancelled) {
-                    [strongSelf saveProgressUsers:acc next:nextMax pk:pk];
-                    [strongSelf finishWithSnapshot:nil error:resolveError completion:completion];
-                    return;
-                }
-                [strongSelf finishFollowing:acc pk:pk snapshot:snap completion:completion];
-            }];
+            [strongSelf beginMutuals:acc pk:pk snapshot:snap progress:progress completion:completion];
             return;
         }
-        [strongSelf saveProgressUsers:acc next:nextMax pk:pk];
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(SCI_PA_PAGE_DELAY_S * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [weakSelf pageFollowing:pk acc:acc seen:seen maxId:nextMax pages:pages + 1 total:total snapshot:snap progress:progress completion:completion];
-        });
+        [strongSelf saveProgressUsers:acc next:nextMax phase:@"following" pk:pk];
+        [strongSelf afterGate:^{
+            [weakSelf pageFollowing:pk acc:acc seen:seen known:known maxId:nextMax pages:pages + 1 total:total snapshot:snap progress:progress completion:completion];
+        } progress:progress];
     }];
 }
 

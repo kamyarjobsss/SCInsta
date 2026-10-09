@@ -771,6 +771,21 @@
 "Rate limited too many times. Run analysis again to resume." = "محدودیت چند بار تکرار شد. تحلیل را دوباره اجرا کنید تا ادامه پیدا کند.";
 "Saved progress. Run analysis again to resume." = "پیشرفت ذخیره شد. تحلیل را دوباره اجرا کنید تا ادامه پیدا کند.";
 "%lu mutuals · %lu not following you back" = "%lu مشترک · %lu نفر شما را دنبال نمی‌کنند";
+"Checking who follows you back (%lu/%lu)…" = "در حال بررسی دنبال‌کردن متقابل (%lu/%lu)…";
+"%lu/%lu checked · %lu mutuals · %lu not following you back" = "%lu/%lu بررسی شد · %lu مشترک · %lu نفر شما را دنبال نمی‌کنند";
+"Couldn't check every follow-back. Showing the accounts already checked." = "همهٔ دنبال‌کردن‌های متقابل بررسی نشد. حساب‌هایی که بررسی شده‌اند نشان داده می‌شود.";
+"Analysis stopped. Showing the accounts already checked." = "تحلیل متوقف شد. حساب‌هایی که بررسی شده‌اند نشان داده می‌شود.";
+"Instagram challenged the follow-back check. Showing the accounts already checked." = "اینستاگرام بررسی دنبال‌کردن متقابل را به چالش کشید. حساب‌هایی که بررسی شده‌اند نشان داده می‌شود.";
+"Paused" = "مکث";
+"Pause" = "مکث";
+"Resume" = "ادامه";
+"Copy usernames" = "کپی نام‌های کاربری";
+"Export list" = "خروجی فهرست";
+"Copied %lu usernames" = "%lu نام کاربری کپی شد";
+"Nothing to copy" = "چیزی برای کپی نیست";
+"Still checking who follows you back" = "هنوز در حال بررسی دنبال‌کردن متقابل";
+"Follow-back checks are saved on this device. The next run only asks about new accounts." = "نتیجهٔ دنبال‌کردن متقابل روی همین گوشی ذخیره می‌شود. اجرای بعدی فقط حساب‌های تازه را می‌پرسد.";
+"Pause and Cancel keep the accounts already checked on screen." = "مکث و لغو، حساب‌هایی را که بررسی شده‌اند روی صفحه نگه می‌دارند.";
 "Removes the saved following analysis for this account." = "تحلیل ذخیره‌شدهٔ دنبال‌شوندهٔ این حساب پاک می‌شود.";
 
 /* Action menus */

@@ -116,6 +116,8 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 @property (nonatomic, strong) UILabel *scanDateLabel;
 @property (nonatomic, strong) UILabel *warningLabel;
 @property (nonatomic, strong) UIButton *scanButton;
+@property (nonatomic, strong) UIButton *cancelButton;
+@property (nonatomic, strong) UIStackView *buttonRow;
 @property (nonatomic, strong) UILabel *progressLabel;
 @end
 
@@ -175,13 +177,31 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
     _scanButton.layer.cornerRadius = 18;
     _scanButton.contentEdgeInsets = UIEdgeInsetsMake(0, 22, 0, 22);
     [_scanButton setTitle:SCILocalized(@"Run analysis") forState:UIControlStateNormal];
-    [self addSubview:_scanButton];
+
+    _cancelButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    _cancelButton.translatesAutoresizingMaskIntoConstraints = NO;
+    _cancelButton.titleLabel.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
+    _cancelButton.backgroundColor = [UIColor systemRedColor];
+    [_cancelButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+    _cancelButton.layer.cornerRadius = 18;
+    _cancelButton.contentEdgeInsets = UIEdgeInsetsMake(0, 18, 0, 18);
+    [_cancelButton setTitle:SCILocalized(@"Cancel") forState:UIControlStateNormal];
+    _cancelButton.hidden = YES;
+
+    _buttonRow = [[UIStackView alloc] initWithArrangedSubviews:@[_scanButton, _cancelButton]];
+    _buttonRow.translatesAutoresizingMaskIntoConstraints = NO;
+    _buttonRow.axis = UILayoutConstraintAxisHorizontal;
+    _buttonRow.spacing = 8;
+    _buttonRow.alignment = UIStackViewAlignmentCenter;
+    _buttonRow.distribution = UIStackViewDistributionFillProportionally;
+    [self addSubview:_buttonRow];
 
     _progressLabel = [UILabel new];
     _progressLabel.translatesAutoresizingMaskIntoConstraints = NO;
     _progressLabel.font = [UIFont systemFontOfSize:12];
     _progressLabel.textColor = [UIColor secondaryLabelColor];
     _progressLabel.textAlignment = NSTextAlignmentCenter;
+    _progressLabel.numberOfLines = 2;
     _progressLabel.hidden = YES;
     [self addSubview:_progressLabel];
 
@@ -212,12 +232,17 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
         [_warningLabel.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:20],
         [_warningLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-20],
 
-        [_scanButton.topAnchor constraintEqualToAnchor:_warningLabel.bottomAnchor constant:12],
-        [_scanButton.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
         [_scanButton.heightAnchor constraintEqualToConstant:36],
-        [_scanButton.widthAnchor constraintGreaterThanOrEqualToConstant:160],
+        [_scanButton.widthAnchor constraintGreaterThanOrEqualToConstant:120],
+        [_cancelButton.heightAnchor constraintEqualToConstant:36],
+        [_cancelButton.widthAnchor constraintGreaterThanOrEqualToConstant:96],
 
-        [_progressLabel.topAnchor constraintEqualToAnchor:_scanButton.bottomAnchor constant:6],
+        [_buttonRow.topAnchor constraintEqualToAnchor:_warningLabel.bottomAnchor constant:12],
+        [_buttonRow.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+        [_buttonRow.leadingAnchor constraintGreaterThanOrEqualToAnchor:self.leadingAnchor constant:16],
+        [_buttonRow.trailingAnchor constraintLessThanOrEqualToAnchor:self.trailingAnchor constant:-16],
+
+        [_progressLabel.topAnchor constraintEqualToAnchor:_buttonRow.bottomAnchor constant:6],
         [_progressLabel.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
         [_progressLabel.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
         [_progressLabel.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-16],
@@ -346,6 +371,7 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 @property (nonatomic, strong) SCIProfileAnalyzerReport *report;
 @property (nonatomic, strong) NSArray<SCIPACategoryDescriptor *> *categories;
 @property (nonatomic, assign) BOOL running;
+@property (nonatomic, copy) NSString *partialNotice;
 @property (nonatomic, copy) NSString *lastHeaderPK;
 @property (nonatomic, assign) BOOL pendingHeaderFetch;
 @end
@@ -369,6 +395,7 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 - (void)dealloc { [[NSNotificationCenter defaultCenter] removeObserver:self]; }
 
 - (void)analyzerDataChanged:(NSNotification *)note {
+    if (self.running || [SCIProfileAnalyzerService sharedService].isRunning) return;
     if (!self.isViewLoaded || !self.view.window) return;
     NSString *pk = note.userInfo[@"user_pk"];
     NSString *current = [SCIUtils currentUserPK];
@@ -386,8 +413,17 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
-    // Cheap disk + set math; safe during push.
-    @try { [self loadCachedReport]; } @catch (__unused NSException *e) {}
+    @try {
+        SCIProfileAnalyzerService *svc = [SCIProfileAnalyzerService sharedService];
+        if (svc.isRunning) {
+            self.running = YES;
+            if (svc.liveSnapshot) [self showPartialSnapshot:svc.liveSnapshot];
+            else [self loadCachedReport];
+            [self syncRunButtons];
+        } else {
+            [self loadCachedReport];
+        }
+    } @catch (__unused NSException *e) {}
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -472,6 +508,7 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
     [self.headerContainer addSubview:self.headerView];
 
     [self.headerView.scanButton addTarget:self action:@selector(analyzeTapped) forControlEvents:UIControlEventTouchUpInside];
+    [self.headerView.cancelButton addTarget:self action:@selector(cancelTapped) forControlEvents:UIControlEventTouchUpInside];
 
     [NSLayoutConstraint activateConstraints:@[
         [self.headerView.topAnchor constraintEqualToAnchor:self.headerContainer.topAnchor constant:12],
@@ -676,35 +713,87 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 }
 
 - (void)refreshWarning {
-    self.headerView.warningLabel.hidden = YES;
-    self.headerView.scanButton.enabled = !self.running;
-    self.headerView.scanButton.alpha = self.running ? 0.5 : 1.0;
+    BOOL show = self.partialNotice.length > 0 && !self.running;
+    self.headerView.warningLabel.hidden = !show;
+    self.headerView.warningLabel.text = show ? self.partialNotice : @"";
+    if (!self.running) [self syncRunButtons];
+    [self.view setNeedsLayout];
+}
+
+- (void)syncRunButtons {
+    SCIProfileAnalyzerService *svc = [SCIProfileAnalyzerService sharedService];
+    UIButton *scan = self.headerView.scanButton;
+    UIButton *cancel = self.headerView.cancelButton;
+    scan.enabled = YES;
+    scan.alpha = 1;
+    if (!self.running) {
+        cancel.hidden = YES;
+        [scan setTitle:SCILocalized(@"Run analysis") forState:UIControlStateNormal];
+        scan.backgroundColor = [SCIUtils SCIColor_Primary] ?: [UIColor systemBlueColor];
+        self.headerView.progressLabel.hidden = YES;
+        [self.headerView.avatar setShowProgress:NO];
+        [self.view setNeedsLayout];
+        return;
+    }
+    cancel.hidden = NO;
+    self.headerView.progressLabel.hidden = NO;
+    [self.headerView.avatar setShowProgress:YES];
+    if (svc.isPaused) {
+        [scan setTitle:SCILocalized(@"Resume") forState:UIControlStateNormal];
+        scan.backgroundColor = [SCIUtils SCIColor_Primary] ?: [UIColor systemBlueColor];
+    } else {
+        [scan setTitle:SCILocalized(@"Pause") forState:UIControlStateNormal];
+        scan.backgroundColor = [UIColor systemOrangeColor];
+    }
     [self.view setNeedsLayout];
 }
 
 #pragma mark - Actions
 
 - (void)analyzeTapped {
-    if (self.running) { [[SCIProfileAnalyzerService sharedService] cancel]; return; }
+    SCIProfileAnalyzerService *svc = [SCIProfileAnalyzerService sharedService];
+    if (self.running) {
+        if (svc.isPaused) [svc resume];
+        else [svc pause];
+        [self syncRunButtons];
+        if (svc.isPaused) self.headerView.progressLabel.text = SCILocalized(@"Paused");
+        return;
+    }
     self.running = YES;
+    self.partialNotice = nil;
+    self.headerView.warningLabel.hidden = YES;
     self.headerView.progressLabel.hidden = NO;
     self.headerView.progressLabel.text = SCILocalized(@"Starting…");
     [self.headerView.avatar setShowProgress:YES];
     self.headerView.avatar.progress = 0;
-    [self.headerView.scanButton setTitle:SCILocalized(@"Cancel") forState:UIControlStateNormal];
-    self.headerView.scanButton.backgroundColor = [UIColor systemRedColor];
+    [self syncRunButtons];
     [self.view setNeedsLayout];
 
     __weak typeof(self) weakSelf = self;
-    [[SCIProfileAnalyzerService sharedService] runForSelfWithHeaderInfo:^(NSDictionary *userInfo) {
-        // Paint the header when the profile info returns, before the following list.
+    [svc runForSelfWithHeaderInfo:^(NSDictionary *userInfo) {
         [weakSelf paintHeaderFromUserInfo:userInfo];
     } progress:^(NSString *status, double fraction) {
+        if (!weakSelf.running) return;
         weakSelf.headerView.progressLabel.text = status;
         if (fraction >= 0) weakSelf.headerView.avatar.progress = fraction;
+        [weakSelf syncRunButtons];
+    } incremental:^(SCIProfileAnalyzerSnapshot *snapshot) {
+        [weakSelf showPartialSnapshot:snapshot];
     } completion:^(SCIProfileAnalyzerSnapshot *snapshot, NSError *error) {
         [weakSelf onAnalysisFinished:snapshot error:error];
     }];
+}
+
+- (void)cancelTapped {
+    if (!self.running) return;
+    [[SCIProfileAnalyzerService sharedService] cancel];
+}
+
+- (void)showPartialSnapshot:(SCIProfileAnalyzerSnapshot *)snapshot {
+    if (![snapshot isKindOfClass:[SCIProfileAnalyzerSnapshot class]]) return;
+    self.report = [SCIProfileAnalyzerReport reportFromCurrent:snapshot previous:nil];
+    [self rebuildCategories];
+    if (self.isViewLoaded) [self.tableView reloadData];
 }
 
 - (void)paintHeaderFromUserInfo:(NSDictionary *)user {
@@ -730,34 +819,42 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
 
 - (void)onAnalysisFinished:(SCIProfileAnalyzerSnapshot *)snapshot error:(NSError *)error {
     self.running = NO;
-    self.headerView.progressLabel.hidden = YES;
-    [self.headerView.avatar setShowProgress:NO];
-    [self.headerView.scanButton setTitle:SCILocalized(@"Run analysis") forState:UIControlStateNormal];
-    self.headerView.scanButton.backgroundColor = [SCIUtils SCIColor_Primary] ?: [UIColor systemBlueColor];
+    [self syncRunButtons];
     [self.view setNeedsLayout];
 
-    if (error && error.code != SCIProfileAnalyzerErrorCancelled) {
-        [self alertTitle:SCILocalized(@"Analysis failed") message:error.localizedDescription ?: @""];
+    if (snapshot) {
+        NSString *pk = [SCIUtils currentUserPK];
+        [SCIProfileAnalyzerStorage saveHeaderInfo:@{
+            @"username": snapshot.selfUsername ?: @"",
+            @"full_name": snapshot.selfFullName ?: @"",
+            @"profile_pic_url": snapshot.selfProfilePicURL ?: @"",
+            @"follower_count": @(snapshot.followerCount),
+            @"following_count": @(snapshot.followingCount),
+            @"media_count": @(snapshot.mediaCount),
+        } forUserPK:pk];
+        [self showPartialSnapshot:snapshot];
+        [self refreshHeader];
+        SCIProfileAnalyzerReport *done = self.report;
+        NSString *counts = [NSString stringWithFormat:SCILocalized(@"%lu mutuals · %lu not following you back"),
+                            (unsigned long)done.mutualFollowers.count,
+                            (unsigned long)done.notFollowingYouBack.count];
+        if (error) {
+            self.partialNotice = error.localizedDescription.length ? error.localizedDescription : counts;
+            [self refreshWarning];
+            [SCIUtils showToastForDuration:2.4 title:SCILocalized(@"Analysis failed") subtitle:self.partialNotice];
+        } else {
+            self.partialNotice = nil;
+            [self refreshWarning];
+            [SCIUtils showToastForDuration:2.0 title:SCILocalized(@"Analysis complete") subtitle:counts];
+        }
         return;
     }
-    if (!snapshot) { [self loadCachedReport]; return; }
 
-    NSString *pk = [SCIUtils currentUserPK];
-    [SCIProfileAnalyzerStorage saveSnapshot:snapshot forUserPK:pk];
-    [SCIProfileAnalyzerStorage saveHeaderInfo:@{
-        @"username": snapshot.selfUsername ?: @"",
-        @"full_name": snapshot.selfFullName ?: @"",
-        @"profile_pic_url": snapshot.selfProfilePicURL ?: @"",
-        @"follower_count": @(snapshot.followerCount),
-        @"following_count": @(snapshot.followingCount),
-        @"media_count": @(snapshot.mediaCount),
-    } forUserPK:pk];
+    self.partialNotice = nil;
     [self loadCachedReport];
-    SCIProfileAnalyzerReport *done = [SCIProfileAnalyzerReport reportFromCurrent:snapshot previous:nil];
-    [SCIUtils showToastForDuration:2.0 title:SCILocalized(@"Analysis complete")
-                          subtitle:[NSString stringWithFormat:SCILocalized(@"%lu mutuals · %lu not following you back"),
-                                    (unsigned long)done.mutualFollowers.count,
-                                    (unsigned long)done.notFollowingYouBack.count]];
+    if (error && error.code != SCIProfileAnalyzerErrorCancelled) {
+        [self alertTitle:SCILocalized(@"Analysis failed") message:error.localizedDescription ?: @""];
+    }
 }
 
 - (void)resetTapped {
@@ -778,6 +875,8 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
         SCILocalized(@"Someone you follow is a mutual when Instagram says they follow you back."),
         SCILocalized(@"Results stay on this device. The trash icon clears them."),
         SCILocalized(@"Long following lists are loaded slowly, with a pause between pages. A rate limit waits and then resumes."),
+        SCILocalized(@"Follow-back checks are saved on this device. The next run only asks about new accounts."),
+        SCILocalized(@"Pause and Cancel keep the accounts already checked on screen."),
     ] componentsJoinedByString:@"\n\n"];
     UIAlertController *a = [UIAlertController alertControllerWithTitle:SCILocalized(@"About Profile Analyzer") message:body preferredStyle:UIAlertControllerStyleAlert];
     [a addAction:[UIAlertAction actionWithTitle:SCILocalized(@"OK") style:UIAlertActionStyleDefault handler:nil]];
@@ -811,13 +910,13 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
     SCIPACategoryDescriptor *d = self.categories[indexPath.row];
     BOOL waitingForPrev = d.requiresPrevious && !self.report.previous;
     BOOL hasReport = self.report.current != nil;
-    BOOL disabled = waitingForPrev || !hasReport || d.count == 0;
+    BOOL disabled = waitingForPrev || !hasReport;
 
     cell.titleLabel.text = d.title;
     if (waitingForPrev) {
         cell.subtitleLabel.text = SCILocalized(@"Available after your next scan");
-    } else if (!hasReport) {
-        cell.subtitleLabel.text = d.subtitle;
+    } else if (self.running && d.count == 0) {
+        cell.subtitleLabel.text = SCILocalized(@"Still checking who follows you back");
     } else {
         cell.subtitleLabel.text = d.subtitle;
     }
@@ -839,7 +938,6 @@ typedef NS_ENUM(NSInteger, SCIPACategory) {
     SCIPACategoryDescriptor *d = self.categories[indexPath.row];
     if (d.requiresPrevious && !self.report.previous) return;
     if (!self.report.current) return;
-    if (d.count == 0) return;
     [self.navigationController pushViewController:[self listVCForCategory:d] animated:YES];
 }
 

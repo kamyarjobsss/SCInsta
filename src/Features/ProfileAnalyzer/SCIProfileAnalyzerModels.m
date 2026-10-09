@@ -1,6 +1,13 @@
 #import "SCIProfileAnalyzerModels.h"
+#import "IXFollowBack.h"
 
 #pragma mark - User
+
+static NSInteger SCIFollowsYouValue(id value) {
+    if ([value isKindOfClass:[NSNumber class]]) return IXPAParseFollowedBy(1, [(NSNumber *)value longValue], NULL);
+    if ([value isKindOfClass:[NSString class]]) return IXPAParseFollowedBy(0, 0, [(NSString *)value UTF8String]);
+    return -1;
+}
 
 static NSInteger SCIFollowsYou(NSDictionary *d) {
     if (![d isKindOfClass:[NSDictionary class]]) return -1;
@@ -8,8 +15,8 @@ static NSInteger SCIFollowsYou(NSDictionary *d) {
     NSArray *sources = status ? @[status, d] : @[d];
     for (NSDictionary *src in sources) {
         for (NSString *key in @[@"followed_by", @"followed_by_viewer", @"follows_viewer"]) {
-            id value = src[key];
-            if ([value isKindOfClass:[NSNumber class]]) return [value boolValue] ? 1 : 0;
+            NSInteger parsed = SCIFollowsYouValue(src[key]);
+            if (parsed >= 0) return parsed;
         }
     }
     return -1;
