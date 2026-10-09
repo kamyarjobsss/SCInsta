@@ -281,7 +281,7 @@ static ix_nw_t IXNWCreate(ix_nw_t endpoint, ix_nw_t parameters) {
     char host[192];
     uint16_t port = 0;
     BOOL remote = IXDescribeEndpoint(endpoint, host, sizeof(host), &port);
-    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host)) {
+    if (!IXTrafficGuardVPNOn() || !remote || IXLoopbackName(host) || IXTrafficGuardHostIsDirect(host)) {
         return ix_orig_create(endpoint, parameters);
     }
     if (!IXTrafficGuardProxyUp()) {
@@ -398,7 +398,8 @@ static CFDictionaryRef IXSystemProxy(void) {
 
 static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
     NSURL *nsurl = (__bridge NSURL *)url;
-    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn()) {
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn() ||
+        IXTrafficGuardHostIsDirect(nsurl.host.UTF8String)) {
         return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
     }
     if (!IXTrafficGuardProxyUp() && !IXTrafficGuardKillSwitch()) {

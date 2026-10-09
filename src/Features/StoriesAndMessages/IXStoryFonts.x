@@ -1,3 +1,4 @@
+#import "../../Backend/IXBackend.h"
 #import "../../Localization/SCILocalization.h"
 #import <UIKit/UIKit.h>
 #import <CoreText/CoreText.h>
@@ -67,7 +68,8 @@ static NSArray<NSString *> *IXFontNames(void) {
 }
 
 static BOOL IXIsOurLoggingName(NSString *name) {
-    return [IXFontNames() containsObject:name ?: @""];
+    if ([IXFontNames() containsObject:name ?: @""]) return YES;
+    return [name hasPrefix:@"ixfont-"];
 }
 
 static BOOL IXIsOurFont(UIFont *font) {
@@ -121,7 +123,7 @@ static UIFont *IXFont(NSString *postScript, CGFloat size) {
     return [UIFont fontWithName:postScript size:size];
 }
 
-static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSArray *scripts) {
+static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSString *displayName, NSArray *scripts) {
     if (!font || !template) return nil;
     Class formatClass = IXFormatClass();
     if (!formatClass || ![template isKindOfClass:formatClass]) return nil;
@@ -132,12 +134,13 @@ static id IXMakeFormat(id template, UIFont *font, NSString *loggingName, NSArray
     id secondary = IXIvarObject(template, "_textV2SecondaryEmphasis");
     id categories = ((IXIdFn)objc_msgSend)(template, @selector(categories));
     IXCopyFn copyFn = (IXCopyFn)objc_msgSend;
-    id made = copyFn(template, sel_registerName(kIXCopySel), animation, font, alignment, emphasis, secondary, IXPreviewText, categories, scripts);
+    NSString *shown = displayName.length ? displayName : IXPreviewText;
+    id made = copyFn(template, sel_registerName(kIXCopySel), animation, font, alignment, emphasis, secondary, shown, categories, scripts);
     if (!made) return nil;
     IXSetIvarObject(made, "_font", font);
     IXSetIvarObject(made, "_loggingName", loggingName);
-    IXSetIvarObject(made, "_displayName", IXPreviewText);
-    IXSetIvarObject(made, "_accessibilityDescriptor", IXPreviewText);
+    IXSetIvarObject(made, "_displayName", shown);
+    IXSetIvarObject(made, "_accessibilityDescriptor", shown);
     return made;
 }
 
@@ -176,26 +179,65 @@ static NSArray *IXMergeFormats(NSArray *original) {
         if (formatClass && [item isKindOfClass:formatClass]) [templates addObject:item];
     }
     NSArray *scripts = IXScriptUnion(original, template);
-    NSMutableArray *leading = [NSMutableArray array];
-    NSUInteger slot = 0;
+    NSMutableArray *plan = [NSMutableArray array];
+    NSInteger bundledOrder = 0;
     for (NSString *name in IXFontNames()) {
+        [plan addObject:[@{
+            @"ps": name,
+            @"display": IXPreviewText,
+            @"logging": name,
+            @"order": @(bundledOrder),
+            @"tie": @0
+        } mutableCopy]];
+        bundledOrder++;
+    }
+    for (NSDictionary *face in IXBackendFontFaces()) {
+        if (![face isKindOfClass:[NSDictionary class]]) continue;
+        NSString *ps = [face[@"postScript"] isKindOfClass:[NSString class]] ? face[@"postScript"] : @"";
+        if (ps.length == 0) continue;
+        NSString *display = [face[@"display"] isKindOfClass:[NSString class]] ? face[@"display"] : ps;
+        NSNumber *order = [face[@"order"] isKindOfClass:[NSNumber class]] ? face[@"order"] : @0;
+        BOOL replaced = NO;
+        for (NSMutableDictionary *row in plan) {
+            if (![row[@"ps"] isEqualToString:ps]) continue;
+            row[@"display"] = display;
+            row[@"order"] = order;
+            replaced = YES;
+        }
+        if (replaced) continue;
+        NSString *logging = [face[@"logging"] isKindOfClass:[NSString class]] ? face[@"logging"] : [@"ixfont-" stringByAppendingString:ps];
+        [plan addObject:[@{@"ps": ps, @"display": display, @"logging": logging, @"order": order, @"tie": @1} mutableCopy]];
+    }
+    NSMutableArray *entries = [NSMutableArray array];
+    NSUInteger slot = 0;
+    for (NSDictionary *row in plan) {
         id source = templates.count ? templates[slot % templates.count] : template;
-        id made = IXMakeFormat(source, IXFont(name, pointSize), name, scripts);
-        if (made) [leading addObject:made];
+        UIFont *font = IXFont(row[@"ps"], pointSize);
+        id made = IXMakeFormat(source, font, row[@"logging"], row[@"display"], scripts);
+        if (made) [entries addObject:@{@"format": made, @"order": row[@"order"], @"tie": row[@"tie"]}];
         slot++;
     }
-    if (!leading.count) return original;
-
-    NSMutableArray *rest = [NSMutableArray array];
+    NSInteger stock = 0;
     for (id item in original) {
         if (formatClass && [item isKindOfClass:formatClass] && [item respondsToSelector:@selector(loggingName)]) {
             id logging = ((IXIdFn)objc_msgSend)(item, @selector(loggingName));
             if ([logging isKindOfClass:[NSString class]] && IXIsOurLoggingName(logging)) continue;
         }
-        [rest addObject:item];
+        [entries addObject:@{@"format": item, @"order": @10000, @"tie": @(2 + stock)}];
+        stock++;
     }
-    NSMutableArray *merged = [leading mutableCopy];
-    [merged addObjectsFromArray:rest];
+    if (!entries.count) return original;
+    [entries sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        NSInteger ao = [a[@"order"] integerValue];
+        NSInteger bo = [b[@"order"] integerValue];
+        if (ao != bo) return ao < bo ? NSOrderedAscending : NSOrderedDescending;
+        NSInteger at = [a[@"tie"] integerValue];
+        NSInteger bt = [b[@"tie"] integerValue];
+        if (at != bt) return at < bt ? NSOrderedAscending : NSOrderedDescending;
+        return NSOrderedSame;
+    }];
+    NSMutableArray *merged = [NSMutableArray array];
+    for (NSDictionary *entry in entries) [merged addObject:entry[@"format"]];
     return [merged copy];
     } @catch (__unused NSException *exception) {
         return original;

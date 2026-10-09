@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.3.0"
+                description: "Publish a prerelease tagged instagram-x-v2.4.0"
                 default: true
                 required: false
                 type: boolean
@@ -172,6 +172,17 @@ jobs:
                   tests/IXLaunchGuardTest.c src/Launch/IXLaunchGuardLogic.c \
                   -o /tmp/ix-guard-test
                 /tmp/ix-guard-test
+                clang \
+                  tests/IXKeychainGroupTest.c src/Launch/IXKeychainGroup.c \
+                  -o /tmp/ix-keychain-test
+                /tmp/ix-keychain-test
+                clang -O2 -I src/Backend \
+                  tests/IXCryptoTest.c src/Backend/IXCrypto.c \
+                  src/Backend/third_party/monocypher.c \
+                  src/Backend/third_party/monocypher-ed25519.c \
+                  src/Backend/third_party/aes.c \
+                  -o /tmp/ix-crypto-test
+                /tmp/ix-crypto-test
 
             - name: Build Instagram X for sideloading (as IPA)
               run: |
@@ -237,9 +248,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.3.0
+                tag_name: instagram-x-v2.4.0
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.3.0
+                name: Instagram X 2.4.0
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -255,6 +266,8 @@ jobs:
 
                   v2.3.0 keeps the v2.2.4 tunnel. Logged-in accounts stay in the app-group container across a force-close, and keychain groups are rewritten from the signed application-identifier prefix so a Sideloadly or LiveContainer resign still lands in an entitled group. The fake-location default is Los Angeles. US region signals default on: carrier MCC 310 MNC 410, locale country and currency, storefront, country headers, and Los Angeles when fake location is off. Language and time zone are unchanged. The VPN screen is one switch; the kill switch stays on. Tap the version seven times for the server link, mode, log, and Check IP. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
 
+                  v2.4.0 talks to the Instagram X backend over a pinned certificate. Config is fetched outside the tunnel, verified with Ed25519, and cached. Announcements, story fonts, and the Instagram X sticker tray update from that config. The VPN switch probes the server list on a separate Xray and keeps the kill switch on. A health check does not restart Xray while traffic is still moving.
+
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
                   The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
@@ -266,4 +279,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.3.0"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.0"

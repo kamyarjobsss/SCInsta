@@ -12,6 +12,11 @@ static void (*ix_ray_stop)(void) = NULL;
 static char *(*ix_ray_version)(void) = NULL;
 static char *(*ix_ray_copy_log)(void) = NULL;
 static void (*ix_ray_traffic)(uint64_t *, uint64_t *) = NULL;
+static int (*ix_ray_probe_open)(char *) = NULL;
+static void (*ix_ray_probe_close)(int) = NULL;
+static char *(*ix_ray_prepare)(char *) = NULL;
+static void (*ix_ray_prepare_abort)(void) = NULL;
+static char *(*ix_ray_commit)(void) = NULL;
 
 static NSError *IXRayError(NSString *message) {
     return [NSError errorWithDomain:@"InstagramX.Xray" code:1 userInfo:@{NSLocalizedDescriptionKey: message ?: @"Xray failed"}];
@@ -40,6 +45,11 @@ BOOL IXRayCoreLoad(NSError **error) {
     ix_ray_version = dlsym(ix_ray_handle, "ixray_version");
     ix_ray_copy_log = dlsym(ix_ray_handle, "ixray_copy_log");
     ix_ray_traffic = dlsym(ix_ray_handle, "ixray_traffic");
+    ix_ray_probe_open = dlsym(ix_ray_handle, "ixray_probe_open");
+    ix_ray_probe_close = dlsym(ix_ray_handle, "ixray_probe_close");
+    ix_ray_prepare = dlsym(ix_ray_handle, "ixray_prepare");
+    ix_ray_prepare_abort = dlsym(ix_ray_handle, "ixray_prepare_abort");
+    ix_ray_commit = dlsym(ix_ray_handle, "ixray_commit");
     if (!ix_ray_start || !ix_ray_stop) {
         dlclose(ix_ray_handle);
         ix_ray_handle = NULL;
@@ -80,6 +90,35 @@ void IXRayTraffic(uint64_t *uplink, uint64_t *downlink) {
     if (ix_ray_traffic) ix_ray_traffic(uplink, downlink);
 }
 
+int IXRayProbeOpen(char *configJSON) {
+    if (!ix_ray_probe_open || !configJSON) return 0;
+    IXTrafficGuardSetThreadBypass(YES);
+    int probeID = ix_ray_probe_open(configJSON);
+    IXTrafficGuardSetThreadBypass(NO);
+    return probeID;
+}
+
+void IXRayProbeClose(int probeID) {
+    if (probeID > 0 && ix_ray_probe_close) ix_ray_probe_close(probeID);
+}
+
+char *IXRayPrepare(char *configJSON) {
+    if (!ix_ray_prepare) return strdup("xray probe entry points are missing");
+    IXTrafficGuardSetThreadBypass(YES);
+    char *result = ix_ray_prepare(configJSON);
+    IXTrafficGuardSetThreadBypass(NO);
+    return result;
+}
+
+void IXRayPrepareAbort(void) {
+    if (ix_ray_prepare_abort) ix_ray_prepare_abort();
+}
+
+char *IXRayCommit(void) {
+    if (!ix_ray_commit) return strdup("xray commit entry point is missing");
+    return ix_ray_commit();
+}
+
 #else
 
 BOOL IXRayCoreLoad(NSError **error) {
@@ -102,5 +141,21 @@ void IXRayTraffic(uint64_t *uplink, uint64_t *downlink) {
     if (uplink) *uplink = 0;
     if (downlink) *downlink = 0;
 }
+
+int IXRayProbeOpen(char *configJSON) {
+    (void)configJSON;
+    return 0;
+}
+
+void IXRayProbeClose(int probeID) { (void)probeID; }
+
+char *IXRayPrepare(char *configJSON) {
+    (void)configJSON;
+    return strdup("this build has no xray core");
+}
+
+void IXRayPrepareAbort(void) {}
+
+char *IXRayCommit(void) { return strdup("this build has no xray core"); }
 
 #endif

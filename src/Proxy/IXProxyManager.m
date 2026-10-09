@@ -2,6 +2,7 @@
 #import "IXNativeEngine.h"
 #import "IXTrafficGuard.h"
 #import "IXRayLoader.h"
+#import "../Backend/IXBackend.h"
 #import "../Launch/IXLaunchGuard.h"
 #import "../Localization/SCILocalization.h"
 #import "../Tweak.h"
@@ -38,6 +39,8 @@ static NSString *const IXProxyXHTTPModeKey = @"ix_xhttp_mode";
 
 static const uint16_t kSocksPort = 61850;
 static const uint16_t kHTTPPort = 61851;
+static const uint16_t kAltSocksPort = 61860;
+static const uint16_t kAltHTTPPort = 61861;
 static NSString *const IXProxyKeychainService = @"instagramx.vpn.settings";
 static NSString *const IXProxyKeychainAccount = @"settings";
 
@@ -140,6 +143,14 @@ static dispatch_queue_t IXProxyQueue(void) {
     NSString *_activeXHTTPMode;
     nw_path_monitor_t _pathMonitor;
     BOOL _autostarted;
+    uint16_t _socksPort;
+    uint16_t _httpPort;
+    NSString *_vpnLabel;
+    uint64_t _stallBytes;
+    NSTimeInterval _lastReprobe;
+    NSTimeInterval _nextFailover;
+    dispatch_source_t _maintainTimer;
+    BOOL _maintaining;
 }
 
 + (instancetype)shared {
@@ -157,6 +168,8 @@ static dispatch_queue_t IXProxyQueue(void) {
         _status = IXProxyStatusOff;
         _logLines = [NSMutableArray array];
         _lastPingMs = -1;
+        _socksPort = kSocksPort;
+        _httpPort = kHTTPPort;
 #if IX_LITE
         _engineName = @"Lite build";
 #elif IX_HAS_XRAY
@@ -253,6 +266,7 @@ static dispatch_queue_t IXProxyQueue(void) {
         case IXProxyStatusConnecting: return fa ? @"در حال اتصال" : @"Connecting";
         case IXProxyStatusConnected: return fa ? @"متصل" : @"Connected";
         case IXProxyStatusFailed:
+            if ([_lastError isEqualToString:IXBackendVPNUnavailableMessage]) return _lastError;
             if (_lastError.length) {
                 return [NSString stringWithFormat:fa ? @"قطع · %@" : @"Disconnected · %@", _lastError];
             }
@@ -510,11 +524,15 @@ static dispatch_queue_t IXProxyQueue(void) {
     if (why) *why = @"This build has no Xray core.";
     return NO;
 #else
-    NSString *json = [profile xrayJSONWithSocksPort:kSocksPort httpPort:kHTTPPort];
-    NSString *redacted = profile.uuid.length
-        ? [json stringByReplacingOccurrencesOfString:profile.uuid withString:@"<UUID>" options:NSCaseInsensitiveSearch range:NSMakeRange(0, json.length)]
-        : json;
-    [self note:redacted];
+    NSString *json = [profile xrayJSONWithSocksPort:_socksPort httpPort:_httpPort];
+    if (self->_vpnLabel.length == 0) {
+        NSString *redacted = profile.uuid.length
+            ? [json stringByReplacingOccurrencesOfString:profile.uuid withString:@"<UUID>" options:NSCaseInsensitiveSearch range:NSMakeRange(0, json.length)]
+            : json;
+        [self note:redacted];
+    } else {
+        [self note:[NSString stringWithFormat:@"Xray config ready for %@.", self->_vpnLabel]];
+    }
     char *err = IXRayStart((char *)json.UTF8String);
     if (err && profile.outboundInterface.length) {
         NSString *message = [NSString stringWithUTF8String:err];
@@ -524,7 +542,7 @@ static dispatch_queue_t IXProxyQueue(void) {
             [self note:[NSString stringWithFormat:@"Could not bind %@, retrying on the system route.", profile.outboundInterface]];
             profile.outboundInterface = nil;
             _boundInterface = nil;
-            json = [profile xrayJSONWithSocksPort:kSocksPort httpPort:kHTTPPort];
+            json = [profile xrayJSONWithSocksPort:_socksPort httpPort:_httpPort];
             err = IXRayStart((char *)json.UTF8String);
         }
     }
@@ -640,7 +658,9 @@ static dispatch_queue_t IXProxyQueue(void) {
         if (error) *error = IXProxyError(@"Could not install the traffic hooks, so the VPN stayed off.");
         return NO;
     }
-    IXTrafficGuardSetPorts(kSocksPort, kHTTPPort);
+    _socksPort = kSocksPort;
+    _httpPort = kHTTPPort;
+    IXTrafficGuardSetPorts(_socksPort, _httpPort);
     IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
     IXTrafficGuardSetRuntime(YES, NO, YES, [self blockUDP]);
 
@@ -669,6 +689,253 @@ static dispatch_queue_t IXProxyQueue(void) {
 #endif
 }
 
+- (void)stopMaintenance {
+    if (!_maintainTimer) return;
+    dispatch_source_cancel(_maintainTimer);
+    _maintainTimer = nil;
+}
+
+- (void)startMaintenance {
+    if (_maintainTimer) return;
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, IXProxyQueue());
+    dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), 5 * NSEC_PER_SEC, NSEC_PER_SEC);
+    __weak IXProxyManager *weakSelf = self;
+    dispatch_source_set_event_handler(timer, ^{
+        [weakSelf maintenanceTick];
+    });
+    _maintainTimer = timer;
+    dispatch_resume(timer);
+}
+
+- (void)rememberConnectedLabel:(NSString *)label {
+    _vpnLabel = label.length ? label : nil;
+    uint64_t up = 0, down = 0;
+    IXRayTraffic(&up, &down);
+    _stallBytes = up + down;
+    _lastReprobe = CACurrentMediaTime();
+    IXBackendSetVPNLabel(_vpnLabel);
+    IXBackendPostEvent(@"vpn_on", _vpnLabel.length ? @{@"label": _vpnLabel} : @{});
+    IXBackendHeartbeat(@"vpn_on");
+    [self startMaintenance];
+}
+
+- (BOOL)waitForProbePort:(uint16_t)port {
+    NSTimeInterval deadline = CACurrentMediaTime() + 1.2;
+    while (CACurrentMediaTime() < deadline) {
+        int fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (fd < 0) return NO;
+        struct sockaddr_in local;
+        memset(&local, 0, sizeof(local));
+        local.sin_family = AF_INET;
+        local.sin_len = sizeof(local);
+        local.sin_port = htons(port);
+        local.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        int flags = fcntl(fd, F_GETFL, 0);
+        fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        int rc = IXOrigConnect(fd, (struct sockaddr *)&local, sizeof(local));
+        BOOL open = rc == 0;
+        if (!open && errno == EINPROGRESS) {
+            struct pollfd pfd = {.fd = fd, .events = POLLOUT};
+            if (poll(&pfd, 1, 100) > 0) {
+                int soerr = 0;
+                socklen_t len = sizeof(soerr);
+                getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &len);
+                open = soerr == 0;
+            }
+        }
+        close(fd);
+        if (open) return YES;
+        usleep(40 * 1000);
+    }
+    return NO;
+}
+
+- (NSArray<NSDictionary *> *)probeItems:(NSArray<NSDictionary *> *)items {
+#if !IX_HAS_XRAY
+    (void)items;
+    return @[];
+#else
+    NSError *loadError = nil;
+    if (!IXRayCoreLoad(&loadError) || items.count == 0) return @[];
+    NSMutableArray *ranked = [NSMutableArray array];
+    dispatch_group_t group = dispatch_group_create();
+    dispatch_queue_t work = dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0);
+    dispatch_semaphore_t limit = dispatch_semaphore_create(6);
+    NSString *iface = [self physicalInterface];
+    NSInteger index = 0;
+    for (NSDictionary *item in items) {
+        if (index >= 24) break;
+        NSString *link = [item[@"link"] isKindOfClass:[NSString class]] ? item[@"link"] : @"";
+        NSString *label = [item[@"label"] isKindOfClass:[NSString class]] ? item[@"label"] : @"";
+        uint16_t socks = (uint16_t)(63100 + index * 4);
+        uint16_t http = (uint16_t)(socks + 1);
+        index++;
+        if (link.length == 0) continue;
+        dispatch_semaphore_wait(limit, DISPATCH_TIME_FOREVER);
+        dispatch_group_async(group, work, ^{
+            IXVLESSProfile *profile = [IXVLESSProfile profileFromURI:link error:nil];
+            if (!profile) {
+                [self note:[NSString stringWithFormat:@"Probe %@ could not be read.", label.length ? label : @"server"]];
+                dispatch_semaphore_signal(limit);
+                return;
+            }
+            profile.outboundInterface = iface;
+            if (([profile.network isEqualToString:@"xhttp"] || [profile.network isEqualToString:@"splithttp"]) && profile.mode.length == 0) {
+                profile.mode = @"auto";
+            }
+            NSString *json = [profile xrayJSONWithSocksPort:socks httpPort:http];
+            int probe = IXRayProbeOpen((char *)json.UTF8String);
+            if (probe <= 0 && iface.length) {
+                profile.outboundInterface = nil;
+                json = [profile xrayJSONWithSocksPort:socks httpPort:http];
+                probe = IXRayProbeOpen((char *)json.UTF8String);
+            }
+            NSInteger ms = -1;
+            if (probe > 0) {
+                [self waitForProbePort:http];
+                NSString *why = nil;
+                ms = [self httpProbeURL:@"http://connectivitycheck.gstatic.com/generate_204" port:http timeout:4 error:&why];
+                if (ms < 0) ms = [self httpProbeURL:@"http://www.gstatic.com/generate_204" port:http timeout:4 error:&why];
+                IXRayProbeClose(probe);
+            }
+            if (ms >= 0) {
+                @synchronized (ranked) {
+                    [ranked addObject:@{@"label": label, @"link": link, @"ms": @(ms)}];
+                }
+                [self note:[NSString stringWithFormat:@"Probe %@ %ld ms.", label.length ? label : @"server", (long)ms]];
+            } else {
+                [self note:[NSString stringWithFormat:@"Probe %@ did not answer.", label.length ? label : @"server"]];
+            }
+            dispatch_semaphore_signal(limit);
+        });
+    }
+    dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC));
+    NSArray *snapshot = nil;
+    @synchronized (ranked) { snapshot = [ranked copy]; }
+    return [snapshot sortedArrayUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
+        return [a[@"ms"] compare:b[@"ms"]];
+    }];
+#endif
+}
+
+- (BOOL)swapToItem:(NSDictionary *)item error:(NSError **)error {
+    NSString *link = [item[@"link"] isKindOfClass:[NSString class]] ? item[@"link"] : @"";
+    NSString *label = [item[@"label"] isKindOfClass:[NSString class]] ? item[@"label"] : @"";
+    IXVLESSProfile *profile = [IXVLESSProfile profileFromURI:link error:nil];
+    if (!profile) {
+        if (error) *error = IXProxyError(@"The next server could not be read.");
+        return NO;
+    }
+    profile.outboundInterface = [self physicalInterface];
+    uint16_t socks = _socksPort == kSocksPort ? kAltSocksPort : kSocksPort;
+    uint16_t http = socks == kSocksPort ? kHTTPPort : kAltHTTPPort;
+    NSString *json = [profile xrayJSONWithSocksPort:socks httpPort:http];
+    char *err = IXRayPrepare((char *)json.UTF8String);
+    if (err && profile.outboundInterface.length) {
+        free(err);
+        profile.outboundInterface = nil;
+        json = [profile xrayJSONWithSocksPort:socks httpPort:http];
+        err = IXRayPrepare((char *)json.UTF8String);
+    }
+    if (err) {
+        NSString *message = [NSString stringWithUTF8String:err];
+        free(err);
+        IXRayPrepareAbort();
+        if (error) *error = IXProxyError(message);
+        return NO;
+    }
+    [self waitForProbePort:http];
+    NSString *why = nil;
+    NSInteger ms = [self httpProbeURL:@"http://connectivitycheck.gstatic.com/generate_204" port:http timeout:5 error:&why];
+    if (ms < 0) ms = [self httpProbeURL:@"http://www.gstatic.com/generate_204" port:http timeout:5 error:&why];
+    if (ms < 0) {
+        IXRayPrepareAbort();
+        if (error) *error = IXProxyError(why ?: @"The replacement tunnel did not answer.");
+        return NO;
+    }
+    IXTrafficGuardSetPorts(socks, http);
+    IXTrafficGuardSetProxyHost(profile.host.UTF8String, profile.port);
+    char *commitErr = IXRayCommit();
+    if (commitErr) {
+        NSString *message = [NSString stringWithUTF8String:commitErr];
+        free(commitErr);
+        if (error) *error = IXProxyError(message);
+        return NO;
+    }
+    _socksPort = socks;
+    _httpPort = http;
+    _usingXray = YES;
+    _vpnLabel = label.length ? label : _vpnLabel;
+    _lastPingMs = ms;
+    _stallBytes = _bytesUp + _bytesDown;
+    IXBackendSetVPNLabel(_vpnLabel);
+    IXBackendPostEvent(@"failover", @{@"label": _vpnLabel ?: @""});
+    IXBackendHeartbeat(@"failover");
+    [self note:[NSString stringWithFormat:@"Switched VPN to %@ in %ld ms.", _vpnLabel ?: @"server", (long)ms]];
+    return YES;
+}
+
+- (void)maintenanceTick {
+    if (_status != IXProxyStatusConnected || !_usingXray || _maintaining) return;
+    _maintaining = YES;
+    uint64_t up = 0, down = 0;
+    IXRayTraffic(&up, &down);
+    uint64_t total = up + down;
+    BOOL flowing = total > _stallBytes;
+    if (flowing) _stallBytes = total;
+    NSTimeInterval now = CACurrentMediaTime();
+    BOOL due = _lastReprobe > 0 && (now - _lastReprobe) >= 30 * 60;
+    NSArray *items = IXBackendVPNItems();
+    if (!flowing) {
+        NSString *why = nil;
+        NSInteger ms = [self httpProbeURL:@"http://connectivitycheck.gstatic.com/generate_204" port:_httpPort timeout:3 error:&why];
+        if (ms < 0) ms = [self httpProbeURL:@"http://www.gstatic.com/generate_204" port:_httpPort timeout:3 error:&why];
+        if (ms >= 0) {
+            _lastPingMs = ms;
+            _nextFailover = 0;
+        } else if (items.count && now >= _nextFailover) {
+            NSArray *ranked = [self probeItems:items];
+            if (ranked.count) {
+                [self swapToItem:ranked.firstObject error:nil];
+                _lastReprobe = CACurrentMediaTime();
+                _nextFailover = 0;
+            } else {
+                _nextFailover = CACurrentMediaTime() + 60;
+                [self note:@"Traffic stalled and no server answered. The live tunnel was left running."];
+            }
+            _maintaining = NO;
+            return;
+        }
+    }
+    if (due) {
+        _lastReprobe = now;
+        if (items.count) {
+            NSArray *ranked = [self probeItems:items];
+            NSDictionary *best = ranked.firstObject;
+            NSInteger current = _lastPingMs;
+            for (NSDictionary *row in ranked) {
+                if ([row[@"label"] isEqualToString:_vpnLabel]) current = [row[@"ms"] integerValue];
+            }
+            NSInteger bestMs = [best[@"ms"] integerValue];
+            BOOL different = best && _vpnLabel.length && ![best[@"label"] isEqualToString:_vpnLabel];
+            BOOL clearer = current > 0 && (bestMs + 80) <= current && bestMs * 10 < current * 7;
+            if (different && clearer) [self swapToItem:best error:nil];
+        }
+    }
+    _maintaining = NO;
+}
+
+- (void)failClosed:(NSString *)message generation:(NSInteger)generation completion:(void (^)(NSError *))completion {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (generation != self->_generation) return;
+        self->_status = IXProxyStatusFailed;
+        self->_lastError = message;
+        [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
+        [self persistSettings];
+        if (completion) completion(IXProxyError(message));
+    });
+}
+
 - (void)setEnabled:(BOOL)enabled completion:(void (^)(NSError *))completion {
 #if IX_LITE
     if (enabled) {
@@ -684,24 +951,30 @@ static dispatch_queue_t IXProxyQueue(void) {
     if (!enabled) {
         dispatch_async(IXProxyQueue(), ^{
             if (generation != self->_generation) return;
+            [self stopMaintenance];
             [self stopEngine];
             self->_activeXHTTPMode = nil;
             self->_boundInterface = nil;
+            self->_vpnLabel = nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (generation != self->_generation) return;
                 self->_status = IXProxyStatusOff;
                 self->_lastError = nil;
                 [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
                 [self persistSettings];
+                IXBackendSetVPNLabel(nil);
+                IXBackendPostEvent(@"vpn_off", nil);
+                IXBackendHeartbeat(@"vpn_off");
                 if (completion) completion(nil);
             });
         });
         return;
     }
-    IXVLESSProfile *profile = [self selectedProfile];
-    if (!profile) {
+    NSArray<NSDictionary *> *serverItems = IXBackendVPNItems();
+    IXVLESSProfile *manual = serverItems.count ? nil : [self selectedProfile];
+    if (serverItems.count == 0 && !manual) {
         _status = IXProxyStatusFailed;
-        _lastError = @"Add a vless://, trojan://, vmess://, or ss:// link first.";
+        _lastError = IXBackendVPNUnavailableMessage;
         [[self settingsStore] setBool:NO forKey:IXProxyEnabledKey];
         [self persistSettings];
         if (completion) completion(IXProxyError(_lastError));
@@ -711,12 +984,33 @@ static dispatch_queue_t IXProxyQueue(void) {
     _lastError = nil;
     dispatch_async(IXProxyQueue(), ^{
         if (generation != self->_generation) return;
+        NSDictionary *chosen = nil;
+        IXVLESSProfile *profile = manual;
+        if (serverItems.count) {
+            NSArray *ranked = [self probeItems:serverItems];
+            if (generation != self->_generation) return;
+            chosen = ranked.firstObject;
+            if (!chosen) {
+                [self note:@"No server VPN config answered."];
+                [self failClosed:IXBackendVPNUnavailableMessage generation:generation completion:completion];
+                return;
+            }
+            profile = [IXVLESSProfile profileFromURI:chosen[@"link"] error:nil];
+            if (!profile) {
+                [self failClosed:IXBackendVPNUnavailableMessage generation:generation completion:completion];
+                return;
+            }
+            [self note:[NSString stringWithFormat:@"Using %@ at %ld ms.", chosen[@"label"] ?: @"server", (long)[chosen[@"ms"] integerValue]]];
+            self->_vpnLabel = [chosen[@"label"] isKindOfClass:[NSString class]] ? chosen[@"label"] : nil;
+        }
         [self stopEngine];
+        if (generation != self->_generation) return;
         NSError *error = nil;
         BOOL ok = [self startProfile:profile error:&error];
         NSString *message = error.localizedDescription;
         if (!ok && generation == self->_generation) {
             [self note:[NSString stringWithFormat:@"Xray stopped: %@", message ?: @"the tunnel did not stay up"]];
+            self->_vpnLabel = nil;
             [self stopEngine];
         }
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -727,6 +1021,7 @@ static dispatch_queue_t IXProxyQueue(void) {
                 [[self settingsStore] setBool:YES forKey:IXProxyEnabledKey];
                 [self persistSettings];
                 IXTrafficGuardSetRuntime(YES, YES, [self killSwitch], [self blockUDP]);
+                [self rememberConnectedLabel:[chosen[@"label"] isKindOfClass:[NSString class]] ? chosen[@"label"] : nil];
             } else {
                 self->_status = IXProxyStatusFailed;
                 self->_lastError = message ?: @"Could not start the proxy.";
@@ -974,7 +1269,10 @@ static dispatch_queue_t IXProxyQueue(void) {
 }
 
 - (NSInteger)httpProbe:(NSString *)urlString timeout:(NSTimeInterval)timeout error:(NSString **)errorOut {
-    uint16_t port = IXTrafficGuardHTTPPort();
+    return [self httpProbeURL:urlString port:IXTrafficGuardHTTPPort() timeout:timeout error:errorOut];
+}
+
+- (NSInteger)httpProbeURL:(NSString *)urlString port:(uint16_t)port timeout:(NSTimeInterval)timeout error:(NSString **)errorOut {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         if (errorOut) *errorOut = @"Could not open a socket for the connectivity test.";

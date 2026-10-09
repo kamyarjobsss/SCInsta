@@ -13,6 +13,7 @@
 #import <stdio.h>
 #import <stdlib.h>
 #import <string.h>
+#import <strings.h>
 #import <sys/time.h>
 #import <unistd.h>
 #import "IXPathHooks.h"
@@ -211,6 +212,25 @@ static int IXFrontLookup(uint32_t addrNetwork, char *host, size_t hostLen, void 
         return 0;
     }
     return 1;
+}
+
+static char ix_direct_host[64];
+
+void IXTrafficGuardSetDirectHost(const char *host) {
+    pthread_mutex_lock(&ix_host_mu);
+    ix_direct_host[0] = 0;
+    if (host && host[0]) strlcpy(ix_direct_host, host, sizeof(ix_direct_host));
+    pthread_mutex_unlock(&ix_host_mu);
+}
+
+BOOL IXTrafficGuardHostIsDirect(const char *host) {
+    if (!host || !host[0]) return NO;
+    char saved[64];
+    pthread_mutex_lock(&ix_host_mu);
+    strlcpy(saved, ix_direct_host, sizeof(saved));
+    pthread_mutex_unlock(&ix_host_mu);
+    if (!saved[0]) return NO;
+    return strcasecmp(saved, host) == 0;
 }
 
 void IXTrafficGuardSetProxyHost(const char *host, uint16_t port) {
@@ -475,6 +495,7 @@ static BOOL IXShouldRedirect(int fd, const struct sockaddr *addr) {
     char host[256];
     uint16_t port = 0;
     if (!IXDescribe(addr, host, sizeof(host), &port)) return NO;
+    if (IXTrafficGuardHostIsDirect(host)) return NO;
     return YES;
 }
 

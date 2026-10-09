@@ -3,6 +3,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /// Replace lazy and non-lazy symbol pointers (GOT / __la_symbol_ptr / __auth_got)
 /// in already-loaded images, including images loaded later. Also walks
 /// LC_DYLD_CHAINED_FIXUPS for app binaries such as FBSharedFramework, where
@@ -20,5 +24,9 @@ void IXSymbolRebindRestore(void);
 /// IXSymbolRebindSlots call does not drop these names. Used for the app-group
 /// symbols Instagram calls directly after login.
 int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

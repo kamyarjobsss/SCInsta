@@ -28,6 +28,15 @@ var (
 	inst *core.Instance
 )
 
+// Probes and the prepared replacement never share inst. Closing a probe or
+// aborting a prepare must not stop the tunnel that is already carrying traffic.
+var (
+	probeMu   sync.Mutex
+	probes    = map[int]*core.Instance{}
+	nextProbe int
+	pending   *core.Instance
+)
+
 const logLimit = 80
 
 var (
@@ -131,6 +140,8 @@ func ixray_start(configJSON *C.char) (out *C.char) {
 
 	mu.Lock()
 	defer mu.Unlock()
+	startMu.Lock()
+	defer startMu.Unlock()
 
 	if inst != nil {
 		_ = inst.Close()
@@ -221,6 +232,109 @@ func ixray_traffic(up *C.uint64_t, down *C.uint64_t) {
 	if down != nil {
 		*down = C.uint64_t(downlink)
 	}
+}
+
+var startMu sync.Mutex
+
+func startInstance(jsonText string) (*core.Instance, error) {
+	startMu.Lock()
+	defer startMu.Unlock()
+	cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
+	if err != nil {
+		return nil, err
+	}
+	server, err := core.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err = server.Start(); err != nil {
+		_ = server.Close()
+		return nil, err
+	}
+	return server, nil
+}
+
+//export ixray_probe_open
+func ixray_probe_open(configJSON *C.char) C.int {
+	if configJSON == nil {
+		return 0
+	}
+	server, err := startInstance(C.GoString(configJSON))
+	if err != nil {
+		appendLog("probe did not start: " + err.Error())
+		return 0
+	}
+	probeMu.Lock()
+	nextProbe++
+	if nextProbe > 1000000 {
+		nextProbe = 1
+	}
+	id := nextProbe
+	probes[id] = server
+	probeMu.Unlock()
+	return C.int(id)
+}
+
+//export ixray_probe_close
+func ixray_probe_close(id C.int) {
+	probeMu.Lock()
+	server := probes[int(id)]
+	delete(probes, int(id))
+	probeMu.Unlock()
+	if server != nil {
+		_ = server.Close()
+	}
+}
+
+//export ixray_prepare
+func ixray_prepare(configJSON *C.char) *C.char {
+	if configJSON == nil {
+		return C.CString("empty xray config")
+	}
+	server, err := startInstance(C.GoString(configJSON))
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	probeMu.Lock()
+	old := pending
+	pending = server
+	probeMu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	return nil
+}
+
+//export ixray_prepare_abort
+func ixray_prepare_abort() {
+	probeMu.Lock()
+	old := pending
+	pending = nil
+	probeMu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+}
+
+//export ixray_commit
+func ixray_commit() *C.char {
+	probeMu.Lock()
+	next := pending
+	pending = nil
+	probeMu.Unlock()
+	if next == nil {
+		return C.CString("no prepared instance")
+	}
+	mu.Lock()
+	old := inst
+	inst = next
+	mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	enableLog()
+	appendLog("xray swapped to the prepared instance")
+	return nil
 }
 
 // Silence unused in case the compiler drops the header import path.

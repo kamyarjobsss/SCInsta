@@ -11,6 +11,7 @@
 
 extern void SCIFakeLocationInstall(void);
 extern void IXUSRegionInstall(void);
+extern void IXBackendStart(void);
 
 ///////////////////////////////////////////////////////////
 
@@ -22,7 +23,7 @@ extern void IXUSRegionInstall(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.3.0";
+NSString *SCIVersionString = @"v2.4.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -240,6 +241,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
     %orig;
 
     IXUSRegionInstall();
+    IXBackendStart();
     BOOL safeMode = IXLaunchGuardIsSafeMode();
     if (!safeMode) {
         if ([[NSUserDefaults standardUserDefaults] boolForKey:@"fake_location_enabled"]) {

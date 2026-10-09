@@ -391,10 +391,16 @@ static void IXInstallAnalytics(void) {
 }
 %end
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void IXUSRegionInstall(void) {
     IXUSRefresh();
     IXInstallIGLocation();
 }
+#ifdef __cplusplus
+}
+#endif
 
 %ctor {
     IXUSRefresh();
