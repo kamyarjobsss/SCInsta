@@ -24,7 +24,7 @@ extern void IXBackendStart(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.2";
+NSString *SCIVersionString = @"v2.4.3";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;

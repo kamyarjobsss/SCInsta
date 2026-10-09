@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.2"
+                description: "Publish a prerelease tagged instagram-x-v2.4.3"
                 default: true
                 required: false
                 type: boolean
@@ -257,15 +257,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.2 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.3 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.2
+                tag_name: instagram-x-v2.4.3
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.2
+                name: Instagram X 2.4.3
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -291,6 +291,8 @@ jobs:
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many in batches of up to 100. If that response has no followed_by, each username is looked up once with the followers search (friendships/{id}/followers/?query=) and only an exact username match counts. Checks are spaced out, with pause, resume, and cancel. A saved follow-back answer is skipped on the next run. Mutuals and accounts that do not follow you back fill in while the check runs. A failed step leaves those rows on screen and shows the reason. Each list can be searched, opened, copied, or exported.
 
+                  v2.4.3 keeps the keychain hooks off. Instagram was still deleting the session on launch because fresh-install markers in the group preferences did not survive. Every app-group container now uses one stable directory, and group.com.burbn.instagram and group.com.facebook.family preferences are stored in the app sandbox under instagramx.appgroup, with a Documents copy of those fresh-install keys. The next launch restores the keys before Instagram reads them. Diagnostics logs each read and write of those keys, and the image and symbol that deletes a keychain item. The panel URL and certificate pins are unchanged.
+
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
                   The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
@@ -302,4 +304,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.2"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.3"

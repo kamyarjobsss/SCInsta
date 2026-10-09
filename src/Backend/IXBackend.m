@@ -23,7 +23,7 @@ static NSString *const kBase = @"https://77.110.125.217:9443";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.2";
+static NSString *const kAppVersion = @"2.4.3";
 static NSString *const kService = @"instagramx.backend";
 static const uint8_t kSPKIHeader[] = {
     0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,

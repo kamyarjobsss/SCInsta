@@ -587,6 +587,7 @@ void IXSessionDiagBoot(void) {
     if (once) return;
     once = 1;
     IXSessionDiagLine(@"boot secitem_hooks=off");
+    IXPrefsSeedFreshMarkers();
     IXEntitlementSummary();
     IXFreshMarker();
     IXSelfTest();

@@ -18,4 +18,11 @@ int IXSessionProbedGroup(const char *probed, char *out, size_t outLen);
 // Returns 0 when `out` is too small or the identifier contains a slash.
 int IXSessionContainerComponent(const char *identifier, char *out, size_t outLen);
 
+// Instagram's fresh-install markers live in several group suite names.
+// Those names share one sandbox suite, instagramx.appgroup, because a
+// sideload cannot persist real group.com.* plists. Returns 1 when `suite`
+// is one of those names. Other suites, including instagramx.appgroup
+// itself, return 0 so the mapping cannot recurse.
+int IXPrefsSharedSuite(const char *suite, char *out, size_t outLen);
+
 #endif

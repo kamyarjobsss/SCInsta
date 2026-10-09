@@ -35,5 +35,17 @@ int main(void) {
     expect_str(out, "group.com.burbn.instagram", "null container default");
     expect(IXSessionContainerComponent("a/b", out, sizeof out) == 0, "slash rejected");
     expect(IXSessionProbedGroup("x", out, 1) == 0, "short buffer");
+
+    expect(IXPrefsSharedSuite("group.com.burbn.instagram", out, sizeof out) == 1, "ig suite");
+    expect_str(out, "instagramx.appgroup", "ig suite value");
+    expect(IXPrefsSharedSuite("group.com.burbn.instagram.773S3XDQX7", out, sizeof out) == 1, "ig team suite");
+    expect_str(out, "instagramx.appgroup", "ig team shares one store");
+    expect(IXPrefsSharedSuite("group.com.facebook.family", out, sizeof out) == 1, "family suite");
+    expect_str(out, "instagramx.appgroup", "family shares the ig store");
+    expect(IXPrefsSharedSuite("instagramx.appgroup", out, sizeof out) == 0, "mapped name does not remap");
+    expect(IXPrefsSharedSuite("instagramx.vpn", out, sizeof out) == 0, "vpn suite left alone");
+    expect(IXPrefsSharedSuite("com.burbn.instagram", out, sizeof out) == 0, "app domain left alone");
+    expect(IXPrefsSharedSuite(NULL, out, sizeof out) == 0, "null suite");
+    expect(IXPrefsSharedSuite("group.com.burbn.instagram", out, 4) == 0, "short suite buffer");
     return g_failed ? 1 : 0;
 }

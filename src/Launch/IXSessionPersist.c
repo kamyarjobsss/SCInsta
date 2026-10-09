@@ -24,3 +24,19 @@ int IXSessionContainerComponent(const char *identifier, char *out, size_t outLen
     if (strchr(src, '/') || strchr(src, '\\')) return 0;
     return ix_copy(out, outLen, src);
 }
+
+static int ix_has_prefix(const char *text, const char *prefix) {
+    size_t n = strlen(prefix);
+    return strncmp(text, prefix, n) == 0;
+}
+
+int IXPrefsSharedSuite(const char *suite, char *out, size_t outLen) {
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!suite || !suite[0]) return 0;
+    if (!ix_has_prefix(suite, "group.com.burbn.instagram") &&
+        !ix_has_prefix(suite, "group.com.facebook.family")) {
+        return 0;
+    }
+    return ix_copy(out, outLen, "instagramx.appgroup");
+}
