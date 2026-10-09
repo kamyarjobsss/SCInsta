@@ -17,6 +17,7 @@
 #import "../Proxy/IXProxyViewController.h"
 #import "../Proxy/IXProxyManager.h"
 #import "../Launch/IXSessionDiag.h"
+#import "../Backend/IXBackend.h"
 #import "../../modules/JGProgressHUD/JGProgressHUD.h"
 #import <objc/runtime.h>
 
@@ -151,7 +152,11 @@ static void IXOpenK8myarProfile(void) {
                                            icon:[SCISymbol symbolWithName:@"doc.text.magnifyingglass"]
                                          action:^{
                     IXSessionDiagPresentCopy();
-                }]
+                }],
+                [SCISetting navigationCellWithTitle:SCILocalized(@"Panel connection")
+                                           subtitle:SCILocalized(@"URL, last result, and a retry")
+                                               icon:[SCISymbol symbolWithName:@"antenna.radiowaves.left.and.right"]
+                                     viewController:IXBackendPanelController()]
             ]
         },
         @{

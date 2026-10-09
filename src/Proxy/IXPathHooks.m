@@ -391,6 +391,19 @@ static CFArrayRef IXProxyList(uint16_t port, BOOL secure) {
     return (CFArrayRef)CFBridgingRetain(@[one]);
 }
 
+static CFArrayRef IXNoProxy(void) {
+    return (CFArrayRef)CFBridgingRetain(@[@{@"kCFProxyTypeKey": @"kCFProxyTypeNone"}]);
+}
+
+static int IXSettingsProxyPort(CFDictionaryRef settings) {
+    if (!settings) return 0;
+    NSDictionary *dict = (__bridge NSDictionary *)settings;
+    id enable = dict[@"HTTPSEnable"];
+    if (![enable respondsToSelector:@selector(boolValue)] || ![enable boolValue]) return 0;
+    id port = dict[@"HTTPSPort"];
+    return [port respondsToSelector:@selector(intValue)] ? [port intValue] : 0;
+}
+
 static CFDictionaryRef IXSystemProxy(void) {
     if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXForceProxy()) return ix_orig_settings ? ix_orig_settings() : NULL;
     return IXProxyDictionary(IXForcedHTTPPort());
@@ -398,9 +411,14 @@ static CFDictionaryRef IXSystemProxy(void) {
 
 static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
     NSURL *nsurl = (__bridge NSURL *)url;
-    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn() ||
-        IXTrafficGuardHostIsDirect(nsurl.host.UTF8String)) {
+    if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXTrafficGuardVPNOn()) {
         return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
+    }
+    if (IXTrafficGuardHostIsDirect(nsurl.host.UTF8String)) {
+        uint16_t live = IXTrafficGuardProxyUp() ? IXTrafficGuardHTTPPort() : 0;
+        int port = IXSettingsProxyPort(settings);
+        if (live && port == (int)live) return ix_orig_proxies ? ix_orig_proxies(url, settings) : NULL;
+        return IXNoProxy();
     }
     if (!IXTrafficGuardProxyUp() && !IXTrafficGuardKillSwitch()) {
         IXTrafficGuardNote(@"cfnetwork", nsurl.host, nsurl.port.unsignedShortValue, @"direct");
@@ -414,6 +432,11 @@ static CFArrayRef IXProxiesForURL(CFURLRef url, CFDictionaryRef settings) {
 }
 
 static CFArrayRef IXProxiesForPAC(CFStringRef script, CFURLRef url, CFErrorRef *error) {
+    NSURL *pacURL = (__bridge NSURL *)url;
+    if (IXTrafficGuardHostIsDirect(pacURL.host.UTF8String)) {
+        if (error) *error = NULL;
+        return IXNoProxy();
+    }
     if (IXTrafficGuardAddressIsSelf(__builtin_return_address(0)) || !IXForceProxy()) return ix_orig_pac ? ix_orig_pac(script, url, error) : NULL;
     if (error) *error = NULL;
     NSURL *nsurl = (__bridge NSURL *)url;

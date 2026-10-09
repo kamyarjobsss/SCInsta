@@ -51,10 +51,14 @@ BOOL IXTrafficGuardCallerIsSelf(void);
 BOOL IXTrafficGuardAddressIsSelf(const void *returnAddress);
 /// Sockets created on this thread are left alone. Used around Xray's own dial.
 void IXTrafficGuardSetThreadBypass(BOOL bypass);
-/// One host that stays outside the tunnel, including while the kill switch is on.
-/// Pass NULL to clear it. Used for the pinned config host.
+/// Hosts that stay outside the kill switch. Pass NULL to clear the list.
+/// A path the system already returned for the tunnel is unchanged.
 void IXTrafficGuardSetDirectHost(const char * _Nullable host);
+/// Add one host. The panel can register an IP and a later hostname.
+void IXTrafficGuardAddDirectHost(const char * _Nullable host);
 BOOL IXTrafficGuardHostIsDirect(const char * _Nullable host);
+/// YES while this thread is building a direct NSURLSession.
+BOOL IXTrafficGuardThreadBypass(void);
 BOOL IXTrafficGuardNWProxyReady(void);
 
 NS_ASSUME_NONNULL_END

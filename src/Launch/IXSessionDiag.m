@@ -1,5 +1,6 @@
 #import "IXSessionDiag.h"
 #import "IXLaunchGuard.h"
+#import "../Backend/IXBackend.h"
 
 #import <Security/Security.h>
 #import <UIKit/UIKit.h>
@@ -609,6 +610,11 @@ NSString *IXSessionDiagReport(void) {
             id value = state[key];
             if (value) [text appendFormat:@"%@=%@\n", key, value];
         }
+    }
+    NSString *panel = IXBackendPanelReport();
+    if (panel.length) {
+        [text appendString:@"\n"];
+        [text appendString:panel];
     }
     NSString *body = [NSString stringWithContentsOfFile:IXDiagPath() encoding:NSUTF8StringEncoding error:nil];
     if (body.length > 60000) body = [body substringFromIndex:body.length - 60000];

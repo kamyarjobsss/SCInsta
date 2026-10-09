@@ -57,6 +57,7 @@ static BOOL IXURLIsLocal(NSURL *url) {
 }
 
 static void IXApplyProxy(NSURLSessionConfiguration *config) {
+    if (IXTrafficGuardThreadBypass()) return;
     if (!config || !IXTrafficGuardVPNOn()) return;
     if (!IXTrafficGuardProxyUp() && !IXTrafficGuardKillSwitch()) return;
     config.connectionProxyDictionary = IXTrafficGuardProxyDictionary();
@@ -373,6 +374,11 @@ static void IXMediaAttach(AVURLAsset *asset) {
 %hook NSURLSessionTask
 - (void)resume {
     NSURL *url = self.originalRequest.URL ?: self.currentRequest.URL;
+    if (IXTrafficGuardHostIsDirect(url.host.UTF8String)) {
+        IXWatchTask(self);
+        %orig;
+        return;
+    }
     if (IXTrafficGuardVPNOn() && !IXURLIsLocal(url) && IXTrafficGuardKillSwitch() && !IXTrafficGuardProxyUp()) {
         objc_setAssociatedObject(self, &kIXBlocked, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         IXWatchTask(self);
@@ -401,6 +407,10 @@ static void IXMediaAttach(AVURLAsset *asset) {
     return config;
 }
 - (void)setConnectionProxyDictionary:(NSDictionary *)dict {
+    if (IXTrafficGuardThreadBypass()) {
+        %orig;
+        return;
+    }
     if (IXTrafficGuardVPNOn() && (IXTrafficGuardProxyUp() || IXTrafficGuardKillSwitch())) {
         %orig(IXTrafficGuardProxyDictionary());
         return;

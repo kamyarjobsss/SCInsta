@@ -214,23 +214,53 @@ static int IXFrontLookup(uint32_t addrNetwork, char *host, size_t hostLen, void 
     return 1;
 }
 
-static char ix_direct_host[64];
+#define IX_DIRECT_MAX 4
+static char ix_direct_hosts[IX_DIRECT_MAX][128];
+static int ix_direct_count;
 
 void IXTrafficGuardSetDirectHost(const char *host) {
     pthread_mutex_lock(&ix_host_mu);
-    ix_direct_host[0] = 0;
-    if (host && host[0]) strlcpy(ix_direct_host, host, sizeof(ix_direct_host));
+    memset(ix_direct_hosts, 0, sizeof(ix_direct_hosts));
+    ix_direct_count = 0;
+    if (host && host[0] && ix_direct_count < IX_DIRECT_MAX) {
+        strlcpy(ix_direct_hosts[0], host, sizeof(ix_direct_hosts[0]));
+        ix_direct_count = 1;
+    }
+    pthread_mutex_unlock(&ix_host_mu);
+}
+
+void IXTrafficGuardAddDirectHost(const char *host) {
+    if (!host || !host[0]) return;
+    pthread_mutex_lock(&ix_host_mu);
+    for (int i = 0; i < ix_direct_count; i++) {
+        if (strcasecmp(ix_direct_hosts[i], host) == 0) {
+            pthread_mutex_unlock(&ix_host_mu);
+            return;
+        }
+    }
+    if (ix_direct_count < IX_DIRECT_MAX) {
+        strlcpy(ix_direct_hosts[ix_direct_count], host, sizeof(ix_direct_hosts[0]));
+        ix_direct_count++;
+    }
     pthread_mutex_unlock(&ix_host_mu);
 }
 
 BOOL IXTrafficGuardHostIsDirect(const char *host) {
     if (!host || !host[0]) return NO;
-    char saved[64];
+    BOOL match = NO;
     pthread_mutex_lock(&ix_host_mu);
-    strlcpy(saved, ix_direct_host, sizeof(saved));
+    for (int i = 0; i < ix_direct_count; i++) {
+        if (strcasecmp(ix_direct_hosts[i], host) == 0) {
+            match = YES;
+            break;
+        }
+    }
     pthread_mutex_unlock(&ix_host_mu);
-    if (!saved[0]) return NO;
-    return strcasecmp(saved, host) == 0;
+    return match;
+}
+
+BOOL IXTrafficGuardThreadBypass(void) {
+    return ix_tls_bypass != 0;
 }
 
 void IXTrafficGuardSetProxyHost(const char *host, uint16_t port) {

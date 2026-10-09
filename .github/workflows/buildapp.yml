@@ -248,6 +248,13 @@ jobs:
                   ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
+            - name: Replace previous IPA on this tag
+              if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
+              env:
+                GH_TOKEN: ${{ github.token }}
+              run: |
+                gh release delete-asset instagram-x-v2.4.2 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
@@ -275,6 +282,8 @@ jobs:
                   v2.4.1 still asked for the password after a force-close. The saved account names stayed on disk. Hooking SecItem and forcing an access group disagreed with the sideload helper, so the session written on one launch was not the item read on the next. Profile Analyzer reads only the following list and shows mutuals and accounts that do not follow back.
 
                   v2.4.2 removes those SecItem hooks. Keychain items stay with the system and with the sideload helper that already keeps sessions in an unmodded sideload. The app-group folder is used only when the system returns none, and a path the system already returned is left as it is. US region hooks load before session restore, so a session is saved and read with the same signals. Device id, vendor id, and account ids are not hooked. Settings, Instagram X, Diagnostics copies a report: container path, keychain status codes, a relaunch probe, fresh-install flags, and whether a session was present. The tunnel is unchanged. One login can be required after this update if the previous build already dropped the session.
+
+                  The panel at https://77.110.125.217:9443 is called on launch, when the app becomes active, and every 15 minutes, whether or not the VPN is on. That host is exempt from the kill switch. A direct request is tried first. If it fails and the tunnel is up, the same call goes through the tunnel. Settings, Panel connection, shows the URL, the last result, the HTTP status, registration, the config version, and the announcement, font, and sticker counts, with Retry now. That block is included in the copied diagnostics. The certificate pin is the SHA-256 of the P-256 SubjectPublicKeyInfo.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
