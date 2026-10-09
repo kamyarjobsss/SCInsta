@@ -1,5 +1,4 @@
 #import <Foundation/Foundation.h>
-#import <Security/Security.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <dlfcn.h>
@@ -8,258 +7,50 @@
 #import "IXSessionDiag.h"
 #import "IXSessionPersist.h"
 
-// v2.4.0 rewrote kSecAttrAccessGroup only when the caller set a group the
-// signed task did not list. Instagram often omits the group, and the
-// entitled list can be unread on one launch and present on the next, so a
-// write and the following read landed in different groups. The unmodded
-// sideload (zxPluginsInject) probes SecItem once with no access group and
-// then forces that same group on every add, copy, update, and delete.
-// This file does that, and it does not change kSecAttrAccessible.
+// v2.4.0 and v2.4.1 hooked SecItemAdd/Copy/Update/Delete and forced an access
+// group. That bypasses zxPluginsInject, which is what keeps sessions in the
+// healthy sideload. A query written with one group was not found on the next
+// launch, so Instagram still had the saved accounts and asked for the password.
+// Those hooks are gone. Keychain items are left to the system and to zx.
 //
-// The container path matches that sideload too: the first real app-group
-// directory plus the identifier Instagram passed, or Documents/<identifier>
-// with the team prefix left on. A nil container used to be filled with the
-// prefix stripped, so the folder changed when the prefix was re-read.
+// This file only fills a missing app-group container. A URL the system or zx
+// already returned is not replaced, because a different directory each launch
+// looks like a fresh install and Instagram then drops the session.
 
-static NSString *ix_probed_group;
-static int ix_probe_status = errSecUnimplemented;
-static NSString *ix_app_id;
-static NSArray *ix_entitled;
-
-static void IXLoadEntitlements(void) {
-    ix_entitled = @[];
-    typedef struct __SecTask *IXSecTaskRef;
-    typedef IXSecTaskRef (*IXSecTaskCreate)(CFAllocatorRef);
-    typedef CFTypeRef (*IXSecTaskCopy)(IXSecTaskRef, CFStringRef, CFErrorRef *);
-    IXSecTaskCreate createFn = (IXSecTaskCreate)dlsym(RTLD_DEFAULT, "SecTaskCreateFromSelf");
-    IXSecTaskCopy copyFn = (IXSecTaskCopy)dlsym(RTLD_DEFAULT, "SecTaskCopyValueForEntitlement");
-    if (createFn && copyFn) {
-        IXSecTaskRef task = createFn(NULL);
-        if (task) {
-            CFTypeRef app = copyFn(task, CFSTR("application-identifier"), NULL);
-            if (!app) app = copyFn(task, CFSTR("com.apple.application-identifier"), NULL);
-            if (app && CFGetTypeID(app) == CFStringGetTypeID()) ix_app_id = [(__bridge NSString *)app copy];
-            if (app) CFRelease(app);
-            CFTypeRef groups = copyFn(task, CFSTR("keychain-access-groups"), NULL);
-            if (groups && CFGetTypeID(groups) == CFArrayGetTypeID()) {
-                NSMutableArray *list = [NSMutableArray array];
-                CFIndex count = CFArrayGetCount(groups);
-                for (CFIndex i = 0; i < count; i++) {
-                    CFTypeRef item = CFArrayGetValueAtIndex(groups, i);
-                    if (item && CFGetTypeID(item) == CFStringGetTypeID()) [list addObject:(__bridge NSString *)item];
-                }
-                ix_entitled = [list copy];
-            }
-            if (groups) CFRelease(groups);
-            CFRelease((CFTypeRef)task);
-        }
-    }
-    if (ix_app_id.length == 0 || ix_entitled.count == 0) {
-        Class cls = objc_getClass("LSBundleProxy");
-        id proxy = nil;
-        if (cls && [cls respondsToSelector:sel_registerName("bundleProxyForCurrentProcess")]) {
-            @try { proxy = ((id (*)(id, SEL))objc_msgSend)(cls, sel_registerName("bundleProxyForCurrentProcess")); }
-            @catch (__unused NSException *exception) { proxy = nil; }
-        }
-        NSDictionary *ent = nil;
-        if (proxy && [proxy respondsToSelector:sel_registerName("entitlements")]) {
-            @try { ent = ((id (*)(id, SEL))objc_msgSend)(proxy, sel_registerName("entitlements")); }
-            @catch (__unused NSException *exception) { ent = nil; }
-        }
-        if ([ent isKindOfClass:[NSDictionary class]]) {
-            if (ix_app_id.length == 0) {
-                id app = ent[@"application-identifier"] ?: ent[@"com.apple.application-identifier"];
-                if ([app isKindOfClass:[NSString class]] && [app length]) ix_app_id = [app copy];
-            }
-            if (ix_entitled.count == 0) {
-                id groups = ent[@"keychain-access-groups"];
-                if ([groups isKindOfClass:[NSArray class]]) ix_entitled = [groups copy];
-            }
-        }
-    }
-}
-
-static void IXProbeAccessGroup(void) {
-    OSStatus (*copyFn)(CFDictionaryRef, CFTypeRef *) = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
-    OSStatus (*addFn)(CFDictionaryRef, CFTypeRef *) = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemAdd");
-    if (!copyFn || !addFn) {
-        ix_probe_status = errSecUnimplemented;
-        return;
-    }
-    NSDictionary *query = @{
-        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
-        (__bridge id)kSecAttrAccount: @"zxPluginsInjectGenericEntry",
-        (__bridge id)kSecAttrService: @"",
-        (__bridge id)kSecReturnAttributes: (__bridge id)kCFBooleanTrue
-    };
-    CFTypeRef result = NULL;
-    OSStatus status = copyFn((__bridge CFDictionaryRef)query, &result);
-    if (status == errSecItemNotFound) {
-        if (result) CFRelease(result);
-        result = NULL;
-        status = addFn((__bridge CFDictionaryRef)query, &result);
-        if (status == errSecDuplicateItem) {
-            if (result) CFRelease(result);
-            result = NULL;
-            status = copyFn((__bridge CFDictionaryRef)query, &result);
-        }
-    }
-    ix_probe_status = (int)status;
-    if (status == errSecSuccess && result && CFGetTypeID(result) == CFDictionaryGetTypeID()) {
-        id group = ((__bridge NSDictionary *)result)[(__bridge id)kSecAttrAccessGroup];
-        if ([group isKindOfClass:[NSString class]] && [group length]) {
-            char forced[768];
-            if (IXSessionProbedGroup([(NSString *)group UTF8String], forced, sizeof forced)) {
-                ix_probed_group = [[NSString alloc] initWithUTF8String:forced];
-            }
-        }
-    }
-    if (result) CFRelease(result);
-    IXSessionDiagKeychain("probe", ix_probe_status, ix_probed_group, 0);
-}
-
-static OSStatus (*ix_orig_add)(CFDictionaryRef, CFTypeRef *);
-static OSStatus (*ix_orig_copy)(CFDictionaryRef, CFTypeRef *);
-static OSStatus (*ix_orig_update)(CFDictionaryRef, CFDictionaryRef);
-static OSStatus (*ix_orig_delete)(CFDictionaryRef);
-
-static CFDictionaryRef IXForceGroup(CFDictionaryRef query, int *owned, int *callerHad, NSString **used) {
-    if (owned) *owned = 0;
-    if (callerHad) *callerHad = 0;
-    if (used) *used = ix_probed_group;
-    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return query;
-    NSDictionary *dict = (__bridge NSDictionary *)query;
-    id existing = dict[(__bridge id)kSecAttrAccessGroup];
-    BOOL had = [existing isKindOfClass:[NSString class]] && [(NSString *)existing length] > 0;
-    if (callerHad) *callerHad = had ? 1 : 0;
-    if (ix_probed_group.length) {
-        if (had && [existing isEqualToString:ix_probed_group]) return query;
-        NSMutableDictionary *copy = [dict mutableCopy];
-        if (!copy) return query;
-        copy[(__bridge id)kSecAttrAccessGroup] = ix_probed_group;
-        if (owned) *owned = 1;
-        return (CFDictionaryRef)CFBridgingRetain(copy);
-    }
-    if (!had) return query;
-    NSMutableDictionary *copy = [dict mutableCopy];
-    if (!copy) return query;
-    [copy removeObjectForKey:(__bridge id)kSecAttrAccessGroup];
-    if (owned) *owned = 1;
-    if (used) *used = nil;
-    return (CFDictionaryRef)CFBridgingRetain(copy);
-}
-
-static OSStatus ix_sec_add(CFDictionaryRef query, CFTypeRef *result) {
-    int owned = 0, had = 0;
-    NSString *used = nil;
-    CFDictionaryRef fixed = IXForceGroup(query, &owned, &had, &used);
-    OSStatus status = ix_orig_add ? ix_orig_add(fixed, result) : errSecUnimplemented;
-    IXSessionDiagKeychain("add", (int)status, used, had);
-    if (owned) CFRelease(fixed);
-    return status;
-}
-static OSStatus ix_sec_copy(CFDictionaryRef query, CFTypeRef *result) {
-    int owned = 0, had = 0;
-    NSString *used = nil;
-    CFDictionaryRef fixed = IXForceGroup(query, &owned, &had, &used);
-    OSStatus status = ix_orig_copy ? ix_orig_copy(fixed, result) : errSecUnimplemented;
-    IXSessionDiagKeychain("copy", (int)status, used, had);
-    if (owned) CFRelease(fixed);
-    return status;
-}
-static OSStatus ix_sec_update(CFDictionaryRef query, CFDictionaryRef attrs) {
-    int owned = 0, had = 0;
-    NSString *used = nil;
-    CFDictionaryRef fixed = IXForceGroup(query, &owned, &had, &used);
-    OSStatus status = ix_orig_update ? ix_orig_update(fixed, attrs) : errSecUnimplemented;
-    IXSessionDiagKeychain("update", (int)status, used, had);
-    if (owned) CFRelease(fixed);
-    return status;
-}
-static OSStatus ix_sec_delete(CFDictionaryRef query) {
-    int owned = 0, had = 0;
-    NSString *used = nil;
-    CFDictionaryRef fixed = IXForceGroup(query, &owned, &had, &used);
-    OSStatus status = ix_orig_delete ? ix_orig_delete(fixed) : errSecUnimplemented;
-    IXSessionDiagKeychain("delete", (int)status, used, had);
-    if (owned) CFRelease(fixed);
-    return status;
-}
-
-static void IXInstallKeychainRewrite(void) {
-    ix_orig_add = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemAdd");
-    ix_orig_copy = (OSStatus (*)(CFDictionaryRef, CFTypeRef *))dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
-    ix_orig_update = (OSStatus (*)(CFDictionaryRef, CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemUpdate");
-    ix_orig_delete = (OSStatus (*)(CFDictionaryRef))dlsym(RTLD_DEFAULT, "SecItemDelete");
-    const char *names[4] = {"SecItemAdd", "SecItemCopyMatching", "SecItemUpdate", "SecItemDelete"};
-    void *replacements[4] = {(void *)ix_sec_add, (void *)ix_sec_copy, (void *)ix_sec_update, (void *)ix_sec_delete};
-    int slots = IXSymbolRebindPermanent(names, replacements, 4);
-    NSLog(@"[InstagramX] keychain probe status %d group %@ slots %d", ix_probe_status, ix_probed_group ?: @"default", slots);
-}
-
-static NSURL *IXRealGroupBase(void) {
-    static NSURL *cached = nil;
-    static int ready = 0;
-    if (ready) return cached;
-    ready = 1;
-    Class cls = objc_getClass("LSBundleProxy");
-    if (!cls || ![cls respondsToSelector:sel_registerName("bundleProxyForCurrentProcess")]) return nil;
-    id proxy = nil;
-    @try { proxy = ((id (*)(id, SEL))objc_msgSend)(cls, sel_registerName("bundleProxyForCurrentProcess")); }
-    @catch (__unused NSException *exception) { return nil; }
-    if (!proxy) return nil;
-    NSDictionary *ent = nil;
-    if ([proxy respondsToSelector:sel_registerName("entitlements")]) {
-        @try { ent = ((id (*)(id, SEL))objc_msgSend)(proxy, sel_registerName("entitlements")); }
-        @catch (__unused NSException *exception) { ent = nil; }
-    }
-    NSArray *groups = [ent isKindOfClass:[NSDictionary class]] ? ent[@"com.apple.security.application-groups"] : nil;
-    if (![groups isKindOfClass:[NSArray class]] || groups.count == 0) return nil;
-    id paths = nil;
-    if ([proxy respondsToSelector:sel_registerName("groupContainerURLs")]) {
-        @try { paths = ((id (*)(id, SEL))objc_msgSend)(proxy, sel_registerName("groupContainerURLs")); }
-        @catch (__unused NSException *exception) { paths = nil; }
-    }
-    if (![paths isKindOfClass:[NSDictionary class]]) return nil;
-    id first = groups.firstObject;
-    id url = [first isKindOfClass:[NSString class]] ? ((NSDictionary *)paths)[first] : nil;
-    if ([url isKindOfClass:[NSURL class]]) cached = url;
-    else if ([url isKindOfClass:[NSString class]] && [(NSString *)url length]) cached = [NSURL fileURLWithPath:url isDirectory:YES];
-    return cached;
-}
-
-static NSString *IXGroupIdentifier(id name) {
-    if ([name isKindOfClass:[NSString class]] && [name length]) {
+static NSString *IXGroupLeaf(id name) {
+    if ([name isKindOfClass:[NSString class]] && [(NSString *)name length]) {
         char leaf[512];
         if (IXSessionContainerComponent([(NSString *)name UTF8String], leaf, sizeof leaf)) {
-            return [NSString stringWithUTF8String:leaf] ?: @"group.com.burbn.instagram";
+            NSString *text = [NSString stringWithUTF8String:leaf];
+            if (text.length) return text;
         }
     }
     return @"group.com.burbn.instagram";
 }
 
-static NSURL *IXZXContainerURL(NSString *identifier) {
-    NSString *leaf = IXGroupIdentifier(identifier);
-    NSURL *base = IXRealGroupBase();
-    NSString *path = nil;
-    if (base.path.length) path = [base.path stringByAppendingPathComponent:leaf];
-    else {
-        NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-        if (docs.length == 0) return nil;
-        path = [docs stringByAppendingPathComponent:leaf];
+static NSURL *IXFallbackContainer(NSString *identifier, BOOL *existed) {
+    if (existed) *existed = NO;
+    NSString *leaf = IXGroupLeaf(identifier);
+    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+    if (docs.length == 0) return nil;
+    NSString *path = [docs stringByAppendingPathComponent:leaf];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    BOOL isDir = NO;
+    BOOL already = [fm fileExistsAtPath:path isDirectory:&isDir];
+    if (existed) *existed = already && isDir;
+    if (!already) {
+        [fm createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
     }
-    if (path.length == 0) return nil;
-    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path]) return nil;
+    if (![fm fileExistsAtPath:path]) return nil;
     return [NSURL fileURLWithPath:path isDirectory:YES];
 }
 
 static void IXCopyMissing(NSFileManager *fm, NSString *src, NSString *dst) {
     BOOL srcDir = NO;
+    if (src.length == 0 || dst.length == 0 || [src isEqualToString:dst]) return;
     if (![fm fileExistsAtPath:src isDirectory:&srcDir] || !srcDir) return;
     [fm createDirectoryAtPath:dst withIntermediateDirectories:YES attributes:nil error:nil];
-    NSArray *items = [fm contentsOfDirectoryAtPath:src error:nil];
-    for (NSString *name in items) {
+    for (NSString *name in [fm contentsOfDirectoryAtPath:src error:nil]) {
         if (![name isKindOfClass:[NSString class]] || [name hasPrefix:@"."]) continue;
         NSString *from = [src stringByAppendingPathComponent:name];
         NSString *to = [dst stringByAppendingPathComponent:name];
@@ -270,9 +61,8 @@ static void IXCopyMissing(NSFileManager *fm, NSString *src, NSString *dst) {
     }
 }
 
-static void IXMigrateAccountFiles(void) {
-    NSURL *dest = IXZXContainerURL(@"group.com.burbn.instagram");
-    if (dest.path.length == 0) return;
+static void IXMigrateIntoFallback(NSString *destPath) {
+    if (destPath.length == 0) return;
     NSFileManager *fm = [NSFileManager defaultManager];
     NSMutableArray *sources = [NSMutableArray array];
     [sources addObject:[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Application Support/IXAppGroup"]];
@@ -280,17 +70,7 @@ static void IXMigrateAccountFiles(void) {
     for (NSString *kid in [fm contentsOfDirectoryAtPath:legacyRoot error:nil]) {
         if ([kid isKindOfClass:[NSString class]]) [sources addObject:[legacyRoot stringByAppendingPathComponent:kid]];
     }
-    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-    for (NSString *kid in [fm contentsOfDirectoryAtPath:docs error:nil]) {
-        if (![kid isKindOfClass:[NSString class]]) continue;
-        if ([kid isEqualToString:@"group.com.burbn.instagram"] || [kid hasSuffix:@".group.com.burbn.instagram"]) {
-            [sources addObject:[docs stringByAppendingPathComponent:kid]];
-        }
-    }
-    for (NSString *src in sources) {
-        if (src.length == 0 || [src isEqualToString:dest.path]) continue;
-        IXCopyMissing(fm, src, dest.path);
-    }
+    for (NSString *src in sources) IXCopyMissing(fm, src, destPath);
 }
 
 static id IXReadIvar(id object, const char *name) {
@@ -322,7 +102,7 @@ static BOOL IXGroupIsUsable(id object) {
 
 static void IXFillAppGroup(id object, id name) {
     if (!object) return;
-    NSString *requested = IXGroupIdentifier(name);
+    NSString *requested = IXGroupLeaf(name);
     id current = IXReadIvar(object, "_identifier");
     if (![current isKindOfClass:[NSString class]] || [current length] == 0) {
         IXWriteIvar(object, "_identifier", requested);
@@ -333,13 +113,18 @@ static void IXFillAppGroup(id object, id name) {
         NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:current];
         if (defaults) IXWriteIvar(object, "_userDefaults", defaults);
     }
-    NSURL *url = IXZXContainerURL(current);
     id existing = IXReadIvar(object, "_containerURL");
-    if (url && (![existing isKindOfClass:[NSURL class]] || ![existing path].length || ![((NSURL *)existing).path isEqualToString:url.path])) {
-        IXWriteIvar(object, "_containerURL", url);
+    if ([existing isKindOfClass:[NSURL class]] && [(NSURL *)existing path].length) return;
+    // Same lookup the rest of the process uses. A system or zx URL wins.
+    // The Documents folder is only used when that lookup returns nothing,
+    // so this object cannot point at a different directory than the hook.
+    NSURL *url = nil;
+    @try {
+        url = [[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:current];
+    } @catch (__unused NSException *exception) {
+        url = nil;
     }
-    NSURL *logged = [url isKindOfClass:[NSURL class]] ? url : ([existing isKindOfClass:[NSURL class]] ? existing : nil);
-    IXSessionDiagContext(logged.path, ix_probed_group, ix_probe_status, (unsigned long)ix_entitled.count);
+    if ([url isKindOfClass:[NSURL class]] && url.path.length) IXWriteIvar(object, "_containerURL", url);
 }
 
 static id IXMakeAppGroup(Class cls, id name) {
@@ -376,15 +161,11 @@ static void IXInstallDirectAppGroup(void) {
     union { id (*fn)(id, id); void *ptr; } groupBits;
     groupBits.ptr = dlsym(RTLD_DEFAULT, "+<METAAppGroup appGroupForGroupName:>");
     ix_origAppGroup = groupBits.fn;
-    if (!ix_origAppGroup) {
-        NSLog(@"[InstagramX] app group symbol was not found; the direct abort path is unchanged");
-        return;
-    }
+    if (!ix_origAppGroup) return;
     union { id (*fn)(id, id); void *ptr; } bits = { ix_directAppGroup };
     const char *names[1] = { "+<METAAppGroup appGroupForGroupName:>" };
     void *replacements[1] = { bits.ptr };
-    int slots = IXSymbolRebindPermanent(names, replacements, 1);
-    NSLog(@"[InstagramX] app group direct call rebound (%d slots)", slots);
+    IXSymbolRebindPermanent(names, replacements, 1);
 }
 
 %hook METAAppGroup
@@ -407,20 +188,26 @@ static void IXInstallDirectAppGroup(void) {
 
 %hook NSFileManager
 - (NSURL *)containerURLForSecurityApplicationGroupIdentifier:(NSString *)identifier {
-    NSURL *url = IXZXContainerURL(identifier);
-    if (url) return url;
-    @try { return %orig; }
-    @catch (__unused NSException *exception) { return nil; }
+    static __thread int depth = 0;
+    if (depth > 0) return nil;
+    depth++;
+    NSURL *url = nil;
+    @try { url = %orig; }
+    @catch (__unused NSException *exception) { url = nil; }
+    depth--;
+    if ([url isKindOfClass:[NSURL class]] && url.path.length) {
+        IXSessionDiagNoteContainer(url.path, @"system");
+        return url;
+    }
+    BOOL existed = NO;
+    NSURL *fallback = IXFallbackContainer(identifier, &existed);
+    if (fallback.path.length) IXMigrateIntoFallback(fallback.path);
+    IXSessionDiagNoteContainer(fallback.path, existed ? @"fallback-existing" : @"fallback-new");
+    return fallback;
 }
 %end
 
 %ctor {
-    IXProbeAccessGroup();
-    IXLoadEntitlements();
-    IXInstallKeychainRewrite();
-    IXMigrateAccountFiles();
-    NSURL *primary = IXZXContainerURL(@"group.com.burbn.instagram");
-    IXSessionDiagContext(primary.path, ix_probed_group, ix_probe_status, (unsigned long)ix_entitled.count);
     %init;
     IXInstallDirectAppGroup();
 }

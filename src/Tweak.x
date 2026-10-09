@@ -24,7 +24,7 @@ extern void IXBackendStart(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.1";
+NSString *SCIVersionString = @"v2.4.2";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -239,6 +239,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
     return %orig;
 }
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
+    IXSessionDiagBoot();
     %orig;
 
     IXUSRegionInstall();

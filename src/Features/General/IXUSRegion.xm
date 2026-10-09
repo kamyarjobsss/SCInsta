@@ -422,7 +422,7 @@ void IXUSRegionInstall(void) {
     IXInstallWiFi();
     IXInstallIGLocation();
     IXInstallAnalytics();
-    NSLog(@"[InstagramX] US region %@ installed after launch. CTCarrier MCC 310 MNC 410 ISO us name AT&T. NSLocale country US, currency USD, currency symbol $ (language is not hooked). SKStorefront country USA. HTTP headers whose names contain country, carrier, mcc, mnc, or storefront (Accept-Language, locale, language, and timezone headers are not hooked). Analytics keys mcc, mnc, device_country, sim_country, carrier, storefront. Device id, uuid, guid, ig_did, phone_id, waterfall, and mid are not hooked. CNCopyCurrentNetworkInfo and NEHotspotNetwork SSID LAX-WiFi. CLLocation and IGLocationManager 34.0522,-118.2437 while fake location is off. Time zone is not hooked.", ix_us_on ? @"on" : @"off");
+    NSLog(@"[InstagramX] US region %@ installed at load, before session restore, so the same signals are visible when a session is saved and when it is read. CTCarrier MCC 310 MNC 410 ISO us name AT&T. NSLocale country US, currency USD, currency symbol $ (language is not hooked). SKStorefront country USA. HTTP headers whose names contain country, carrier, mcc, mnc, or storefront (Accept-Language, locale, language, and timezone headers are not hooked). Analytics keys mcc, mnc, device_country, sim_country, carrier, storefront. identifierForVendor, device id, uuid, guid, ig_did, phone_id, waterfall, and mid are not hooked. CNCopyCurrentNetworkInfo and NEHotspotNetwork SSID LAX-WiFi. CLLocation and IGLocationManager 34.0522,-118.2437 while fake location is off. Time zone is not hooked.", ix_us_on ? @"on" : @"off");
 }
 #ifdef __cplusplus
 }
@@ -436,4 +436,5 @@ void IXUSRegionInstall(void) {
                                                   usingBlock:^(__unused NSNotification *note) {
         IXUSRefresh();
     }];
+    IXUSRegionInstall();
 }

@@ -7,3 +7,7 @@ void IXSessionDiagLine(NSString *line);
 void IXSessionDiagContext(NSString *containerPath, NSString *probedGroup, int probeStatus, unsigned long entitledCount);
 void IXSessionDiagKeychain(const char *op, int status, NSString *group, int callerSuppliedGroup);
 void IXSessionDiagAccounts(NSString *phase);
+void IXSessionDiagNoteContainer(NSString *path, NSString *source);
+void IXSessionDiagBoot(void);
+NSString *IXSessionDiagReport(void);
+void IXSessionDiagPresentCopy(void);

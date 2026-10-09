@@ -2518,3 +2518,6 @@
 "Follow request withdrawn" = "Follow request withdrawn";
 "%@ withdrew their request" = "%@ withdrew their request";
 "Follow requests log" = "Follow requests log";
+"Diagnostics" = "Diagnostics";
+"Copy the session report" = "Copy the session report";
+"Session diagnostics are on the clipboard." = "Session diagnostics are on the clipboard.";

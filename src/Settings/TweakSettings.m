@@ -16,6 +16,7 @@
 #import "SCISettingsViewController.h"
 #import "../Proxy/IXProxyViewController.h"
 #import "../Proxy/IXProxyManager.h"
+#import "../Launch/IXSessionDiag.h"
 #import "../../modules/JGProgressHUD/JGProgressHUD.h"
 #import <objc/runtime.h>
 
@@ -144,7 +145,13 @@ static void IXOpenK8myarProfile(void) {
                                      viewController:[IXProxyViewController new]],
                 [SCISetting switchCellWithTitle:SCILocalized(@"US region signals")
                                        subtitle:SCILocalized(@"Country, carrier, storefront, and location hints use the United States. Language and time zone stay as they are.")
-                                     defaultsKey:@"ix_us_region"]
+                                     defaultsKey:@"ix_us_region"],
+                [SCISetting buttonCellWithTitle:SCILocalized(@"Diagnostics")
+                                       subtitle:SCILocalized(@"Copy the session report")
+                                           icon:[SCISymbol symbolWithName:@"doc.text.magnifyingglass"]
+                                         action:^{
+                    IXSessionDiagPresentCopy();
+                }]
             ]
         },
         @{

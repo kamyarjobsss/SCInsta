@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.1"
+                description: "Publish a prerelease tagged instagram-x-v2.4.2"
                 default: true
                 required: false
                 type: boolean
@@ -252,9 +252,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.1
+                tag_name: instagram-x-v2.4.2
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.1
+                name: Instagram X 2.4.2
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -272,7 +272,9 @@ jobs:
 
                   v2.4.0 talks to the Instagram X backend over a pinned certificate. Config is fetched outside the tunnel, verified with Ed25519, and cached. Announcements, story fonts, and the Instagram X sticker tray update from that config. The VPN switch probes the server list on a separate Xray and keeps the kill switch on. A health check does not restart Xray while traffic is still moving.
 
-                  v2.4.1 keeps every logged-in account across a force-close. Keychain reads and writes use the access group SecItem assigns when none is requested, which is the same group the unmodded sideload uses, with no fixed team id. The app-group folder uses that sideload path and does not change between launches. A diagnostics file under Documents/InstagramX records status codes, the access group, the container path, and the account count. Profile Analyzer reads only the following list and shows mutuals and accounts that do not follow back.
+                  v2.4.1 still asked for the password after a force-close. The saved account names stayed on disk. Hooking SecItem and forcing an access group disagreed with the sideload helper, so the session written on one launch was not the item read on the next. Profile Analyzer reads only the following list and shows mutuals and accounts that do not follow back.
+
+                  v2.4.2 removes those SecItem hooks. Keychain items stay with the system and with the sideload helper that already keeps sessions in an unmodded sideload. The app-group folder is used only when the system returns none, and a path the system already returned is left as it is. US region hooks load before session restore, so a session is saved and read with the same signals. Device id, vendor id, and account ids are not hooked. Settings, Instagram X, Diagnostics copies a report: container path, keychain status codes, a relaunch probe, fresh-install flags, and whether a session was present. The tunnel is unchanged. One login can be required after this update if the previous build already dropped the session.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
@@ -285,4 +287,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.1"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.2"
