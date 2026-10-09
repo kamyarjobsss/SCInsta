@@ -32,6 +32,11 @@ extern NSNotificationName const SCIProfileAnalyzerDataDidChangeNotification;
 + (nullable NSDictionary *)headerInfoForUserPK:(NSString *)userPK;
 + (void)saveHeaderInfo:(NSDictionary *)info forUserPK:(NSString *)userPK;
 
+// Partial following-list fetch so a cancelled or rate-limited scan can resume.
++ (nullable NSDictionary *)progressForUserPK:(NSString *)userPK;
++ (void)saveProgress:(NSDictionary *)progress forUserPK:(NSString *)userPK;
++ (void)clearProgressForUserPK:(NSString *)userPK;
+
 // Backup/Restore hooks — opaque pk-keyed JSON blob.
 + (NSDictionary *)exportedDict;
 + (BOOL)importFromDict:(NSDictionary *)dict;

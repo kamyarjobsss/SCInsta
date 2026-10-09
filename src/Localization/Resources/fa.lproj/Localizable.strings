@@ -760,6 +760,18 @@
 "Too many followers to analyze" = "دنبال‌کننده برای تحلیل خیلی زیاد است";
 "Fetching followers (%lu/%ld)…" = "در حال گرفتن دنبال‌کننده‌ها (%lu/%ld)…";
 "Fetching following (%lu/%ld)…" = "در حال گرفتن دنبال‌شونده‌ها (%lu/%ld)…";
+"Mutuals" = "مشترک‌ها";
+"You follow each other" = "شما یکدیگر را دنبال می‌کنید";
+"Profile Analyzer reads only who you follow. It does not download your followers." = "تحلیلگر پروفایل فقط فهرست کسانی را می‌خواند که شما دنبال می‌کنید و فهرست دنبال‌کننده‌ها را دانلود نمی‌کند.";
+"Someone you follow is a mutual when Instagram says they follow you back." = "کسی که دنبالش می‌کنید مشترک است اگر اینستاگرام بگوید او هم شما را دنبال می‌کند.";
+"Results stay on this device. The trash icon clears them." = "نتیجه روی همین گوشی می‌ماند. آیکون سطل زباله آن را پاک می‌کند.";
+"Long following lists are loaded slowly, with a pause between pages. A rate limit waits and then resumes." = "فهرست بلند دنبال‌شونده آهسته و با مکث بین صفحه‌ها گرفته می‌شود. اگر محدودیت پیش بیاید صبر می‌کند و بعد ادامه می‌دهد.";
+"Waiting for Instagram rate limit…" = "در انتظار رفع محدودیت اینستاگرام…";
+"Resuming saved following list…" = "ادامهٔ فهرست ذخیره‌شدهٔ دنبال‌شونده…";
+"Rate limited too many times. Run analysis again to resume." = "محدودیت چند بار تکرار شد. تحلیل را دوباره اجرا کنید تا ادامه پیدا کند.";
+"Saved progress. Run analysis again to resume." = "پیشرفت ذخیره شد. تحلیل را دوباره اجرا کنید تا ادامه پیدا کند.";
+"%lu mutuals · %lu not following you back" = "%lu مشترک · %lu نفر شما را دنبال نمی‌کنند";
+"Removes the saved following analysis for this account." = "تحلیل ذخیره‌شدهٔ دنبال‌شوندهٔ این حساب پاک می‌شود.";
 
 /* Action menus */
 "Download Quality" = "کیفیت دانلود";

@@ -5,14 +5,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM(NSInteger, SCIProfileAnalyzerError) {
     SCIProfileAnalyzerErrorNoSession = 1,
-    SCIProfileAnalyzerErrorTooManyFollowers,
     SCIProfileAnalyzerErrorNetwork,
     SCIProfileAnalyzerErrorCancelled,
 };
-
-// Hard cap — beyond this follower count we refuse to run. Each followers
-// page returns ~25-50 users so large accounts hit IG rate limits fast.
-extern const NSInteger SCIProfileAnalyzerMaxFollowerCount;
 
 typedef void(^SCIPAProgress)(NSString *status, double fraction);
 typedef void(^SCIPACompletion)(SCIProfileAnalyzerSnapshot * _Nullable snapshot, NSError * _Nullable error);

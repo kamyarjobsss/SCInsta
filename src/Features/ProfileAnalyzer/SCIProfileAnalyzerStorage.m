@@ -91,6 +91,7 @@ static BOOL sciWriteJSON(NSString *path, NSDictionary *dict) {
     [fm removeItemAtPath:sciPath(userPK, @"current") error:nil];
     [fm removeItemAtPath:sciPath(userPK, @"previous") error:nil];
     [fm removeItemAtPath:sciPath(userPK, @"baseline") error:nil];
+    [fm removeItemAtPath:sciPath(userPK, @"progress") error:nil];
     sciPostDataChanged(userPK);
 }
 
@@ -108,6 +109,20 @@ static BOOL sciWriteJSON(NSString *path, NSDictionary *dict) {
     NSMutableDictionary *stored = [info mutableCopy];
     stored[@"cached_at"] = @([[NSDate date] timeIntervalSince1970]);
     sciWriteJSON(sciPath(userPK, @"header"), stored);
+}
+
++ (NSDictionary *)progressForUserPK:(NSString *)userPK {
+    return sciReadJSON(sciPath(userPK, @"progress"));
+}
+
++ (void)saveProgress:(NSDictionary *)progress forUserPK:(NSString *)userPK {
+    if (![progress isKindOfClass:[NSDictionary class]] || !userPK.length) return;
+    sciWriteJSON(sciPath(userPK, @"progress"), progress);
+}
+
++ (void)clearProgressForUserPK:(NSString *)userPK {
+    if (!userPK.length) return;
+    [[NSFileManager defaultManager] removeItemAtPath:sciPath(userPK, @"progress") error:nil];
 }
 
 + (NSDictionary *)exportedDict {

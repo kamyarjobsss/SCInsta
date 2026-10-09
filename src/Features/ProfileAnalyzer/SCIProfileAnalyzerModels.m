@@ -2,6 +2,19 @@
 
 #pragma mark - User
 
+static NSInteger SCIFollowsYou(NSDictionary *d) {
+    if (![d isKindOfClass:[NSDictionary class]]) return -1;
+    NSDictionary *status = [d[@"friendship_status"] isKindOfClass:[NSDictionary class]] ? d[@"friendship_status"] : nil;
+    NSArray *sources = status ? @[status, d] : @[d];
+    for (NSDictionary *src in sources) {
+        for (NSString *key in @[@"followed_by", @"followed_by_viewer", @"follows_viewer"]) {
+            id value = src[key];
+            if ([value isKindOfClass:[NSNumber class]]) return [value boolValue] ? 1 : 0;
+        }
+    }
+    return -1;
+}
+
 @implementation SCIProfileAnalyzerUser
 
 + (instancetype)userFromAPIDict:(NSDictionary *)d {
@@ -20,6 +33,7 @@
     else if ([pid respondsToSelector:@selector(stringValue)]) u.profilePicID = [pid stringValue];
     u.isPrivate = [d[@"is_private"] boolValue];
     u.isVerified = [d[@"is_verified"] boolValue];
+    u.followsYou = SCIFollowsYou(d);
     return u;
 }
 
@@ -33,6 +47,7 @@
     u.profilePicID = d[@"profile_pic_id"];
     u.isPrivate = [d[@"is_private"] boolValue];
     u.isVerified = [d[@"is_verified"] boolValue];
+    u.followsYou = d[@"follows_you"] == nil ? -1 : [d[@"follows_you"] integerValue];
     return u;
 }
 
@@ -45,6 +60,7 @@
     if (self.profilePicID)  d[@"profile_pic_id"]  = self.profilePicID;
     d[@"is_private"] = @(self.isPrivate);
     d[@"is_verified"] = @(self.isVerified);
+    d[@"follows_you"] = @(self.followsYou);
     return d;
 }
 
@@ -57,6 +73,7 @@
     u.profilePicID = self.profilePicID;
     u.isPrivate = self.isPrivate;
     u.isVerified = self.isVerified;
+    u.followsYou = self.followsYou;
     return u;
 }
 
@@ -84,16 +101,12 @@
     s.followingCount = [d[@"following_count"] integerValue];
     s.mediaCount = [d[@"media_count"] integerValue];
 
-    NSMutableArray *f = [NSMutableArray array];
-    for (NSDictionary *u in d[@"followers"]) {
-        SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromJSONDict:u];
-        if (user) [f addObject:user];
-    }
-    s.followers = f;
+    s.followers = @[];
 
     NSMutableArray *g = [NSMutableArray array];
-    for (NSDictionary *u in d[@"following"]) {
-        SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromJSONDict:u];
+    for (id item in d[@"following"]) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        SCIProfileAnalyzerUser *user = [SCIProfileAnalyzerUser userFromJSONDict:item];
         if (user) [g addObject:user];
     }
     s.following = g;
@@ -101,8 +114,6 @@
 }
 
 - (NSDictionary *)toJSONDict {
-    NSMutableArray *f = [NSMutableArray arrayWithCapacity:self.followers.count];
-    for (SCIProfileAnalyzerUser *u in self.followers) [f addObject:[u toJSONDict]];
     NSMutableArray *g = [NSMutableArray arrayWithCapacity:self.following.count];
     for (SCIProfileAnalyzerUser *u in self.following) [g addObject:[u toJSONDict]];
 
@@ -115,7 +126,7 @@
         @"follower_count": @(self.followerCount),
         @"following_count": @(self.followingCount),
         @"media_count": @(self.mediaCount),
-        @"followers": f,
+        @"followers": @[],
         @"following": g,
     };
 }
@@ -142,20 +153,6 @@
 
 @implementation SCIProfileAnalyzerReport
 
-static NSArray *sciSubtract(NSArray *a, NSSet *bSet) {
-    if (!a.count) return @[];
-    NSMutableArray *out = [NSMutableArray arrayWithCapacity:a.count];
-    for (SCIProfileAnalyzerUser *u in a) if (![bSet containsObject:u]) [out addObject:u];
-    return out;
-}
-
-static NSArray *sciIntersect(NSArray *a, NSSet *bSet) {
-    if (!a.count) return @[];
-    NSMutableArray *out = [NSMutableArray arrayWithCapacity:a.count];
-    for (SCIProfileAnalyzerUser *u in a) if ([bSet containsObject:u]) [out addObject:u];
-    return out;
-}
-
 + (SCIProfileAnalyzerReport *)reportFromCurrent:(SCIProfileAnalyzerSnapshot *)current
                                         previous:(SCIProfileAnalyzerSnapshot *)previous {
     SCIProfileAnalyzerReport *r = [self new];
@@ -169,43 +166,17 @@ static NSArray *sciIntersect(NSArray *a, NSSet *bSet) {
     r.youStartedFollowing = @[];
     r.youUnfollowed = @[];
     r.profileUpdates = @[];
+    (void)previous;
     if (!current) return r;
 
-    NSSet *followersSet = [NSSet setWithArray:current.followers];
-    NSSet *followingSet = [NSSet setWithArray:current.following];
-
-    r.mutualFollowers = sciIntersect(current.followers, followingSet);
-    r.notFollowingYouBack = sciSubtract(current.following, followersSet);
-    r.youDontFollowBack = sciSubtract(current.followers, followingSet);
-
-    if (previous) {
-        NSSet *prevFollowers = [NSSet setWithArray:previous.followers];
-        NSSet *prevFollowing = [NSSet setWithArray:previous.following];
-        r.recentFollowers = sciSubtract(current.followers, prevFollowers);
-        r.lostFollowers = sciSubtract(previous.followers, followersSet);
-        r.youStartedFollowing = sciSubtract(current.following, prevFollowing);
-        r.youUnfollowed = sciSubtract(previous.following, followingSet);
-
-        // Profile updates: same pk in both snapshots, any field differs.
-        NSMutableDictionary *prevByPK = [NSMutableDictionary dictionary];
-        for (SCIProfileAnalyzerUser *u in previous.followers) prevByPK[u.pk] = u;
-        for (SCIProfileAnalyzerUser *u in previous.following) prevByPK[u.pk] = u;
-
-        NSMutableArray *updates = [NSMutableArray array];
-        NSMutableSet *seen = [NSMutableSet set];
-        NSArray *currentAll = [current.followers arrayByAddingObjectsFromArray:current.following];
-        for (SCIProfileAnalyzerUser *u in currentAll) {
-            if ([seen containsObject:u.pk]) continue;
-            [seen addObject:u.pk];
-            SCIProfileAnalyzerUser *prev = prevByPK[u.pk];
-            if (!prev) continue;
-            SCIProfileAnalyzerProfileChange *ch = [SCIProfileAnalyzerProfileChange new];
-            ch.previous = prev;
-            ch.current = u;
-            if (ch.usernameChanged || ch.fullNameChanged || ch.profilePicChanged) [updates addObject:ch];
-        }
-        r.profileUpdates = updates;
+    NSMutableArray *mutual = [NSMutableArray array];
+    NSMutableArray *notBack = [NSMutableArray array];
+    for (SCIProfileAnalyzerUser *user in current.following) {
+        if (user.followsYou > 0) [mutual addObject:user];
+        else if (user.followsYou == 0) [notBack addObject:user];
     }
+    r.mutualFollowers = mutual;
+    r.notFollowingYouBack = notBack;
     return r;
 }
 

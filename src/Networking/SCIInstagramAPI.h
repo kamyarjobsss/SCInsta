@@ -7,6 +7,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 typedef void(^SCIAPICompletion)(NSDictionary * _Nullable response, NSError * _Nullable error);
+typedef void(^SCIAPIHTTPCompletion)(NSDictionary * _Nullable response, NSError * _Nullable error, NSInteger statusCode, NSTimeInterval retryAfter);
 typedef void(^SCIAPIStatusesCompletion)(NSDictionary * _Nullable statuses, NSError * _Nullable error);
 
 @interface SCIInstagramAPI : NSObject
@@ -19,6 +20,12 @@ typedef void(^SCIAPIStatusesCompletion)(NSDictionary * _Nullable statuses, NSErr
                          path:(NSString *)path
                          body:(nullable NSDictionary *)body
                    completion:(nullable SCIAPICompletion)completion;
+
+// Same request, plus the HTTP status and Retry-After delay in seconds.
++ (void)sendRequestWithMethod:(NSString *)method
+                         path:(NSString *)path
+                         body:(nullable NSDictionary *)body
+                  httpHandler:(nullable SCIAPIHTTPCompletion)handler;
 
 // ============ Friendships ============
 

@@ -2,6 +2,7 @@
 #import "InstagramHeaders.h"
 #import "Tweak.h"
 #import "Launch/IXLaunchGuard.h"
+#import "Launch/IXSessionDiag.h"
 #import "Features/General/IXSettingsEntry.h"
 #import "Proxy/IXProxyManager.h"
 #import "Utils.h"
@@ -23,7 +24,7 @@ extern void IXBackendStart(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.0";
+NSString *SCIVersionString = @"v2.4.1";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -242,6 +243,13 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 
     IXUSRegionInstall();
     IXBackendStart();
+    IXSessionDiagAccounts(@"launch");
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXSessionDiagAccounts(@"launch+2s");
+    });
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        IXSessionDiagAccounts(@"launch+8s");
+    });
     BOOL safeMode = IXLaunchGuardIsSafeMode();
     if (!safeMode) {
         if ([[NSUserDefaults standardUserDefaults] boolForKey:@"fake_location_enabled"]) {
@@ -297,6 +305,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 
 - (void)applicationDidEnterBackground:(id)arg1 {
     %orig;
+    IXSessionDiagAccounts(@"background");
     // Cache housekeeping while backgrounded — never competes with IG's foreground I/O.
     [SCICacheManager runAutoClearIfDue];
 }

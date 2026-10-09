@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.0"
+                description: "Publish a prerelease tagged instagram-x-v2.4.1"
                 default: true
                 required: false
                 type: boolean
@@ -176,6 +176,10 @@ jobs:
                   tests/IXKeychainGroupTest.c src/Launch/IXKeychainGroup.c \
                   -o /tmp/ix-keychain-test
                 /tmp/ix-keychain-test
+                clang \
+                  tests/IXSessionPersistTest.c src/Launch/IXSessionPersist.c \
+                  -o /tmp/ix-session-test
+                /tmp/ix-session-test
                 clang -O2 -I src/Backend \
                   tests/IXCryptoTest.c src/Backend/IXCrypto.c \
                   src/Backend/third_party/monocypher.c \
@@ -248,9 +252,9 @@ jobs:
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.0
+                tag_name: instagram-x-v2.4.1
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.0
+                name: Instagram X 2.4.1
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -268,6 +272,8 @@ jobs:
 
                   v2.4.0 talks to the Instagram X backend over a pinned certificate. Config is fetched outside the tunnel, verified with Ed25519, and cached. Announcements, story fonts, and the Instagram X sticker tray update from that config. The VPN switch probes the server list on a separate Xray and keeps the kill switch on. A health check does not restart Xray while traffic is still moving.
 
+                  v2.4.1 keeps every logged-in account across a force-close. Keychain reads and writes use the access group SecItem assigns when none is requested, which is the same group the unmodded sideload uses, with no fixed team id. The app-group folder uses that sideload path and does not change between launches. A diagnostics file under Documents/InstagramX records status codes, the access group, the container path, and the account count. Profile Analyzer reads only the following list and shows mutuals and accounts that do not follow back.
+
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
 
                   The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
@@ -279,4 +285,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.0"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.1"

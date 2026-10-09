@@ -14,6 +14,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *profilePicID;
 @property (nonatomic, assign) BOOL isPrivate;
 @property (nonatomic, assign) BOOL isVerified;
+// 1 when this account follows the viewer, 0 when it does not, -1 when unknown.
+@property (nonatomic, assign) NSInteger followsYou;
 
 + (nullable instancetype)userFromAPIDict:(NSDictionary *)dict;
 + (nullable instancetype)userFromJSONDict:(NSDictionary *)dict;
@@ -21,8 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @end
 
-// One-point-in-time capture of an account's graph + self info. Persisted
-// to disk as JSON; diffs between snapshots produce the report categories.
+// One saved following list plus the profile header. Followers are never stored.
 @interface SCIProfileAnalyzerSnapshot : NSObject
 
 @property (nonatomic, strong) NSDate *scanDate;
@@ -50,7 +51,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) BOOL profilePicChanged;
 @end
 
-// Derived category arrays, computed from (current, previous) snapshots.
+// Mutuals and accounts that do not follow back, from the following list only.
 @interface SCIProfileAnalyzerReport : NSObject
 
 @property (nonatomic, strong, nullable) SCIProfileAnalyzerSnapshot *current;

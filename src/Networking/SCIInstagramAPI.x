@@ -91,6 +91,16 @@ static NSMutableURLRequest *sciBuildRequest(NSString *method, NSURL *url, NSDict
     return req;
 }
 
+static NSTimeInterval sciRetryAfter(NSHTTPURLResponse *http) {
+    if (![http isKindOfClass:[NSHTTPURLResponse class]]) return 0;
+    id value = http.allHeaderFields[@"Retry-After"];
+    if ([value isKindOfClass:[NSNumber class]]) value = [(NSNumber *)value stringValue];
+    if (![value isKindOfClass:[NSString class]]) return 0;
+    double seconds = [(NSString *)value doubleValue];
+    if (seconds > 0 && seconds <= 120) return seconds;
+    return 0;
+}
+
 static void sciPerformRequest(NSMutableURLRequest *req, SCIAPICompletion completion) {
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
@@ -108,6 +118,32 @@ static void sciPerformRequest(NSMutableURLRequest *req, SCIAPICompletion complet
     [task resume];
 }
 
+static void sciPerformHTTP(NSMutableURLRequest *req, SCIAPIHTTPCompletion handler) {
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:req
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            NSDictionary *resp = nil;
+            if (data.length) {
+                @try {
+                    id parsed = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+                    if ([parsed isKindOfClass:[NSDictionary class]]) resp = parsed;
+                } @catch (__unused id e) {}
+            }
+            NSHTTPURLResponse *http = [response isKindOfClass:[NSHTTPURLResponse class]] ? (NSHTTPURLResponse *)response : nil;
+            NSInteger status = http.statusCode;
+            NSTimeInterval retry = sciRetryAfter(http);
+            NSError *httpError = error;
+            if (!httpError && status >= 400) {
+                httpError = [NSError errorWithDomain:@"SCIInstagramAPI" code:status userInfo:@{
+                    NSLocalizedDescriptionKey: [NSString stringWithFormat:@"HTTP %ld", (long)status]
+                }];
+            }
+            if (handler) {
+                dispatch_async(dispatch_get_main_queue(), ^{ handler(resp, httpError, status, retry); });
+            }
+        }];
+    [task resume];
+}
+
 @implementation SCIInstagramAPI
 
 // ============ Generic ============
@@ -119,6 +155,19 @@ static void sciPerformRequest(NSMutableURLRequest *req, SCIAPICompletion complet
     NSString *clean = [path hasPrefix:@"/"] ? [path substringFromIndex:1] : path;
     NSURL *url = [NSURL URLWithString:[SCI_API_BASE stringByAppendingString:clean]];
     sciPerformRequest(sciBuildRequest(method, url, body), completion);
+}
+
++ (void)sendRequestWithMethod:(NSString *)method
+                         path:(NSString *)path
+                         body:(NSDictionary *)body
+                  httpHandler:(SCIAPIHTTPCompletion)handler {
+    NSString *clean = [path hasPrefix:@"/"] ? [path substringFromIndex:1] : path;
+    NSURL *url = [NSURL URLWithString:[SCI_API_BASE stringByAppendingString:clean ?: @""]];
+    if (!url) {
+        if (handler) handler(nil, [NSError errorWithDomain:@"SCIInstagramAPI" code:-1 userInfo:nil], 0, 0);
+        return;
+    }
+    sciPerformHTTP(sciBuildRequest(method, url, body), handler);
 }
 
 // ============ Friendships ============
