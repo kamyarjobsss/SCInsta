@@ -297,6 +297,7 @@ BOOL IXTrafficGuardFakeSockaddrs(const char *host, struct sockaddr_in *v4, struc
     if (IXAddrWriteNumeric((struct sockaddr *)v4, sizeof(*v4), numeric, sizeof(numeric)) != 0) return NO;
     if (!numeric[0] || inet_pton(AF_INET, numeric, &back) != 1 || back.s_addr != bits) return NO;
     return YES;
+}
 
 static BOOL IXAddrIsLoopback(const struct sockaddr *addr) {
     if (!addr) return NO;
