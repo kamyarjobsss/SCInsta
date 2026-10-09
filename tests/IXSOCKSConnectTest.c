@@ -10,11 +10,17 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+void IXTrafficGuardAddSocksBytes(uint64_t up, uint64_t down) {
+    (void)up;
+    (void)down;
+}
 
 #if defined(__APPLE__)
 #include <sys/event.h>

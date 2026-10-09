@@ -41,7 +41,12 @@ NSString * _Nullable IXTrafficGuardLookupHost(NSString * _Nullable host);
 /// Mint the IPv4 fake getaddrinfo returns. v6 is cleared and never filled.
 BOOL IXTrafficGuardFakeSockaddrs(const char * _Nullable host, struct sockaddr_in * _Nullable v4, struct sockaddr_in6 * _Nullable v6);
 
-/// Newest last. Keys: image, api, path, host, port, up, down, reason (tunneled or blocked).
+/// Bytes the local SOCKS front copied. Xray's own counters are separate.
+void IXTrafficGuardAddSocksBytes(uint64_t up, uint64_t down);
+void IXTrafficGuardTunnelCounters(uint64_t *socksUp, uint64_t *socksDown, uint64_t *intercepted, uint64_t *bypassed, uint64_t *blocked, uint64_t *active, uint64_t *failed);
+NSString *IXTrafficGuardStatsLine(uint64_t xrayUp, uint64_t xrayDown);
+
+/// Newest last. Keys: image, api, path, host, port, up, down, reason (tunneled, blocked, or bypassed).
 NSArray<NSDictionary *> *IXTrafficGuardRecentConnections(void);
 void IXTrafficGuardNoteSession(NSString * _Nullable host, uint16_t port, uint64_t up, uint64_t down, NSString * _Nullable reason);
 void IXTrafficGuardNote(NSString * _Nullable path, NSString * _Nullable host, uint16_t port, NSString * _Nullable reason);

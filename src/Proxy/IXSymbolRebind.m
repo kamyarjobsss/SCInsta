@@ -18,7 +18,7 @@
 #import <sys/stat.h>
 #import <unistd.h>
 
-#define IX_REBIND_NAMES 64
+#define IX_REBIND_NAMES 96
 
 #ifndef MH_DYLIB_IN_CACHE
 #define MH_DYLIB_IN_CACHE 0x80000000u
@@ -180,6 +180,95 @@ static int IXImageExcluded(const char *path) {
     // Our dylib and the Go/Xray image must keep the real libc symbols.
     if (strstr(path, "SCInsta") || strstr(path, "InstagramX") || strstr(path, "IXRayCore") || strstr(path, "libXray")) return 1;
     return 0;
+}
+
+static char ix_audit[24][80];
+static int ix_audit_count = 0;
+
+static int IXDialInteresting(const char *symbol) {
+    const char *s = symbol && symbol[0] == '_' ? symbol + 1 : symbol;
+    if (!s || !s[0]) return 0;
+    if (strcmp(s, "connect") == 0 || strcmp(s, "__connect") == 0 || strcmp(s, "__connect_nocancel") == 0 ||
+        strcmp(s, "connect$NOCANCEL") == 0 || strcmp(s, "connect_nocancel") == 0 ||
+        strcmp(s, "connectx") == 0 || strcmp(s, "__connectx") == 0 || strcmp(s, "__connectx_nocancel") == 0 ||
+        strcmp(s, "connectx$NOCANCEL") == 0) {
+        return 1;
+    }
+    if (strstr(s, "sendto") || strstr(s, "sendmsg") || strcmp(s, "syscall") == 0 || strcmp(s, "__syscall") == 0) return 1;
+    if (strncmp(s, "tcp_connection", 14) == 0) return 1;
+    if (strstr(s, "quic") || strstr(s, "Quic") || strstr(s, "QUIC")) return 1;
+    if (strcmp(s, "nw_connection_create") == 0 || strcmp(s, "nw_connection_group_create") == 0) return 1;
+    if (strcmp(s, "CFStreamCreatePairWithSocketToHost") == 0 || strcmp(s, "dlsym") == 0) return 1;
+    return 0;
+}
+
+static void IXAuditNote(const char *path, const char *symbol) {
+    if (!path || !strstr(path, "FBSharedFramework") || !symbol) return;
+    const char *s = symbol[0] == '_' ? symbol + 1 : symbol;
+    if (!IXDialInteresting(s)) return;
+    for (int i = 0; i < ix_audit_count; i++) {
+        if (strcmp(ix_audit[i], s) == 0) return;
+    }
+    if (ix_audit_count >= 24) return;
+    strlcpy(ix_audit[ix_audit_count], s, sizeof(ix_audit[0]));
+    ix_audit_count++;
+}
+
+static int IXMovConnect(uint32_t word, uint32_t *sysno) {
+    uint32_t bases[2] = {0xD2800000u, 0x52800000u};
+    uint32_t nums[3] = {98u, 409u, 447u};
+    for (int b = 0; b < 2; b++) {
+        if ((word & 0xFFE0001Fu) != (bases[b] | 16u)) continue;
+        uint32_t imm = (word >> 5) & 0xFFFFu;
+        for (int n = 0; n < 3; n++) {
+            if (imm == nums[n]) {
+                if (sysno) *sysno = nums[n];
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static void IXScanSVC(const struct mach_header *header, intptr_t slide, const char *path) {
+    if (!header || header->magic != MH_MAGIC_64 || !path || !strstr(path, "FBSharedFramework")) return;
+    const uint8_t *cursor = (const uint8_t *)header + sizeof(struct mach_header_64);
+    int logged = 0;
+    for (uint32_t i = 0; i < header->ncmds && logged < 12; i++) {
+        const struct load_command *cmd = (const struct load_command *)cursor;
+        if (cmd->cmdsize < sizeof(struct load_command) || cmd->cmdsize > 0x10000) break;
+        if (cmd->cmd == LC_SEGMENT_64) {
+            const struct segment_command_64 *seg = (const struct segment_command_64 *)cmd;
+            if (strcmp(seg->segname, "__TEXT") == 0) {
+                const struct section_64 *sect = (const struct section_64 *)(seg + 1);
+                for (uint32_t s = 0; s < seg->nsects && logged < 12; s++, sect++) {
+                    if (sect->size < 12) continue;
+                    if (strcmp(sect->sectname, "__text") != 0 && strcmp(sect->sectname, "__stubs") != 0) continue;
+                    const uint32_t *ins = (const uint32_t *)((uintptr_t)slide + sect->addr);
+                    uint32_t count = (uint32_t)(sect->size / 4);
+                    if (count < 3) continue;
+                    for (uint32_t n = 1; n + 1 < count && logged < 12; n++) {
+                        if (ins[n] != 0xD4001001u) continue;
+                        uint32_t sysno = 0;
+                        if (!IXMovConnect(ins[n - 1], &sysno)) continue;
+                        uintptr_t site = (uintptr_t)slide + sect->addr + (uintptr_t)n * 4;
+                        int stub = ins[n + 1] == 0xD65F03C0u;
+                        char line[180];
+                        snprintf(line, sizeof(line),
+                                 "FBSharedFramework raw SVC %s sys=%u at +0x%llx %s",
+                                 sysno == 98 ? "connect" : (sysno == 409 ? "connect_nocancel" : "connectx"),
+                                 sysno, (unsigned long long)(site - (uintptr_t)header),
+                                 stub ? "stub (TEXT not patched; 1.2.0 crashed when __TEXT was made writable)" : "inlined");
+                        IXLaunchGuardAppendLog(line);
+                        NSLog(@"[InstagramX] %s", line);
+                        logged++;
+                    }
+                }
+            }
+        }
+        cursor += cmd->cmdsize;
+    }
+    if (!logged) IXLaunchGuardAppendLog("FBSharedFramework raw SVC connect: none");
 }
 
 static int IXRebindChained(const struct mach_header *header, const char *path,
@@ -357,7 +446,9 @@ static int IXRebindChained(const struct mach_header *header, const char *path,
                         uint32_t ordinal = (uint32_t)(raw & 0xFFFFFFu);
                         const char *symbol = IXChainedSymbol(imports, fixups.imports_count, fixups.imports_format, symbols, ordinal);
                         unsigned which = 0;
-                        if (symbol && symbol + 1 < (const char *)base + size && IXNameMatch(symbol, names, count, &which)) {
+                        int matched = symbol && symbol + 1 < (const char *)base + size && IXNameMatch(symbol, names, count, &which);
+                        if (symbol && !matched) IXAuditNote(path, symbol);
+                        if (matched) {
                             void *replacement = replacements[which];
                             void **slot = (void **)((uintptr_t)header + (uintptr_t)(segInfo.segment_offset + (uint64_t)page * segInfo.page_size + offset));
                             if (replacement && slot) {
@@ -448,7 +539,10 @@ static int IXRebindImage(const struct mach_header *header, intptr_t slide, const
                     uint32_t strx = symtab[symbolIndex].n_un.n_strx;
                     if (strx == 0 || strx >= symtabCmd->strsize) continue;
                     unsigned which = 0;
-                    if (!IXNameMatch(strtab + strx, names, count, &which)) continue;
+                    if (!IXNameMatch(strtab + strx, names, count, &which)) {
+                        IXAuditNote(path, strtab + strx);
+                        continue;
+                    }
                     void *replacement = replacements[which];
                     if (!replacement) continue;
                     void *existing = slots[index];
@@ -524,7 +618,10 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
         int imagePatches = IXRebindImage(_dyld_get_image_header(i), _dyld_get_image_vmaddr_slide(i), path,
                                          names, replacements, count, 1);
         patched += imagePatches;
-        if (path && strstr(path, "FBSharedFramework")) frameworkPatches = imagePatches;
+        if (path && strstr(path, "FBSharedFramework")) {
+            frameworkPatches = imagePatches;
+            IXScanSVC(_dyld_get_image_header(i), _dyld_get_image_vmaddr_slide(i), path);
+        }
         if (imagePatches <= 0 || listedCount >= 12 || !path) continue;
         const char *base = strrchr(path, '/');
         base = base ? base + 1 : path;
@@ -545,6 +642,21 @@ int IXSymbolRebindSlots(const char *const *names, void *const *replacements, uns
              frameworkCount > 0 ? "yes" : "no", frameworkCount, patched, imageList);
     IXLaunchGuardAppendLog(line);
     NSLog(@"[InstagramX] %s", line);
+    if (ix_audit_count == 0) {
+        IXLaunchGuardAppendLog("FBSharedFramework dial imports not hooked: none");
+    } else {
+        char missed[700];
+        size_t used = 0;
+        int wrote = snprintf(missed, sizeof(missed), "FBSharedFramework dial imports not hooked:");
+        if (wrote > 0) used = (size_t)wrote;
+        for (int i = 0; i < ix_audit_count && used + 1 < sizeof(missed); i++) {
+            wrote = snprintf(missed + used, sizeof(missed) - used, " %s", ix_audit[i]);
+            if (wrote < 0 || (size_t)wrote >= sizeof(missed) - used) break;
+            used += (size_t)wrote;
+        }
+        IXLaunchGuardAppendLog(missed);
+        NSLog(@"[InstagramX] %s", missed);
+    }
     // Registration invokes the callback for images already loaded. That must
     // happen without ix_rebind_mu held, because the callback takes the same lock.
     if (registerCallback) _dyld_register_func_for_add_image(IXOnNewImage);

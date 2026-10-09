@@ -58,7 +58,7 @@ static NSString *IXDiagnosticsReport(void) {
 
 static void IXCopyDiagnostics(UIViewController *presenter) {
     [UIPasteboard generalPasteboard].string = IXDiagnosticsReport();
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Copied", @"کپی شد") message:IXT(@"Diagnostics are on the clipboard. They list which connections were tunneled, blocked, or direct.", @"گزارش در کلیپبورد است. معلوم است کدام اتصال از تونل رفته، بسته شده، یا مستقیم بوده.") preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:IXT(@"Copied", @"کپی شد") message:IXT(@"Diagnostics are on the clipboard. They list which connections were tunneled, blocked, or bypassed.", @"گزارش در کلیپبورد است. معلوم است کدام اتصال از تونل رفته، بسته شده، یا از تونل گذشته است.") preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:IXT(@"OK", @"باشه") style:UIAlertActionStyleDefault handler:nil]];
     [presenter presentViewController:alert animated:YES completion:nil];
 }
@@ -412,7 +412,7 @@ static NSString *IXBytes(uint64_t n) {
     if (indexPath.section == IXProxySectionControls && indexPath.row == 3) {
         IXVLESSProfile *selected = manager.selectedProfile;
         if (!selected) return;
-        UIAlertController *sheet = [UIAlertController alertControllerWithTitle:IXT(@"XHTTP mode", @"حالت XHTTP") message:IXT(@"A mode that does not answer is replaced by the next one. The mode that answers is saved for this server.", @"اگر یک حالت جواب ندهد، حالت بعدی امتحان می‌شود. حالتی که جواب بدهد برای این سرور ذخیره می‌شود.") preferredStyle:UIAlertControllerStyleActionSheet];
+        UIAlertController *sheet = [UIAlertController alertControllerWithTitle:IXT(@"XHTTP mode", @"حالت XHTTP") message:IXT(@"While connecting, a mode that does not answer is replaced by the next one. The mode that answers is saved. A later health check does not change it.", @"هنگام اتصال، اگر یک حالت جواب ندهد حالت بعدی امتحان می‌شود. حالتی که جواب بدهد ذخیره می‌شود و بررسی بعدی آن را عوض نمی‌کند.") preferredStyle:UIAlertControllerStyleActionSheet];
         NSArray *modes = @[@"", @"stream-one", @"stream-up", @"packet-up"];
         NSArray *titles = @[
             IXT(@"Link default", @"پیش‌فرض لینک"),

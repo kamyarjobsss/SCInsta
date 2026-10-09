@@ -505,6 +505,16 @@ static NSError *IXURIError(NSString *message) {
         if (!extra[@"xPaddingBytes"]) extra[@"xPaddingBytes"] = @"100-1000";
         if (extra[@"noGRPCHeader"] == nil) extra[@"noGRPCHeader"] = @YES;
         if (extra[@"scMaxEachPostBytes"] == nil) extra[@"scMaxEachPostBytes"] = @1000000;
+        // Xray's default maxConcurrency is 1-2, so each request opens another
+        // H2 connection to Fastly. A link that already set xmux keeps its keys.
+        NSMutableDictionary *xmux = [extra[@"xmux"] isKindOfClass:[NSDictionary class]] ? [extra[@"xmux"] mutableCopy] : [NSMutableDictionary dictionary];
+        if (!xmux[@"maxConcurrency"]) xmux[@"maxConcurrency"] = @"16-32";
+        if (!xmux[@"maxConnections"]) xmux[@"maxConnections"] = @"1-2";
+        if (!xmux[@"cMaxReuseTimes"]) xmux[@"cMaxReuseTimes"] = @"64-128";
+        if (!xmux[@"hMaxRequestTimes"]) xmux[@"hMaxRequestTimes"] = @"800-1200";
+        if (!xmux[@"hMaxReusableSecs"]) xmux[@"hMaxReusableSecs"] = @"1800-3000";
+        if (xmux[@"hKeepAlivePeriod"] == nil) xmux[@"hKeepAlivePeriod"] = @15;
+        extra[@"xmux"] = xmux;
         xhttp[@"extra"] = extra;
         stream[@"xhttpSettings"] = xhttp;
     } else if ([self.network isEqualToString:@"httpupgrade"]) {
@@ -705,10 +715,10 @@ static NSError *IXURIError(NSString *message) {
         @"policy": @{
             @"levels": @{
                 @"0": @{
-                    @"handshake": @8,
+                    @"handshake": @15,
                     @"connIdle": @300,
-                    @"uplinkOnly": @2,
-                    @"downlinkOnly": @5,
+                    @"uplinkOnly": @120,
+                    @"downlinkOnly": @120,
                     @"bufferSize": @512
                 }
             },
