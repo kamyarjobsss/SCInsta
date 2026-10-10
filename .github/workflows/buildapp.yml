@@ -3,34 +3,64 @@
 # https://github.com/ISnackable/YTCubePlus/blob/main/.github/workflows/Build.yml
 # https://github.com/BandarHL/BHTwitter/actions/workflows/build.yml
 
-name: Build and Package SCInsta
+name: Build and Package Instagram X
 
 on:
+    # Pushing the sideload scripts rebuilds the owner's pre-tweaked base IPA.
+    # Other commits on this branch do not match these paths, so they do not
+    # start another 289 MB packaging run.
+    push:
+        branches:
+            - cursor/instagram-x-v2-8ca9
+        paths:
+            - .github/workflows/buildapp.yml
+            - Makefile
+            - build.sh
+            - control
+            - scripts/**
+            - src/**
+            - vendor/ixray/**
+            - resources/AppIcon/**
     workflow_dispatch:
         inputs:
             decrypted_instagram_url:
-                description: "The direct URL to the decrypted Instagram IPA"
-                default: ""
+                description: "Direct URL to a decrypted Instagram IPA you already have the right to use. The default is the owner's Instagram 436 IPA on the base-ipa release. The workflow strips the closed injection before adding Instagram X."
+                default: "https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/instagram-v436.ipa"
                 required: true
+                type: string
+            expected_sha256:
+                description: "sha256 of the input IPA. Use skip to disable the check. Empty falls back to the known base IPA hash."
+                default: "20f6f7d07523d9f3c0b83faf684b544a58555494f3fbf2e13aa862eefb60357a"
+                required: false
                 type: string
             upload_artifact:
                 description: "Upload Artifact"
                 default: true
                 required: false
                 type: boolean
-  
+            publish_release:
+                description: "Publish a prerelease tagged instagram-x-v2.4.6"
+                default: true
+                required: false
+                type: boolean
+            bundle_id:
+                description: "Optional bundle id so Instagram X installs beside the App Store app. Leave empty to keep com.burbn.instagram."
+                default: ""
+                required: false
+                type: string
+
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 jobs:
     build:
-        name: Build SCInsta
+        name: Build Instagram X IPA
         runs-on: macos-latest
         permissions:
             contents: write
 
         steps:
-            - name: Checkout Main
+            - name: Checkout
               uses: actions/checkout@v4
               with:
                 path: main
@@ -40,7 +70,12 @@ jobs:
               run: brew install ldid dpkg make
 
             - name: Set PATH environment variable
-              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH 
+              run: echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+
+            - name: Setup Go
+              uses: actions/setup-go@v5
+              with:
+                go-version: '1.26.x'
 
             - name: Setup Theos
               uses: actions/checkout@v4
@@ -63,7 +98,7 @@ jobs:
                 git checkout a62370066a97e36d59b200a9fa10c5091f5e8972
               env:
                 THEOS: ${{ github.workspace }}/theos
-        
+
             - name: SDK Caching
               id: SDK
               uses: actions/cache@v4
@@ -86,67 +121,197 @@ jobs:
                 THEOS: ${{ github.workspace }}/theos
 
             - name: Prepare Instagram IPA
+              id: ipa
               run: |
                 cd main
-
                 mkdir -p packages
-                wget "$Instagram_URL" --no-verbose -O packages/com.burbn.instagram.ipa
-
-                ls -la packages
-                
+                if wget "$Instagram_URL" --no-verbose -O packages/com.burbn.instagram.ipa; then
+                  if [ -n "$EXPECTED_SHA256" ] && [ "$EXPECTED_SHA256" != "skip" ]; then
+                    echo "${EXPECTED_SHA256}  packages/com.burbn.instagram.ipa" | shasum -a 256 -c -
+                  fi
+                  echo "have_ipa=true" >> "$GITHUB_OUTPUT"
+                else
+                  rm -f packages/com.burbn.instagram.ipa
+                  echo "have_ipa=false" >> "$GITHUB_OUTPUT"
+                  echo "::warning::instagram-v436.ipa is not on the base-ipa release yet. The tweak will still be compiled."
+                fi
+                ls -la packages || true
               env:
                 THEOS: ${{ github.workspace }}/theos
-                Instagram_URL: ${{ inputs.decrypted_instagram_url }}
+                Instagram_URL: ${{ github.event_name == 'workflow_dispatch' && inputs.decrypted_instagram_url || 'https://github.com/kamyarjobsss/SCInsta/releases/download/base-ipa/instagram-v436.ipa' }}
+                EXPECTED_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha256 || '20f6f7d07523d9f3c0b83faf684b544a58555494f3fbf2e13aa862eefb60357a' }}
 
-            - name: Get SCInsta Version
-              id: scinsta_version
+            - name: Get Instagram X Version
+              id: tweak_version
               run: |
                 SCINSTA_VERSION=$(awk '/Version:/ {print $2}' main/control)
-
                 echo "SCINSTA_VERSION=${SCINSTA_VERSION}" >> "$GITHUB_ENV"
                 echo "version=${SCINSTA_VERSION}" >> "$GITHUB_OUTPUT"
-            
-            - name: Build SCInsta tweak for sideloading (as IPA)
+
+            - name: Test VLESS stream settings
+              run: |
+                cd main
+                clang -fobjc-arc -framework Foundation \
+                  -I src/Proxy \
+                  tests/IXVLESSStreamTest.m src/Proxy/IXVLESSProfile.m \
+                  -o /tmp/ix-vless-test
+                /tmp/ix-vless-test
+
+            - name: Test SOCKS connect handshake
+              run: |
+                cd main
+                clang -pthread \
+                  tests/IXSOCKSConnectTest.c src/Proxy/IXSOCKSConnect.c \
+                  -o /tmp/ix-socks-test
+                /tmp/ix-socks-test
+                clang \
+                  tests/IXAddrCheckTest.c src/Proxy/IXAddrCheck.c \
+                  -o /tmp/ix-addr-test
+                /tmp/ix-addr-test
+                clang \
+                  tests/IXLaunchGuardTest.c src/Launch/IXLaunchGuardLogic.c \
+                  -o /tmp/ix-guard-test
+                /tmp/ix-guard-test
+                clang \
+                  tests/IXKeychainGroupTest.c src/Launch/IXKeychainGroup.c \
+                  -o /tmp/ix-keychain-test
+                /tmp/ix-keychain-test
+                clang \
+                  tests/IXSessionPersistTest.c src/Launch/IXSessionPersist.c \
+                  -o /tmp/ix-session-test
+                /tmp/ix-session-test
+                clang \
+                  tests/IXFollowBackTest.c src/Features/ProfileAnalyzer/IXFollowBack.c \
+                  -o /tmp/ix-follow-test
+                /tmp/ix-follow-test
+                clang \
+                  tests/IXPinTest.c src/Backend/IXPin.c \
+                  -o /tmp/ix-pin-test
+                /tmp/ix-pin-test
+                clang \
+                  tests/IXPanelURLTest.c src/Backend/IXPanelURL.c \
+                  -o /tmp/ix-panel-url-test
+                /tmp/ix-panel-url-test
+                clang -O2 -I src/Backend \
+                  tests/IXCryptoTest.c src/Backend/IXCrypto.c \
+                  src/Backend/third_party/monocypher.c \
+                  src/Backend/third_party/monocypher-ed25519.c \
+                  src/Backend/third_party/aes.c \
+                  -o /tmp/ix-crypto-test
+                /tmp/ix-crypto-test
+
+            - name: Build Instagram X for sideloading (as IPA)
               run: |
                 pip install --force-reinstall https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
-                
                 cd main
                 curl -Lo ipapatch https://github.com/asdfzxcvbn/ipapatch/releases/download/v2.1.3/ipapatch.macos-arm64
-                chmod +x ipapatch
+                chmod +x ipapatch build.sh scripts/build_ixray.sh
                 export PATH=.:$PATH
-                ls -la
-
+                if [ "${{ steps.ipa.outputs.have_ipa }}" != "true" ]; then
+                  ./scripts/build_ixray.sh
+                  export IX_HAS_XRAY=1
+                  make SIDELOAD=1
+                  test -f .theos/obj/debug/SCInsta.dylib
+                  echo "Compiled SCInsta.dylib. Packaging waits for instagram-v436.ipa."
+                  exit 0
+                fi
                 ./build.sh sideload
+                test -f packages/InstagramX-sideloaded.ipa
+                test ! -f packages/InstagramX-lite-sideloaded.ipa
                 ls -la packages
-                
               env:
                 THEOS: ${{ github.workspace }}/theos
+                IX_BUNDLE_ID: ${{ inputs.bundle_id }}
+                IX_DISPLAY_NAME: Instagram X
 
             - name: Rename IPA to include version info
+              if: steps.ipa.outputs.have_ipa == 'true'
               run: |
                 cd main/packages
-                mv "$(ls -t | head -n1)" "SCInsta_sideloaded_v${SCINSTA_VERSION}.ipa"
+                mv InstagramX-sideloaded.ipa "InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
 
-            - name: Pass package name to upload action
-              id: package_name
+            - name: Sanity check the IPA
+              if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "package=$(ls -t main/packages |  head -n1)" >> "$GITHUB_OUTPUT"
+                cd main
+                FULL="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
+                python3 scripts/check_sideload_ipa.py "$FULL"
+                # otool is the check the owner asked for. The Python check above
+                # is what fails the job; this prints the same load list.
+                TMP=$(mktemp -d)
+                unzip -q "$FULL" "Payload/Instagram.app/Instagram" "Payload/Instagram.app/Frameworks/SCInsta.dylib" "Payload/Instagram.app/Frameworks/IXRayCore.dylib" "Payload/Instagram.app/Info.plist" -d "$TMP"
+                echo "---- otool -L Instagram (full) ----"
+                otool -L "$TMP/Payload/Instagram.app/Instagram" | awk 'NR==1 || $1 !~ /^\/(usr|System)/'
+                echo "---- otool -L SCInsta.dylib (hooking runtime) ----"
+                otool -L "$TMP/Payload/Instagram.app/Frameworks/SCInsta.dylib" | awk 'NR<=2 || /substrate|ellekit|ixray|IXRay|@rpath/'
+                if otool -L "$TMP/Payload/Instagram.app/Instagram" | grep -q IXRayCore; then
+                  echo "IXRayCore must not be a load command"
+                  exit 1
+                fi
+                plutil -lint "$TMP/Payload/Instagram.app/Info.plist"
+                rm -rf "$TMP"
 
             - name: Upload Artifact
-              if: ${{ inputs.upload_artifact }}
+              if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.upload_artifact)
               uses: actions/upload-artifact@v4
               with:
-                name: SCInsta_sideloaded_v${{ steps.scinsta_version.outputs.version }}
-                path: ${{ github.workspace }}/main/packages/${{ steps.package_name.outputs.package }}
+                name: InstagramX_v${{ steps.tweak_version.outputs.version }}
+                path: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
                 if-no-files-found: error
 
-            - name: Create Release
+            - name: Replace previous IPA on this tag
+              if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
+              env:
+                GH_TOKEN: ${{ github.token }}
+              run: |
+                gh release delete-asset instagram-x-v2.4.6 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+
+            - name: Publish prerelease
+              if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                name: SCInsta_sideloaded_v${{ steps.scinsta_version.outputs.version }}
-                files: ${{ github.workspace }}/main/packages/SCInsta_sideloaded_v*.ipa
-                draft: true
+                tag_name: instagram-x-v2.4.6
+                target_commitish: ${{ github.sha }}
+                name: Instagram X 2.4.6
+                draft: false
+                prerelease: true
+                make_latest: false
+                generate_release_notes: false
+                body: |
+                  Sideload builds of Instagram X ${{ steps.tweak_version.outputs.version }}.
+
+                  Built from the GPL-3.0 RyukGram v1.3.2 sources by faroukbmiled, with the Instagram X settings row, VLESS proxy, and launch safe mode. The base is the owner's decrypted Instagram 436 IPA. The closed RyukGram.dylib, RyukGram.bundle, and its load command are removed before injection. CydiaSubstrate, libswiftIU.dylib, and libmobile_first_frame_pipeline.framework stay. Translations ship in InstagramX.bundle. FFmpegKit 6.0 is downloaded at package time from the public ffmpeg-kit iOS build when that download succeeds; it is not taken from the closed bundle.
+
+                  Socket hooks are data-pointer rebinds and run only while the VPN is on. There is no MSHookFunction. Xray is IXRayCore.dylib with no load command.
+
+                  This release is the full build only.
+
+                  v2.3.0 keeps the v2.2.4 tunnel. Logged-in accounts stay in the app-group container across a force-close, and keychain groups are rewritten from the signed application-identifier prefix so a Sideloadly or LiveContainer resign still lands in an entitled group. The fake-location default is Los Angeles. US region signals default on: carrier MCC 310 MNC 410, locale country and currency, storefront, country headers, and Los Angeles when fake location is off. Language and time zone are unchanged. The VPN screen is one switch; the kill switch stays on. Tap the version seven times for the server link, mode, log, and Check IP. UDP to the public network stays blocked. Xray's own sockets stay on en0 or pdp_ip0.
+
+                  v2.4.0 talks to the Instagram X backend over a pinned certificate. Config is fetched outside the tunnel, verified with Ed25519, and cached. Announcements, story fonts, and the Instagram X sticker tray update from that config. The VPN switch probes the server list on a separate Xray and keeps the kill switch on. A health check does not restart Xray while traffic is still moving.
+
+                  v2.4.1 still asked for the password after a force-close. The saved account names stayed on disk. Hooking SecItem and forcing an access group disagreed with the sideload helper, so the session written on one launch was not the item read on the next. Profile Analyzer reads only the following list and shows mutuals and accounts that do not follow back.
+
+                  v2.4.2 removes those SecItem hooks. Keychain items stay with the system and with the sideload helper that already keeps sessions in an unmodded sideload. The app-group folder is used only when the system returns none, and a path the system already returned is left as it is. US region hooks load before session restore, so a session is saved and read with the same signals. Device id, vendor id, and account ids are not hooked. Settings, Instagram X, Diagnostics copies a report: container path, keychain status codes, a relaunch probe, fresh-install flags, and whether a session was present. The tunnel is unchanged. One login can be required after this update if the previous build already dropped the session.
+
+                  The panel at https://77.110.125.217:9443 is called on launch, when the app becomes active, and every 15 minutes, whether or not the VPN is on. That host is exempt from the kill switch. A direct request is tried first. If it fails and the tunnel is up, the same call goes through the tunnel. Settings, Panel connection, shows the URL, the last result, the HTTP status, registration, the config version, and the announcement, font, and sticker counts, with Retry now. That block is included in the copied diagnostics. The certificate pin is the SHA-256 of the P-256 SubjectPublicKeyInfo.
+
+                  Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
+
+                  v2.4.6 keeps the single IXAppGroup container and does not hook SecItem. Instagram was treating every relaunch as a fresh install because the group preference suite never reached disk, then it deleted the session and iOS offered the iCloud Keychain password. Group suites are now stored in that container, and an install that already has a cookie file gets the fresh-install markers back before launch. The panel primary is https://zovidar.duckdns.org/api/v1 with the system trust store. https://77.110.125.217:9443 stays the pinned fallback. Relative /static/fonts and /static/stickers URLs use whichever origin served the config. One login can be required if an older build already deleted the session.
+
+                  v2.4.5 restores the v2.2.4 login behavior. Commit e0b8495, the 2.3.0 multi-account change, replaced the single app-group directory with one directory per group id, filled a missing METAAppGroup identifier with the requested name instead of the keychain group SecItem assigned, and rewrote SecItem access groups. v2.2.4 and the base IPA stayed logged in. The SecItem rewrite was removed in 2.4.2, and the directory and identifier changes were not, so a force-close still dropped the session. A missing container is the same Library/Application Support/IXAppGroup directory for every group. A missing identifier is the probed keychain group. An identifier Instagram already set is left as it is. A missing defaults object uses group.com.burbn.instagram. Nil container and defaults are still filled when the identifier is already set, so the other accounts keep a directory. SecItem is not hooked. One login can be required if an older build already deleted the session.
+
+                  Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
+
+                  The profile mark keeps its size and moves through the Instagram colors on a 10 second loop.
+
+                  Not tested on a device. Do not install over an account you cannot recover.
+                files: |
+                  ${{ github.workspace }}/main/packages/InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa
 
             - name: Output Release URL
+              if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.6"

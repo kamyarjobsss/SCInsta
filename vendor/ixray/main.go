@@ -1,0 +1,344 @@
+// Instagram X in-process Xray core.
+// Built on macOS CI as an iOS arm64 c-archive and linked into the tweak.
+package main
+
+/*
+#include <stdlib.h>
+*/
+import "C"
+
+import (
+	"fmt"
+	"runtime"
+	"runtime/debug"
+	"strings"
+	"sync"
+	"time"
+	"unsafe"
+
+	"github.com/xtls/xray-core/common/log"
+	"github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/features/stats"
+	"github.com/xtls/xray-core/infra/conf/serial"
+	_ "github.com/xtls/xray-core/main/distro/all"
+)
+
+var (
+	mu   sync.Mutex
+	inst *core.Instance
+)
+
+// Probes and the prepared replacement never share inst. Closing a probe or
+// aborting a prepare must not stop the tunnel that is already carrying traffic.
+var (
+	probeMu   sync.Mutex
+	probes    = map[int]*core.Instance{}
+	nextProbe int
+	pending   *core.Instance
+)
+
+const logLimit = 80
+
+var (
+	logMu    sync.Mutex
+	logLines []string
+)
+
+type ringHandler struct{}
+
+func (ringHandler) Handle(msg log.Message) {
+	if msg == nil {
+		return
+	}
+	line := strings.TrimSpace(msg.String())
+	if line == "" {
+		return
+	}
+	logMu.Lock()
+	defer logMu.Unlock()
+	logLines = append(logLines, line)
+	if len(logLines) > logLimit {
+		logLines = logLines[len(logLines)-logLimit:]
+	}
+}
+
+func appendLog(line string) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return
+	}
+	logMu.Lock()
+	defer logMu.Unlock()
+	logLines = append(logLines, line)
+	if len(logLines) > logLimit {
+		logLines = logLines[len(logLines)-logLimit:]
+	}
+}
+
+func enableLog() {
+	// Xray keeps a single handler. Register after Start so this ring replaces
+	// the stdout handler the core installs from the config.
+	log.RegisterHandler(ringHandler{})
+}
+
+func counterValue(name string) int64 {
+	mu.Lock()
+	s := inst
+	mu.Unlock()
+	if s == nil {
+		return 0
+	}
+	feature := s.GetFeature(stats.ManagerType())
+	mgr, ok := feature.(stats.Manager)
+	if !ok || mgr == nil {
+		return 0
+	}
+	counter := mgr.GetCounter(name)
+	if counter == nil {
+		return 0
+	}
+	return counter.Value()
+}
+
+var gcOnce sync.Once
+
+func startGC() {
+	// libXray does this on iOS: a periodic GC keeps the embedded runtime from
+	// holding onto freed connection buffers inside a long-lived app process.
+	// Started from ixray_start so dlopen itself does not spawn the ticker.
+	gcOnce.Do(func() {
+		go func() {
+			t := time.NewTicker(10 * time.Second)
+			defer t.Stop()
+			for range t.C {
+				runtime.GC()
+			}
+		}()
+	})
+}
+
+//export ixray_start
+func ixray_start(configJSON *C.char) (out *C.char) {
+	startGC()
+	// Soft heap goal for the embedded runtime. This is not a jetsam limit:
+	// the process is the app, and the runtime just collects earlier.
+	debug.SetGCPercent(50)
+	debug.SetMemoryLimit(256 << 20)
+	defer func() {
+		if r := recover(); r != nil {
+			appendLog(fmt.Sprintf("xray stopped: panic %v", r))
+			if out == nil {
+				out = C.CString(fmt.Sprintf("xray stopped: panic %v", r))
+			}
+		}
+	}()
+	if configJSON == nil {
+		appendLog("xray stopped: empty config")
+		return C.CString("empty xray config")
+	}
+	jsonText := C.GoString(configJSON)
+
+	mu.Lock()
+	defer mu.Unlock()
+	startMu.Lock()
+	defer startMu.Unlock()
+
+	if inst != nil {
+		_ = inst.Close()
+		inst = nil
+		// Listeners drop the ports after Close. 50ms was not always enough,
+		// so the next start failed and the probe saw a closed port.
+		time.Sleep(200 * time.Millisecond)
+	}
+
+	var last error
+	for attempt := 0; attempt < 8; attempt++ {
+		cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
+		if err != nil {
+			return C.CString(err.Error())
+		}
+		server, err := core.New(cfg)
+		if err != nil {
+			return C.CString(err.Error())
+		}
+		if err = server.Start(); err != nil {
+			_ = server.Close()
+			last = err
+			msg := err.Error()
+			if strings.Contains(msg, "address already in use") || strings.Contains(msg, "bind") {
+				time.Sleep(150 * time.Millisecond)
+				continue
+			}
+			return C.CString(msg)
+		}
+		inst = server
+		enableLog()
+		appendLog("xray started, GOGC 50, heap limit 256MB")
+		return nil
+	}
+	if last == nil {
+		return C.CString("xray did not start")
+	}
+	return C.CString(last.Error())
+}
+
+//export ixray_stop
+func ixray_stop() {
+	mu.Lock()
+	defer mu.Unlock()
+	if inst != nil {
+		err := inst.Close()
+		inst = nil
+		if err != nil {
+			appendLog("xray stopped: " + err.Error())
+		} else {
+			appendLog("xray stopped")
+		}
+	}
+}
+
+//export ixray_version
+func ixray_version() *C.char {
+	return C.CString(core.Version())
+}
+
+//export ixray_copy_log
+func ixray_copy_log() *C.char {
+	logMu.Lock()
+	defer logMu.Unlock()
+	if len(logLines) == 0 {
+		return C.CString("")
+	}
+	return C.CString(strings.Join(logLines, "\n"))
+}
+
+//export ixray_traffic
+func ixray_traffic(up *C.uint64_t, down *C.uint64_t) {
+	var uplink int64
+	var downlink int64
+	for _, tag := range []string{"socks-in", "http-in"} {
+		uplink += counterValue("inbound>>>" + tag + ">>>traffic>>>uplink")
+		downlink += counterValue("inbound>>>" + tag + ">>>traffic>>>downlink")
+	}
+	if uplink < 0 {
+		uplink = 0
+	}
+	if downlink < 0 {
+		downlink = 0
+	}
+	if up != nil {
+		*up = C.uint64_t(uplink)
+	}
+	if down != nil {
+		*down = C.uint64_t(downlink)
+	}
+}
+
+var startMu sync.Mutex
+
+func startInstance(jsonText string) (*core.Instance, error) {
+	startMu.Lock()
+	defer startMu.Unlock()
+	cfg, err := serial.LoadJSONConfig(strings.NewReader(jsonText))
+	if err != nil {
+		return nil, err
+	}
+	server, err := core.New(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if err = server.Start(); err != nil {
+		_ = server.Close()
+		return nil, err
+	}
+	return server, nil
+}
+
+//export ixray_probe_open
+func ixray_probe_open(configJSON *C.char) C.int {
+	if configJSON == nil {
+		return 0
+	}
+	server, err := startInstance(C.GoString(configJSON))
+	if err != nil {
+		appendLog("probe did not start: " + err.Error())
+		return 0
+	}
+	probeMu.Lock()
+	nextProbe++
+	if nextProbe > 1000000 {
+		nextProbe = 1
+	}
+	id := nextProbe
+	probes[id] = server
+	probeMu.Unlock()
+	return C.int(id)
+}
+
+//export ixray_probe_close
+func ixray_probe_close(id C.int) {
+	probeMu.Lock()
+	server := probes[int(id)]
+	delete(probes, int(id))
+	probeMu.Unlock()
+	if server != nil {
+		_ = server.Close()
+	}
+}
+
+//export ixray_prepare
+func ixray_prepare(configJSON *C.char) *C.char {
+	if configJSON == nil {
+		return C.CString("empty xray config")
+	}
+	server, err := startInstance(C.GoString(configJSON))
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	probeMu.Lock()
+	old := pending
+	pending = server
+	probeMu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	return nil
+}
+
+//export ixray_prepare_abort
+func ixray_prepare_abort() {
+	probeMu.Lock()
+	old := pending
+	pending = nil
+	probeMu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+}
+
+//export ixray_commit
+func ixray_commit() *C.char {
+	probeMu.Lock()
+	next := pending
+	pending = nil
+	probeMu.Unlock()
+	if next == nil {
+		return C.CString("no prepared instance")
+	}
+	mu.Lock()
+	old := inst
+	inst = next
+	mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	enableLog()
+	appendLog("xray swapped to the prepared instance")
+	return nil
+}
+
+// Silence unused in case the compiler drops the header import path.
+var _ = unsafe.Sizeof(0)
+
+// c-archive still requires a main function. The exported C symbols are the API.
+func main() {}
