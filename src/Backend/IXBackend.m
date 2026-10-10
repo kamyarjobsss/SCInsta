@@ -1,5 +1,6 @@
 #import "IXBackend.h"
 #import "IXCrypto.h"
+#import "IXPanelURL.h"
 #import "IXPin.h"
 #import "../Launch/IXSessionDiag.h"
 #import "../Proxy/IXTrafficGuard.h"
@@ -22,12 +23,15 @@
 NSString *const IXBackendVPNUnavailableMessage = @"مشکل موقتی است، به‌زودی برطرف می‌شود، کمی بعد دوباره تلاش کنید";
 NSString *const IXBackendConfigDidChangeNotification = @"IXBackendConfigDidChange";
 
-static NSString *const kHost = @"77.110.125.217";
-static NSString *const kBase = @"https://77.110.125.217:9443";
+static NSString *const kPrimaryOrigin = @"https://zovidar.duckdns.org";
+static NSString *const kFallbackOrigin = @"https://77.110.125.217:9443";
+static NSString *const kPrimaryHost = @"zovidar.duckdns.org";
+static NSString *const kFallbackHost = @"77.110.125.217";
+static NSString *const kAPIPrefix = @"/api/v1";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.5";
+static NSString *const kAppVersion = @"2.4.6";
 static NSString *const kService = @"instagramx.backend";
 
 static dispatch_queue_t ix_q;
@@ -56,6 +60,10 @@ static NSString *ix_panel_result;
 static NSString *ix_panel_route;
 static NSString *ix_panel_when;
 static NSString *ix_panel_pins;
+static NSString *ix_panel_base;
+static NSString *ix_panel_trust;
+static NSString *ix_challenge_note;
+static NSString *ix_config_origin;
 static NSInteger ix_panel_http;
 static dispatch_source_t ix_heartbeat_timer;
 
@@ -124,20 +132,101 @@ static NSString *IXChainPins(SecTrustRef trust, BOOL *matched) {
     return [pins componentsJoinedByString:@"|"];
 }
 
+static NSString *IXAPIBase(NSString *origin) {
+    if (origin.length == 0) return [kPrimaryOrigin stringByAppendingString:kAPIPrefix];
+    return [origin stringByAppendingString:kAPIPrefix];
+}
+
+static void IXNoteChallenge(NSString *method, NSString *host, NSString *disposition, int osstatus, NSString *trustMode) {
+    NSString *note = [NSString stringWithFormat:@"method=%@ host=%@ disposition=%@ osstatus=%d trust=%@",
+                      method.length ? method : @"-",
+                      host.length ? host : @"-",
+                      disposition.length ? disposition : @"-",
+                      osstatus,
+                      trustMode.length ? trustMode : @"-"];
+    if (note.length > 240) note = [note substringToIndex:240];
+    pthread_mutex_lock(&ix_state_mu);
+    ix_challenge_note = [note copy];
+    ix_panel_trust = [trustMode copy];
+    pthread_mutex_unlock(&ix_state_mu);
+}
+
+static NSString *IXChallengeNote(void) {
+    pthread_mutex_lock(&ix_state_mu);
+    NSString *note = ix_challenge_note ?: @"-";
+    pthread_mutex_unlock(&ix_state_mu);
+    return note;
+}
+
+static SecCertificateRef IXLeafCertificate(SecTrustRef trust) {
+    SecCertificateRef leaf = NULL;
+    if (!trust) return NULL;
+    if (@available(iOS 15.0, *)) {
+        CFArrayRef chain = SecTrustCopyCertificateChain(trust);
+        if (chain && CFArrayGetCount(chain) > 0) {
+            leaf = (SecCertificateRef)CFArrayGetValueAtIndex(chain, 0);
+            if (leaf) CFRetain(leaf);
+        }
+        if (chain) CFRelease(chain);
+    }
+    if (!leaf) {
+        leaf = SecTrustGetCertificateAtIndex(trust, 0);
+        if (leaf) CFRetain(leaf);
+    }
+    return leaf;
+}
+
+static int IXAnchorLeaf(SecTrustRef trust) {
+    SecCertificateRef leaf = IXLeafCertificate(trust);
+    OSStatus status = errSecParam;
+    CFErrorRef error = NULL;
+    if (!leaf) return (int)status;
+    CFArrayRef anchors = CFArrayCreate(NULL, (const void **)&leaf, 1, &kCFTypeArrayCallBacks);
+    if (anchors) {
+        status = SecTrustSetAnchorCertificates(trust, anchors);
+        if (status == errSecSuccess) status = SecTrustSetAnchorCertificatesOnly(trust, true);
+        CFRelease(anchors);
+    }
+    if (status == errSecSuccess) {
+        if (@available(iOS 12.0, *)) {
+            if (!SecTrustEvaluateWithError(trust, &error)) {
+                if (error) status = (OSStatus)CFErrorGetCode(error);
+                else status = -1;
+            }
+        }
+    }
+    if (error) CFRelease(error);
+    CFRelease(leaf);
+    return (int)status;
+}
+
 static void IXResolveTrust(NSURLAuthenticationChallenge *challenge, void (^completionHandler)(NSURLSessionAuthChallengeDisposition, NSURLCredential *)) {
-    if (![challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
+    NSString *method = challenge.protectionSpace.authenticationMethod ?: @"-";
+    NSString *host = challenge.protectionSpace.host ?: @"";
+    if (![method isEqualToString:NSURLAuthenticationMethodServerTrust]) {
+        IXNoteChallenge(method, host, @"default", 0, @"other");
         completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
         return;
     }
     SecTrustRef trust = challenge.protectionSpace.serverTrust;
+    int needsPin = IXPanelHostNeedsPin(host.UTF8String);
+    if (!needsPin) {
+        IXSetPins(@"system");
+        IXNoteChallenge(method, host, @"default", 0, @"system");
+        completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+        return;
+    }
     BOOL matched = NO;
     NSString *pins = IXChainPins(trust, &matched);
     IXSetPins(pins);
     if (matched && trust) {
+        int osstatus = IXAnchorLeaf(trust);
+        IXNoteChallenge(method, host, @"use", osstatus, @"pin");
         completionHandler(NSURLSessionAuthChallengeUseCredential, [NSURLCredential credentialForTrust:trust]);
         return;
     }
     atomic_store(&ix_pin_mismatch, 1);
+    IXNoteChallenge(method, host, @"cancel", 0, @"pin");
     completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
 }
 
@@ -441,16 +530,35 @@ static void IXWaitSeconds(NSTimeInterval seconds) {
 }
 
 static NSArray<NSString *> *IXPanelBases(void) {
-    // Ordered. A future hostname is inserted at the front. The IP stays reachable from Iran.
-    return @[ kBase ];
+    return @[ kPrimaryOrigin, kFallbackOrigin ];
+}
+
+static NSString *IXJoined(NSString *origin, NSString *path) {
+    char out[512];
+    if (!IXPanelJoinURL(origin.UTF8String, path.UTF8String, out, sizeof out)) return nil;
+    return [NSString stringWithUTF8String:out];
+}
+
+static void IXRememberOrigin(NSString *origin, NSString *path, NSInteger status) {
+    if (origin.length == 0 || status < 200 || status >= 300 || ![path hasPrefix:@"/api/"]) return;
+    pthread_mutex_lock(&ix_state_mu);
+    ix_panel_base = [IXAPIBase(origin) copy];
+    ix_panel_trust = IXPanelHostNeedsPin([NSURL URLWithString:origin].host.UTF8String) ? @"pin" : @"system";
+    if ([path isEqualToString:@"/api/v1/config"]) ix_config_origin = [origin copy];
+    pthread_mutex_unlock(&ix_state_mu);
+}
+
+static NSArray<NSString *> *IXAssetOrigins(void) {
+    pthread_mutex_lock(&ix_state_mu);
+    NSString *first = ix_config_origin.length ? ix_config_origin : kPrimaryOrigin;
+    pthread_mutex_unlock(&ix_state_mu);
+    NSString *other = [first isEqualToString:kPrimaryOrigin] ? kFallbackOrigin : kPrimaryOrigin;
+    return @[ first, other ];
 }
 
 static void IXInstallPanelExemption(void) {
-    IXTrafficGuardAddDirectHost(kHost.UTF8String);
-    for (NSString *base in IXPanelBases()) {
-        NSString *host = [NSURL URLWithString:base].host;
-        if (host.length) IXTrafficGuardAddDirectHost(host.UTF8String);
-    }
+    IXTrafficGuardAddDirectHost(kPrimaryHost.UTF8String);
+    IXTrafficGuardAddDirectHost(kFallbackHost.UTF8String);
 }
 
 static NSString *IXPanelWhen(void) {
@@ -526,9 +634,26 @@ static NSURLSession *IXMakeTunnelSession(void) {
     return [NSURLSession sessionWithConfiguration:config delegate:[IXPinnedSession new] delegateQueue:nil];
 }
 
+static NSString *IXErrorText(NSError *error) {
+    NSMutableString *text;
+    NSError *under;
+    NSNumber *stream;
+    if (![error isKindOfClass:[NSError class]]) return @"NSURLErrorDomain -1";
+    text = [NSMutableString stringWithFormat:@"%@ %ld", error.domain.length ? error.domain : @"NSURLErrorDomain", (long)error.code];
+    stream = error.userInfo[@"_kCFStreamErrorCodeKey"];
+    if ([stream isKindOfClass:[NSNumber class]]) [text appendFormat:@" osstatus=%@", stream];
+    under = error.userInfo[NSUnderlyingErrorKey];
+    if ([under isKindOfClass:[NSError class]]) {
+        [text appendFormat:@" underlying=%@ %ld", under.domain.length ? under.domain : @"-", (long)under.code];
+        stream = under.userInfo[@"_kCFStreamErrorCodeKey"];
+        if ([stream isKindOfClass:[NSNumber class]]) [text appendFormat:@" osstatus=%@", stream];
+    }
+    return text;
+}
+
 static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base, NSString *path, NSDictionary *body, NSDictionary *headers, NSString *route, NSInteger *statusOut, NSDictionary **headerOut, BOOL *reachedOut) {
-    NSString *urlText = [(base ?: @"") stringByAppendingString:path ?: @""];
-    NSURL *url = [NSURL URLWithString:urlText];
+    NSString *urlText = IXJoined(base, path);
+    NSURL *url = urlText.length ? [NSURL URLWithString:urlText] : nil;
     if (!session || !url) {
         if (statusOut) *statusOut = 0;
         if (headerOut) *headerOut = nil;
@@ -541,7 +666,7 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
     request.timeoutInterval = 15;
     request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
     if (@available(iOS 15.0, *)) request.assumesHTTP3Capable = NO;
-    [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
+    if ([path hasPrefix:@"/api/"]) [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
     [headers enumerateKeysAndObjectsUsingBlock:^(id key, id obj, BOOL *stop) {
         (void)stop;
         if ([key isKindOfClass:[NSString class]] && [obj isKindOfClass:[NSString class]]) [request setValue:obj forHTTPHeaderField:key];
@@ -560,6 +685,12 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
     }
     atomic_store(&ix_pin_mismatch, 0);
     IXSetPins(@"none");
+    if ([path hasPrefix:@"/api/"]) {
+        pthread_mutex_lock(&ix_state_mu);
+        ix_panel_base = [IXAPIBase(base) copy];
+        ix_panel_trust = IXPanelHostNeedsPin([NSURL URLWithString:base].host.UTF8String) ? @"pin" : @"system";
+        pthread_mutex_unlock(&ix_state_mu);
+    }
     __block NSData *result = nil;
     __block NSURLResponse *response = nil;
     __block NSError *error = nil;
@@ -576,13 +707,15 @@ static NSData *IXAttempt(NSURLSession *session, NSString *method, NSString *base
     BOOL pinFailed = atomic_load(&ix_pin_mismatch) != 0;
     BOOL reached = http != nil && !pinFailed;
     NSString *pins = IXGetPins();
-    NSString *outcome = [NSString stringWithFormat:@"OK pins=%@", pins];
-    if (pinFailed) outcome = [NSString stringWithFormat:@"pin mismatch pins=%@", pins];
+    NSString *challenge = IXChallengeNote();
+    NSString *outcome = [NSString stringWithFormat:@"OK pins=%@ %@", pins, challenge];
+    if (pinFailed) outcome = [NSString stringWithFormat:@"pin mismatch pins=%@ %@", pins, challenge];
     else if (!http) {
-        if (timedOut != 0) outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1001 pins=%@", pins];
-        else if (error) outcome = [NSString stringWithFormat:@"error %@ %ld pins=%@", error.domain.length ? error.domain : @"NSURLErrorDomain", (long)error.code, pins];
-        else outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1 pins=%@", pins];
+        if (timedOut != 0) outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1001 pins=%@ %@", pins, challenge];
+        else if (error) outcome = [NSString stringWithFormat:@"error %@ pins=%@ %@", IXErrorText(error), pins, challenge];
+        else outcome = [NSString stringWithFormat:@"error NSURLErrorDomain -1 pins=%@ %@", pins, challenge];
     }
+    if (http) IXRememberOrigin(base, path, status);
     if (statusOut) *statusOut = status;
     if (headerOut) *headerOut = http.allHeaderFields;
     if (reachedOut) *reachedOut = reached;
@@ -607,7 +740,7 @@ static NSData *IXCall(BOOL thorough, NSString *method, NSString *path, NSDiction
     if (statusOut) *statusOut = 0;
     if (headerOut) *headerOut = nil;
     NSString *first = IXPanelBases().firstObject ?: @"";
-    NSString *shown = [first stringByAppendingString:path ?: @""];
+    NSString *shown = IXJoined(first, path) ?: IXAPIBase(first);
     if (ix_blocked) {
         IXNotePanel(shown, @"error IXBackend 403", 403, @"direct");
         if (statusOut) *statusOut = 403;
@@ -654,25 +787,38 @@ static NSData *IXRequest(NSString *method, NSString *path, NSDictionary *body, N
     return IXCall(NO, method, path, body, headers, statusOut, headerOut);
 }
 
-static void IXDownloadFile(NSString *urlPath, NSString *sha, NSString *ext, void (^ready)(NSString *path)) {
-    if (urlPath.length == 0 || sha.length != 64) return;
-    if ([urlPath containsString:@"://"]) {
-        BOOL known = NO;
-        for (NSString *base in IXPanelBases()) {
-            NSString *host = [NSURL URLWithString:base].host;
-            if (host.length && [urlPath rangeOfString:host].location != NSNotFound) known = YES;
+static NSData *IXFetchAsset(NSString *path, NSInteger *statusOut) {
+    NSInteger status = 0;
+    if (!ix_session) ix_session = IXMakeDirectSession();
+    for (NSString *origin in IXAssetOrigins()) {
+        BOOL reached = NO;
+        NSDictionary *headers = nil;
+        NSData *data = IXAttempt(ix_session, @"GET", origin, path, nil, nil, @"asset", &status, &headers, &reached);
+        (void)headers;
+        if (status == 200 && data.length > 0 && data.length <= 20 * 1024 * 1024) {
+            if (statusOut) *statusOut = 200;
+            return data;
         }
-        if (!known) return;
     }
+    if (statusOut) *statusOut = status;
+    return nil;
+}
+
+static void IXDownloadFile(NSString *urlPath, NSString *sha, NSString *ext, void (^ready)(NSString *path)) {
+    char relative[256];
+    NSString *assetPath;
+    if (urlPath.length == 0 || sha.length != 64) return;
+    if (!IXPanelStaticPath(urlPath.UTF8String, relative, sizeof relative)) return;
+    assetPath = [NSString stringWithUTF8String:relative];
+    if (assetPath.length == 0) return;
     NSString *path = [[IXCacheDir() stringByAppendingPathComponent:sha] stringByAppendingPathExtension:ext];
     if (IXFileMatches(path, sha)) {
         if (ready) ready(path);
         return;
     }
     if (ix_blocked) return;
-    NSString *rel = [urlPath hasPrefix:@"/"] ? urlPath : [@"/" stringByAppendingString:urlPath];
     NSInteger status = 0;
-    NSData *data = IXRequest(@"GET", rel, nil, nil, &status, NULL);
+    NSData *data = IXFetchAsset(assetPath, &status);
     if (status != 200 || data.length == 0 || data.length > 20 * 1024 * 1024) return;
     uint8_t dig[32];
     ix_sha256(data.bytes, data.length, dig);
@@ -1001,11 +1147,13 @@ static NSDictionary *IXPanelSnapshot(void) {
     __block NSDictionary *snap = nil;
     pthread_mutex_lock(&ix_state_mu);
     snap = @{
-        @"url": ix_panel_url ?: [IXPanelBases().firstObject stringByAppendingString:@"/api/v1/register"],
+        @"base": ix_panel_base ?: IXAPIBase(kPrimaryOrigin),
+        @"url": ix_panel_url ?: [IXAPIBase(kPrimaryOrigin) stringByAppendingString:@"/register"],
         @"last_attempt": ix_panel_when ?: @"-",
         @"result": ix_panel_result ?: @"not yet",
         @"http_status": @(ix_panel_http),
         @"route": ix_panel_route ?: @"-",
+        @"trust": ix_panel_trust ?: @"system",
         @"registered": ix_token.length ? @"yes" : @"no",
         @"config_version": @(ix_config_version),
         @"fonts": @(ix_fonts.count),
@@ -1029,12 +1177,14 @@ NSDictionary *IXBackendPanelStatus(void) {
 
 NSString *IXBackendPanelReport(void) {
     NSDictionary *row = IXPanelSnapshot();
-    return [NSString stringWithFormat:@"Panel connection\nurl=%@\nlast_attempt=%@\nresult=%@\nhttp_status=%@\nroute=%@\nregistered=%@\nconfig_version=%@\nannouncements=%@\nfonts=%@\nstickers=%@\npins=%@\n",
+    return [NSString stringWithFormat:@"Panel connection\nbase=%@\nurl=%@\nlast_attempt=%@\nresult=%@\nhttp_status=%@\nroute=%@\ntrust=%@\nregistered=%@\nconfig_version=%@\nannouncements=%@\nfonts=%@\nstickers=%@\npins=%@\n",
+            row[@"base"] ?: @"-",
             row[@"url"] ?: @"-",
             row[@"last_attempt"] ?: @"-",
             row[@"result"] ?: @"not yet",
             row[@"http_status"] ?: @0,
             row[@"route"] ?: @"-",
+            row[@"trust"] ?: @"system",
             row[@"registered"] ?: @"no",
             row[@"config_version"] ?: @0,
             row[@"announcements"] ?: @0,
@@ -1088,7 +1238,7 @@ void IXBackendRetryNow(void) {
 }
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
     (void)tableView;
-    return section == 0 ? 10 : 1;
+    return section == 0 ? 12 : 1;
 }
 - (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
     (void)tableView;
@@ -1109,23 +1259,24 @@ void IXBackendRetryNow(void) {
     if (!cell) cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleValue1 reuseIdentifier:@"field"];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
     NSArray *pairs = @[
+        @[SCILocalized(@"Base"), row[@"base"] ?: @"-"],
         @[SCILocalized(@"URL"), row[@"url"] ?: @"-"],
         @[SCILocalized(@"Last attempt"), row[@"last_attempt"] ?: @"-"],
         @[SCILocalized(@"Result"), row[@"result"] ?: @"not yet"],
         @[SCILocalized(@"HTTP status"), [row[@"http_status"] stringValue] ?: @"0"],
         @[SCILocalized(@"Route"), row[@"route"] ?: @"-"],
+        @[SCILocalized(@"Trust"), row[@"trust"] ?: @"system"],
         @[SCILocalized(@"Registered"), [row[@"registered"] isEqualToString:@"yes"] ? SCILocalized(@"Yes") : SCILocalized(@"No")],
         @[SCILocalized(@"Config version"), [row[@"config_version"] stringValue] ?: @"0"],
-        @[SCILocalized(@"Announcements"), [row[@"announcements"] stringValue] ?: @"0"],
-        @[SCILocalized(@"Fonts"), [NSString stringWithFormat:@"%@ · %@", row[@"fonts"] ?: @0, row[@"stickers"] ?: @0]]
+        @[SCILocalized(@"Announcements"), [row[@"announcements"] stringValue] ?: @"0"]
     ];
-    if (indexPath.row == 8) {
+    if (indexPath.row == 10) {
         cell.textLabel.text = SCILocalized(@"Fonts");
         cell.detailTextLabel.text = [NSString stringWithFormat:SCILocalized(@"%@ fonts · %@ stickers"), row[@"fonts"] ?: @0, row[@"stickers"] ?: @0];
-    } else if (indexPath.row == 9) {
+    } else if (indexPath.row == 11) {
         cell.textLabel.text = SCILocalized(@"Certificate pins");
         cell.detailTextLabel.text = row[@"pins"] ?: @"none";
-    } else {
+    } else if (indexPath.row < (NSInteger)pairs.count) {
         cell.textLabel.text = pairs[indexPath.row][0];
         cell.detailTextLabel.text = [pairs[indexPath.row][1] description];
     }

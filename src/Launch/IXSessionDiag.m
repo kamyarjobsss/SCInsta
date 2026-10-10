@@ -524,7 +524,10 @@ static void IXKeychainCensus(void) {
 static void IXFreshSignals(void) {
     NSFileManager *fm = [NSFileManager defaultManager];
     NSString *home = NSHomeDirectory() ?: @"";
-    int prefs = [fm fileExistsAtPath:[home stringByAppendingPathComponent:@"Library/Preferences/com.burbn.instagram.plist"]] ? 1 : 0;
+    NSString *bundle = [NSBundle mainBundle].bundleIdentifier;
+    if (![bundle isKindOfClass:[NSString class]] || bundle.length == 0) bundle = @"com.burbn.instagram";
+    int prefs = [fm fileExistsAtPath:[home stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", bundle]]] ? 1 : 0;
+    if (!prefs) prefs = [fm fileExistsAtPath:[home stringByAppendingPathComponent:@"Library/Preferences/com.burbn.instagram.plist"]] ? 1 : 0;
     int cookies = [fm fileExistsAtPath:[home stringByAppendingPathComponent:@"Library/Cookies/Cookies.binarycookies"]] ? 1 : 0;
     int groupPrefs = 0;
     if (ix_container.length) {
@@ -549,8 +552,12 @@ static void IXFreshSignals(void) {
     @try { safe = IXLaunchGuardIsSafeMode() ? 1 : 0; }
     @catch (__unused NSException *exception) { safe = 0; }
     NSString *names = hits.count ? [hits componentsJoinedByString:@","] : @"-";
-    IXSessionDiagLine([NSString stringWithFormat:@"fresh_flags prefs=%d cookies=%d group_prefs=%d safe_mode=%d names=%@",
-                       prefs, cookies, groupPrefs, safe, names]);
+    NSDictionary *domain = nil;
+    @try { domain = [[NSUserDefaults standardUserDefaults] persistentDomainForName:bundle]; }
+    @catch (__unused NSException *exception) { domain = nil; }
+    int marker = [domain[@"mc_freshinstall_time"] isKindOfClass:[NSNumber class]] || [domain[@"mc_freshinstall_time"] isKindOfClass:[NSString class]] ? 1 : 0;
+    IXSessionDiagLine([NSString stringWithFormat:@"fresh_flags prefs=%d cookies=%d group_prefs=%d marker=%d safe_mode=%d names=%@",
+                       prefs, cookies, groupPrefs, marker, safe, names]);
     IXSessionDiagLine([NSString stringWithFormat:@"home=%@", IXClip(home, 220)]);
     NSMutableDictionary *state = IXState();
     state[@"safe_mode"] = safe ? @"yes" : @"no";

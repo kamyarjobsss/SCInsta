@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.5"
+                description: "Publish a prerelease tagged instagram-x-v2.4.6"
                 default: true
                 required: false
                 type: boolean
@@ -188,6 +188,10 @@ jobs:
                   tests/IXPinTest.c src/Backend/IXPin.c \
                   -o /tmp/ix-pin-test
                 /tmp/ix-pin-test
+                clang \
+                  tests/IXPanelURLTest.c src/Backend/IXPanelURL.c \
+                  -o /tmp/ix-panel-url-test
+                /tmp/ix-panel-url-test
                 clang -O2 -I src/Backend \
                   tests/IXCryptoTest.c src/Backend/IXCrypto.c \
                   src/Backend/third_party/monocypher.c \
@@ -261,15 +265,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.5 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.6 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.5
+                tag_name: instagram-x-v2.4.6
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.5
+                name: Instagram X 2.4.6
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -295,6 +299,8 @@ jobs:
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
 
+                  v2.4.6 keeps the single IXAppGroup container and does not hook SecItem. Instagram was treating every relaunch as a fresh install because the group preference suite never reached disk, then it deleted the session and iOS offered the iCloud Keychain password. Group suites are now stored in that container, and an install that already has a cookie file gets the fresh-install markers back before launch. The panel primary is https://zovidar.duckdns.org/api/v1 with the system trust store. https://77.110.125.217:9443 stays the pinned fallback. Relative /static/fonts and /static/stickers URLs use whichever origin served the config. One login can be required if an older build already deleted the session.
+
                   v2.4.5 restores the v2.2.4 login behavior. Commit e0b8495, the 2.3.0 multi-account change, replaced the single app-group directory with one directory per group id, filled a missing METAAppGroup identifier with the requested name instead of the keychain group SecItem assigned, and rewrote SecItem access groups. v2.2.4 and the base IPA stayed logged in. The SecItem rewrite was removed in 2.4.2, and the directory and identifier changes were not, so a force-close still dropped the session. A missing container is the same Library/Application Support/IXAppGroup directory for every group. A missing identifier is the probed keychain group. An identifier Instagram already set is left as it is. A missing defaults object uses group.com.burbn.instagram. Nil container and defaults are still filled when the identifier is already set, so the other accounts keep a directory. SecItem is not hooked. One login can be required if an older build already deleted the session.
 
                   Links can be vless://, trojan://, vmess://, or ss://, with tcp, ws, grpc, xhttp, or httpupgrade, and tls, reality, or no security. Check IP asks api.ipify.org and ifconfig.co through the tunnel and shows the exit IP and country. The connection list names the image and the API.
@@ -308,4 +314,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.5"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.6"

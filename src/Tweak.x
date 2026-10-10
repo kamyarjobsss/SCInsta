@@ -13,6 +13,7 @@
 extern void SCIFakeLocationInstall(void);
 extern void IXUSRegionInstall(void);
 extern void IXBackendStart(void);
+extern void IXPrefsSeedFreshMarkers(void);
 
 ///////////////////////////////////////////////////////////
 
@@ -24,7 +25,7 @@ extern void IXBackendStart(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.5";
+NSString *SCIVersionString = @"v2.4.6";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -239,6 +240,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
     return %orig;
 }
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
+    IXPrefsSeedFreshMarkers();
     IXSessionDiagBoot();
     %orig;
 

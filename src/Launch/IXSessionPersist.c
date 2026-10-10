@@ -99,6 +99,12 @@ int IXFreshMarkerSeed(int persistent_present, int saved_present, int known_key) 
     return known_key ? 1 : 0;
 }
 
+int IXSessionSeedFresh(int seen_launch, int cookie_file, int marker_on_disk) {
+    if (marker_on_disk) return 0;
+    if (seen_launch || cookie_file) return 1;
+    return 0;
+}
+
 int IXSessionOurService(const char *service) {
     if (!service || !service[0]) return 0;
     return strcmp(service, "instagramx.diag") == 0 ||

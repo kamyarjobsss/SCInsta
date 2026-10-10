@@ -68,6 +68,15 @@ int IXFreshMarkerRestore(int persistent_present, int saved_present);
    A saved or persisted value is not replaced by the placeholder. */
 int IXFreshMarkerSeed(int persistent_present, int saved_present, int known_key);
 
+/* 1 when an existing install has no fresh-install marker on disk.
+   seen_launch is the Documents marker from a previous process.
+   cookie_file is Instagram's cookie store, which survives the prefs wipe.
+   marker_on_disk means a real marker was already in the Documents copy or
+   a preference domain. A first launch (nothing seen, no cookies) returns 0
+   so a brand-new install is not disguised. v2.4.5 logged
+   ix_seen_launch=existing, cookie_file=yes, both plists absent. */
+int IXSessionSeedFresh(int seen_launch, int cookie_file, int marker_on_disk);
+
 /* 1 when SecItemDelete may run.
    our_service is the diagnostics, backend, or VPN item and is always allowed.
    password_class is a generic password, an internet password, or a query

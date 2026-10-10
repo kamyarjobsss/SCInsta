@@ -81,6 +81,11 @@ int main(void) {
     expect(IXFreshMarkerSeed(0, 1, 1) == 0, "saved marker is not replaced");
     expect(IXFreshMarkerSeed(1, 0, 1) == 0, "persisted marker is not replaced");
     expect(IXFreshMarkerSeed(0, 0, 0) == 0, "unknown key is not invented");
+    expect(IXSessionSeedFresh(1, 1, 0) == 1, "existing install with cookies and no marker is seeded");
+    expect(IXSessionSeedFresh(1, 0, 0) == 1, "seen launch with no marker is seeded");
+    expect(IXSessionSeedFresh(0, 1, 0) == 1, "cookie file alone means the install is not new");
+    expect(IXSessionSeedFresh(0, 0, 0) == 0, "first launch is not disguised");
+    expect(IXSessionSeedFresh(1, 1, 1) == 0, "marker already on disk is not replaced");
 
     expect(IXSessionOurService("instagramx.diag") == 1, "probe service");
     expect(IXSessionOurService("instagramx.backend") == 1, "backend service");
