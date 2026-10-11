@@ -64,12 +64,16 @@ static void *IXStrip(void *pointer);
 
 static void IXNotePrevious(const char *name, void *existing, void *replacement) {
     void *stripped = IXStrip(existing);
-    if (!name || !stripped || stripped == replacement) return;
+    if (!name || !stripped || stripped == IXStrip(replacement)) return;
     for (unsigned i = 0; i < ix_perm_count; i++) {
         if (!ix_perm_names[i] || strcmp(ix_perm_names[i], name) != 0) continue;
-        void *real = dlsym(RTLD_DEFAULT, name);
-        if (!ix_perm_prev[i] || ix_perm_prev[i] == real) {
-            if (stripped != real || !ix_perm_prev[i]) ix_perm_prev[i] = stripped;
+        void *real = IXStrip(dlsym(RTLD_DEFAULT, name));
+        void *prev = IXStrip(ix_perm_prev[i]);
+        // Keep the slot value as it was stored. A later caller has to invoke
+        // it the same way fishhook invokes a saved original. Stripping it
+        // first drops the signature on arm64e.
+        if (!prev || prev == real) {
+            if (stripped != real || !prev) ix_perm_prev[i] = existing;
         }
         return;
     }

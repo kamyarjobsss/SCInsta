@@ -14,37 +14,79 @@
 
 static __thread int ix_suite_depth;
 
-// v2.2.4 kept the login. Commit e0b8495 (2.3.0, multi-account) changed three
-// things that the next launch depends on:
-//   the missing container became a directory named after the group id, instead
-//   of one directory for every id;
-//   a nil METAAppGroup identifier was filled with the requested name instead
-//   of the access group SecItem actually assigned;
-//   SecItem queries were rewritten, which bypasses the sideload helper.
-// keychainAccessAppGroup returns the identifier ivar. Replacing an identifier
-// Instagram already set makes the next launch miss the session. The SecItem
-// rewrite was removed in 2.4.2. The directory and the identifier fill stayed,
-// and 2.4.2 still logged out.
-//
-// This is the v2.2.4 behavior again. A nil container and nil user defaults are
-// still filled, including when the identifier is already set, so the account
-// list has a directory. The directory is the same one for every group. The
-// suite name is group.com.burbn.instagram. A non-empty identifier is not
-// rewritten. SecItem is not hooked.
+// The base sideload helper (zxPluginsInject SideloadFix) never calls through
+// for containerURLForSecurityApplicationGroupIdentifier:. It returns the
+// entitled app-group parent plus the group identifier, or
+// Documents/<groupIdentifier> when that parent is missing. v2.4.5 and v2.4.6
+// returned Library/Application Support/IXAppGroup instead, and v2.4.6 also
+// wrote fresh-install markers into Instagram's defaults before launch.
+// Device logs showed that IXAppGroup path, then the account was gone on the
+// next open. A missing container is now the base path. Files already written
+// under IXAppGroup are copied across, not deleted.
+// A nil METAAppGroup identifier is filled from the SecItem probe. An
+// identifier Instagram already set is not replaced. Nil defaults and a nil
+// container are filled on this same path so the direct METAAppGroup call does
+// not crash. Suites are not redirected in the main process, and no preference
+// key is written at launch. SecItem queries are not rewritten.
 
 static NSString *IXText(const char *value, NSString *fallback) {
     NSString *text = value ? [NSString stringWithUTF8String:value] : nil;
     return text.length ? text : fallback;
 }
 
-static NSURL *IXSandboxGroupURL(void) {
-    char leaf[64];
-    NSString *name = @"IXAppGroup";
-    if (IXSessionFallbackLeaf("", leaf, sizeof leaf)) {
+static NSURL *IXEntitledGroupParent(void) {
+    static NSURL *cached;
+    Class cls;
+    SEL sel;
+    id proxy;
+    NSDictionary *entitlements;
+    NSArray *groups;
+    NSDictionary *urls;
+    id first;
+    id url;
+    if (cached.path.length) return cached;
+    cls = objc_getClass("LSBundleProxy");
+    sel = sel_registerName("bundleProxyForCurrentProcess");
+    if (!cls || ![cls respondsToSelector:sel]) return nil;
+    @try { proxy = ((id (*)(id, SEL))objc_msgSend)(cls, sel); }
+    @catch (__unused NSException *exception) { proxy = nil; }
+    if (!proxy) return nil;
+    @try { entitlements = [proxy valueForKey:@"entitlements"]; }
+    @catch (__unused NSException *exception) { entitlements = nil; }
+    if (![entitlements isKindOfClass:[NSDictionary class]]) return nil;
+    groups = entitlements[@"com.apple.security.application-groups"];
+    if (![groups isKindOfClass:[NSArray class]] || groups.count == 0) return nil;
+    @try { urls = [proxy valueForKey:@"groupContainerURLs"]; }
+    @catch (__unused NSException *exception) { urls = nil; }
+    if (![urls isKindOfClass:[NSDictionary class]]) return nil;
+    first = groups.firstObject;
+    url = [first isKindOfClass:[NSString class]] ? urls[first] : nil;
+    if (![url isKindOfClass:[NSURL class]] || [(NSURL *)url path].length == 0) return nil;
+    cached = url;
+    return cached;
+}
+
+// Same directory the base helper uses. The leaf is the group identifier,
+// never the team-prefixed keychain group, so the path does not move when
+// the signed prefix is re-read.
+static NSURL *IXContainerURL(NSString *identifier) {
+    char leaf[192];
+    NSString *name = @"group.com.burbn.instagram";
+    NSString *path;
+    NSURL *parent;
+    const char *raw = [identifier isKindOfClass:[NSString class]] ? identifier.UTF8String : NULL;
+    if (IXSessionContainerLeaf(raw, leaf, sizeof leaf)) {
         NSString *text = [NSString stringWithUTF8String:leaf];
         if (text.length) name = text;
     }
-    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:[@"Library/Application Support" stringByAppendingPathComponent:name]];
+    parent = IXEntitledGroupParent();
+    if (parent.path.length) path = [parent.path stringByAppendingPathComponent:name];
+    else {
+        NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+        if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+        path = [docs stringByAppendingPathComponent:name];
+    }
+    if (path.length == 0) return nil;
     [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:nil];
     if (![[NSFileManager defaultManager] fileExistsAtPath:path]) return nil;
     return [NSURL fileURLWithPath:path isDirectory:YES];
@@ -104,15 +146,14 @@ static NSString *IXDefaultsSuite(void) {
     return IXText(suite, @"group.com.burbn.instagram");
 }
 
-// A group.com.* suite without a container is not written on a sideload:
-// cfprefsd rejects it, the next launch looks like a fresh install, and
-// Instagram deletes the session. The container makes the plist a file
-// inside IXAppGroup, which is the same idea as the base sideload helper.
+// Only used when METAAppGroup's defaults ivar is nil. A nil defaults object
+// crashes the direct call. The container is the base group directory. This
+// does not redirect every suite in the process and it does not write keys.
 static NSUserDefaults *IXGroupDefaults(NSString *suite) {
     NSURL *container;
     NSUserDefaults *defaults = nil;
     if (suite.length == 0 || ix_suite_depth) return nil;
-    container = IXSandboxGroupURL();
+    container = IXContainerURL(suite);
     ix_suite_depth++;
     if (container && [NSUserDefaults instancesRespondToSelector:@selector(_initWithSuiteName:container:)]) {
         @try { defaults = [[NSUserDefaults alloc] _initWithSuiteName:suite container:container]; }
@@ -172,7 +213,7 @@ static void IXFillAppGroup(id object, id name) {
     }
     id existing = IXReadIvar(object, "_containerURL");
     if ([existing isKindOfClass:[NSURL class]] && [(NSURL *)existing path].length) return;
-    NSURL *url = IXSandboxGroupURL();
+    NSURL *url = IXContainerURL(IXGroupIdentifier(name));
     if (url) IXWriteIvar(object, "_containerURL", url);
 }
 
@@ -284,318 +325,10 @@ static void IXMigrateInto(NSString *destPath) {
 }
 %end
 
-static NSString *IXBundleID(void) {
-    NSString *bundle = [NSBundle mainBundle].bundleIdentifier;
-    if (![bundle isKindOfClass:[NSString class]] || bundle.length == 0) return @"com.burbn.instagram";
-    return bundle;
-}
-
-static NSString *IXSeenPath(void) {
-    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-    if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
-    return [[docs stringByAppendingPathComponent:@"InstagramX"] stringByAppendingPathComponent:@"ix_seen_launch.txt"];
-}
-
-static NSString *IXMarkerPath(void) {
-    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
-    if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
-    NSString *dir = [docs stringByAppendingPathComponent:@"InstagramX"];
-    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
-    return [dir stringByAppendingPathComponent:@"freshinstall.plist"];
-}
-
-static NSMutableDictionary *IXMarkerDict(void) {
-    static NSMutableDictionary *dict;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSDictionary *saved = [NSDictionary dictionaryWithContentsOfFile:IXMarkerPath()];
-        dict = [saved isKindOfClass:[NSDictionary class]] ? [saved mutableCopy] : [NSMutableDictionary dictionary];
-    });
-    return dict;
-}
-
-static BOOL IXPlistValue(id value) {
-    return [value isKindOfClass:[NSString class]] || [value isKindOfClass:[NSNumber class]] ||
-           [value isKindOfClass:[NSDate class]] || [value isKindOfClass:[NSData class]];
-}
-
-static void IXMarkerSave(void) {
-    NSDictionary *snapshot = nil;
-    @synchronized (IXMarkerDict()) { snapshot = [IXMarkerDict() copy]; }
-    if (snapshot) [snapshot writeToFile:IXMarkerPath() atomically:YES];
-}
-
-static id IXMarkerGet(NSString *key) {
-    if (![key isKindOfClass:[NSString class]]) return nil;
-    @synchronized (IXMarkerDict()) { return IXMarkerDict()[key]; }
-}
-
-static void IXMarkerPut(NSString *key, id value) {
-    if (![key isKindOfClass:[NSString class]] || !IXPlistValue(value)) return;
-    @synchronized (IXMarkerDict()) {
-        id existing = IXMarkerDict()[key];
-        if (existing && [existing isEqual:value]) return;
-        IXMarkerDict()[key] = value;
-    }
-    IXMarkerSave();
-}
-
-static BOOL IXFreshKey(NSString *key) {
-    const char *utf = [key isKindOfClass:[NSString class]] ? key.UTF8String : NULL;
-    return utf && IXFreshInstallKey(utf);
-}
-
-static BOOL IXGroupSuiteName(NSString *suite) {
-    if (![suite isKindOfClass:[NSString class]] || suite.length == 0) return NO;
-    return [suite hasPrefix:@"group.com.burbn.instagram"] || [suite hasPrefix:@"group.com.facebook.family"];
-}
-
-static id IXPlaceholder(NSString *key) {
-    const char *utf = [key isKindOfClass:[NSString class]] ? key.UTF8String : NULL;
-    if (!utf || !IXFreshKnownKey(utf)) return nil;
-    if (strcmp(utf, "mc_freshinstall_time") == 0) return @1609459200;
-    NSString *ver = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
-    if (![ver isKindOfClass:[NSString class]] || ver.length == 0 || ver.length > 24) return @"436";
-    return ver;
-}
-
-static const void *IXSuiteAssociation = &IXSuiteAssociation;
-
-static void IXRememberSuite(NSUserDefaults *defaults, NSString *suite) {
-    if (!defaults || ![suite isKindOfClass:[NSString class]] || suite.length == 0) return;
-    objc_setAssociatedObject(defaults, IXSuiteAssociation, suite, OBJC_ASSOCIATION_COPY_NONATOMIC);
-}
-
-static NSString *IXActualSuite(NSUserDefaults *defaults) {
-    NSString *suite = objc_getAssociatedObject(defaults, IXSuiteAssociation);
-    if ([suite isKindOfClass:[NSString class]] && suite.length) return suite;
-    return IXBundleID();
-}
-
-static id IXPersisted(NSUserDefaults *defaults, NSString *suite, NSString *key) {
-    NSDictionary *domain = nil;
-    if (!defaults || suite.length == 0 || key.length == 0) return nil;
-    @try { domain = [defaults persistentDomainForName:suite]; }
-    @catch (__unused NSException *exception) { domain = nil; }
-    if (![domain isKindOfClass:[NSDictionary class]]) return nil;
-    return domain[key];
-}
-
-static int IXDictHasFresh(NSDictionary *dict) {
-    if (![dict isKindOfClass:[NSDictionary class]]) return 0;
-    for (id key in dict) {
-        if (IXFreshKey(key)) return 1;
-    }
-    return 0;
-}
-
-static void IXMergePlist(NSString *path, NSDictionary *markers) {
-    NSMutableDictionary *plist;
-    BOOL dirty = NO;
-    if (path.length == 0 || markers.count == 0) return;
-    [[NSFileManager defaultManager] createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
-    plist = [[NSDictionary dictionaryWithContentsOfFile:path] mutableCopy];
-    if (![plist isKindOfClass:[NSMutableDictionary class]]) plist = [NSMutableDictionary dictionary];
-    for (NSString *key in markers) {
-        if (!IXFreshKey(key) || !IXPlistValue(markers[key]) || plist[key]) continue;
-        plist[key] = markers[key];
-        dirty = YES;
-    }
-    if (dirty) [plist writeToFile:path atomically:YES];
-}
-
-static void IXPlantMarkerFiles(NSDictionary *markers) {
-    NSURL *container;
-    NSString *home;
-    if (markers.count == 0) return;
-    home = NSHomeDirectory() ?: @"";
-    IXMergePlist([home stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", IXBundleID()]], markers);
-    if (![IXBundleID() isEqualToString:@"com.burbn.instagram"]) {
-        IXMergePlist([home stringByAppendingPathComponent:@"Library/Preferences/com.burbn.instagram.plist"], markers);
-    }
-    container = IXSandboxGroupURL();
-    if (container.path.length) {
-        IXMergePlist([container.path stringByAppendingPathComponent:@"Library/Preferences/group.com.burbn.instagram.plist"], markers);
-        IXSessionDiagNoteContainer(container.path, @"fallback");
-    }
-}
-
-static CFPropertyListRef (*ix_cf_copy_app)(CFStringRef, CFStringRef);
-static CFPropertyListRef (*ix_cf_copy_value)(CFStringRef, CFStringRef, CFStringRef, CFStringRef);
-static void (*ix_cf_set_app)(CFStringRef, CFPropertyListRef, CFStringRef);
-static void (*ix_cf_set_value)(CFStringRef, CFPropertyListRef, CFStringRef, CFStringRef, CFStringRef);
-static CFIndex (*ix_cf_get_int)(CFStringRef, CFStringRef, Boolean *);
-static int ix_cf_ready;
-
-static NSString *IXCFKey(CFTypeRef key) {
-    if (!key || CFGetTypeID(key) != CFStringGetTypeID()) return nil;
-    return (__bridge NSString *)key;
-}
-
-static CFPropertyListRef IXHeldMarker(NSString *key, CFPropertyListRef found) {
-    id saved;
-    if (found || !IXFreshKey(key)) return found;
-    saved = IXMarkerGet(key);
-    if (!IXPlistValue(saved)) return found;
-    return CFBridgingRetain(saved);
-}
-
-static CFPropertyListRef IXCopyApp(CFStringRef key, CFStringRef applicationID) {
-    CFPropertyListRef found = ix_cf_copy_app ? ix_cf_copy_app(key, applicationID) : NULL;
-    return IXHeldMarker(IXCFKey(key), found);
-}
-
-static CFPropertyListRef IXCopyValue(CFStringRef key, CFStringRef applicationID, CFStringRef userName, CFStringRef hostName) {
-    CFPropertyListRef found = ix_cf_copy_value ? ix_cf_copy_value(key, applicationID, userName, hostName) : NULL;
-    return IXHeldMarker(IXCFKey(key), found);
-}
-
-static void IXNoteCFWrite(CFTypeRef key, CFTypeRef value) {
-    NSString *name = IXCFKey(key);
-    id obj;
-    if (!IXFreshKey(name) || !value) return;
-    obj = (__bridge id)value;
-    if (IXPlistValue(obj)) IXMarkerPut(name, obj);
-}
-
-static void IXSetApp(CFStringRef key, CFPropertyListRef value, CFStringRef applicationID) {
-    if (ix_cf_set_app) ix_cf_set_app(key, value, applicationID);
-    IXNoteCFWrite(key, value);
-}
-
-static void IXSetValue(CFStringRef key, CFPropertyListRef value, CFStringRef applicationID, CFStringRef userName, CFStringRef hostName) {
-    if (ix_cf_set_value) ix_cf_set_value(key, value, applicationID, userName, hostName);
-    IXNoteCFWrite(key, value);
-}
-
-static CFIndex IXGetInt(CFStringRef key, CFStringRef applicationID, Boolean *keyExistsAndHasValidFormat) {
-    Boolean valid = false;
-    CFIndex value = ix_cf_get_int ? ix_cf_get_int(key, applicationID, &valid) : 0;
-    NSString *name = IXCFKey(key);
-    id saved;
-    if (!valid && IXFreshKey(name)) {
-        saved = IXMarkerGet(name);
-        if ([saved isKindOfClass:[NSNumber class]]) {
-            value = (CFIndex)[(NSNumber *)saved integerValue];
-            valid = true;
-        }
-    }
-    if (keyExistsAndHasValidFormat) *keyExistsAndHasValidFormat = valid;
-    return value;
-}
-
-static void IXInstallPrefsHooks(void) {
-    union { CFPropertyListRef (*fn)(CFStringRef, CFStringRef); void *ptr; } copyAppBits;
-    union { CFPropertyListRef (*fn)(CFStringRef, CFStringRef, CFStringRef, CFStringRef); void *ptr; } copyValueBits;
-    union { void (*fn)(CFStringRef, CFPropertyListRef, CFStringRef); void *ptr; } setAppBits;
-    union { void (*fn)(CFStringRef, CFPropertyListRef, CFStringRef, CFStringRef, CFStringRef); void *ptr; } setValueBits;
-    union { CFIndex (*fn)(CFStringRef, CFStringRef, Boolean *); void *ptr; } intBits;
-    const char *names[5];
-    void *replacements[5];
-    void *prev;
-    if (ix_cf_ready) return;
-    ix_cf_ready = 1;
-    ix_cf_copy_app = (CFPropertyListRef (*)(CFStringRef, CFStringRef))dlsym(RTLD_DEFAULT, "CFPreferencesCopyAppValue");
-    ix_cf_copy_value = (CFPropertyListRef (*)(CFStringRef, CFStringRef, CFStringRef, CFStringRef))dlsym(RTLD_DEFAULT, "CFPreferencesCopyValue");
-    ix_cf_set_app = (void (*)(CFStringRef, CFPropertyListRef, CFStringRef))dlsym(RTLD_DEFAULT, "CFPreferencesSetAppValue");
-    ix_cf_set_value = (void (*)(CFStringRef, CFPropertyListRef, CFStringRef, CFStringRef, CFStringRef))dlsym(RTLD_DEFAULT, "CFPreferencesSetValue");
-    ix_cf_get_int = (CFIndex (*)(CFStringRef, CFStringRef, Boolean *))dlsym(RTLD_DEFAULT, "CFPreferencesGetAppIntegerValue");
-    copyAppBits.fn = IXCopyApp;
-    copyValueBits.fn = IXCopyValue;
-    setAppBits.fn = IXSetApp;
-    setValueBits.fn = IXSetValue;
-    intBits.fn = IXGetInt;
-    names[0] = "CFPreferencesCopyAppValue";
-    names[1] = "CFPreferencesCopyValue";
-    names[2] = "CFPreferencesSetAppValue";
-    names[3] = "CFPreferencesSetValue";
-    names[4] = "CFPreferencesGetAppIntegerValue";
-    replacements[0] = copyAppBits.ptr;
-    replacements[1] = copyValueBits.ptr;
-    replacements[2] = setAppBits.ptr;
-    replacements[3] = setValueBits.ptr;
-    replacements[4] = intBits.ptr;
-    IXSymbolRebindPermanent(names, replacements, 5);
-    prev = IXSymbolPrevious("CFPreferencesCopyAppValue");
-    if (prev && prev != (void *)IXCopyApp) ix_cf_copy_app = (CFPropertyListRef (*)(CFStringRef, CFStringRef))prev;
-    prev = IXSymbolPrevious("CFPreferencesCopyValue");
-    if (prev && prev != (void *)IXCopyValue) ix_cf_copy_value = (CFPropertyListRef (*)(CFStringRef, CFStringRef, CFStringRef, CFStringRef))prev;
-    prev = IXSymbolPrevious("CFPreferencesSetAppValue");
-    if (prev && prev != (void *)IXSetApp) ix_cf_set_app = (void (*)(CFStringRef, CFPropertyListRef, CFStringRef))prev;
-    prev = IXSymbolPrevious("CFPreferencesSetValue");
-    if (prev && prev != (void *)IXSetValue) ix_cf_set_value = (void (*)(CFStringRef, CFPropertyListRef, CFStringRef, CFStringRef, CFStringRef))prev;
-    prev = IXSymbolPrevious("CFPreferencesGetAppIntegerValue");
-    if (prev && prev != (void *)IXGetInt) ix_cf_get_int = (CFIndex (*)(CFStringRef, CFStringRef, Boolean *))prev;
-}
-
-static void IXApplyMarker(NSUserDefaults *defaults, NSString *suite, NSString *key, int allowPlaceholder) {
-    id saved;
-    id persisted;
-    id placeholder;
-    const char *utf;
-    if (!IXFreshKey(key) || !defaults) return;
-    saved = IXMarkerGet(key);
-    persisted = IXPersisted(defaults, suite, key);
-    utf = key.UTF8String;
-    if (IXFreshMarkerRestore(persisted != nil, saved != nil)) {
-        [defaults setObject:saved forKey:key];
-        return;
-    }
-    if (persisted && !saved) {
-        IXMarkerPut(key, persisted);
-        return;
-    }
-    if (!allowPlaceholder || !utf || !IXFreshMarkerSeed(persisted != nil, saved != nil, IXFreshKnownKey(utf))) return;
-    placeholder = IXPlaceholder(key);
-    if (!placeholder) return;
-    [defaults setObject:placeholder forKey:key];
-    IXMarkerPut(key, placeholder);
-}
-
-void IXPrefsSeedFreshMarkers(void) {
-    @try {
-        NSUserDefaults *standard = [NSUserDefaults standardUserDefaults];
-        NSString *bundle = IXBundleID();
-        NSUserDefaults *suite = IXGroupDefaults(@"group.com.burbn.instagram");
-        NSString *home = NSHomeDirectory() ?: @"";
-        NSMutableOrderedSet *keys = [NSMutableOrderedSet orderedSetWithArray:@[
-            @"mc_freshinstall_time", @"mobileconfig_freshinstall_track_version"
-        ]];
-        int seen = [[NSFileManager defaultManager] fileExistsAtPath:IXSeenPath()] ? 1 : 0;
-        int cookies = [[NSFileManager defaultManager] fileExistsAtPath:[home stringByAppendingPathComponent:@"Library/Cookies/Cookies.binarycookies"]] ? 1 : 0;
-        int file = 0;
-        int allow;
-        IXInstallPrefsHooks();
-        IXRememberSuite(suite, @"group.com.burbn.instagram");
-        @synchronized (IXMarkerDict()) {
-            for (id key in IXMarkerDict()) {
-                if ([key isKindOfClass:[NSString class]]) [keys addObject:key];
-            }
-            file = IXDictHasFresh(IXMarkerDict());
-        }
-        allow = IXSessionSeedFresh(seen, cookies, file);
-        for (NSString *key in keys.array) {
-            IXApplyMarker(standard, bundle, key, allow);
-            IXApplyMarker(suite, @"group.com.burbn.instagram", key, allow);
-        }
-        [standard synchronize];
-        [suite synchronize];
-        IXMarkerSave();
-        @synchronized (IXMarkerDict()) { IXPlantMarkerFiles([IXMarkerDict() copy]); }
-        IXSessionDiagLine([NSString stringWithFormat:@"prefs op=seed seen=%d cookies=%d file=%d allow=%d std=%d suite=%d",
-                           seen, cookies, file, allow,
-                           IXPersisted(standard, bundle, @"mc_freshinstall_time") ? 1 : 0,
-                           IXPersisted(suite, @"group.com.burbn.instagram", @"mc_freshinstall_time") ? 1 : 0]);
-    } @catch (__unused NSException *exception) {
-        IXSessionDiagLine(@"prefs op=seed status=error");
-    }
-}
-
 %hook NSFileManager
 - (NSURL *)containerURLForSecurityApplicationGroupIdentifier:(NSString *)identifier {
     static __thread int depth = 0;
     NSURL *url = nil;
-    (void)identifier;
     if (depth) {
         @try { return %orig; }
         @catch (__unused NSException *exception) { return nil; }
@@ -605,7 +338,7 @@ void IXPrefsSeedFreshMarkers(void) {
     @catch (__unused NSException *exception) { url = nil; }
     NSString *source = @"system";
     if (![url isKindOfClass:[NSURL class]] || url.path.length == 0) {
-        url = IXSandboxGroupURL();
+        url = IXContainerURL(identifier);
         source = @"fallback";
     }
     depth--;
@@ -617,65 +350,7 @@ void IXPrefsSeedFreshMarkers(void) {
 }
 %end
 
-%hook NSUserDefaults
-- (instancetype)initWithSuiteName:(NSString *)suiteName {
-    NSUserDefaults *made = nil;
-    if (!ix_suite_depth && IXGroupSuiteName(suiteName)) {
-        NSURL *container = IXSandboxGroupURL();
-        if (container && [self respondsToSelector:@selector(_initWithSuiteName:container:)]) {
-            ix_suite_depth++;
-            @try { made = [self _initWithSuiteName:suiteName container:container]; }
-            @catch (__unused NSException *exception) { made = nil; }
-            ix_suite_depth--;
-        }
-    }
-    if (!made) {
-        @try { made = %orig; }
-        @catch (__unused NSException *exception) { made = nil; }
-    }
-    IXRememberSuite(made, suiteName);
-    return made;
-}
-- (id)_initWithSuiteName:(NSString *)suiteName container:(NSURL *)container {
-    NSUserDefaults *made = nil;
-    NSURL *used = container;
-    if (IXGroupSuiteName(suiteName) && (![used isKindOfClass:[NSURL class]] || used.path.length == 0)) {
-        used = IXSandboxGroupURL();
-    }
-    @try { made = %orig(suiteName, used); }
-    @catch (__unused NSException *exception) { made = nil; }
-    IXRememberSuite(made, suiteName);
-    return made;
-}
-- (void)setObject:(id)value forKey:(NSString *)defaultName {
-    %orig;
-    if (IXFreshKey(defaultName) && IXPlistValue(value)) IXMarkerPut(defaultName, value);
-}
-- (id)objectForKey:(NSString *)defaultName {
-    static __thread int depth = 0;
-    id persisted;
-    id saved;
-    if (depth || !IXFreshKey(defaultName)) return %orig;
-    depth++;
-    persisted = IXPersisted(self, IXActualSuite(self), defaultName);
-    if (persisted) {
-        if (!IXMarkerGet(defaultName)) IXMarkerPut(defaultName, persisted);
-        depth--;
-        return persisted;
-    }
-    saved = IXMarkerGet(defaultName);
-    if (IXPlistValue(saved)) {
-        [self setObject:saved forKey:defaultName];
-        depth--;
-        return saved;
-    }
-    depth--;
-    return %orig;
-}
-%end
-
 %ctor {
     %init;
     IXInstallDirectAppGroup();
-    IXPrefsSeedFreshMarkers();
 }

@@ -1,4 +1,5 @@
 #import "IXSessionDiag.h"
+#import "IXSessionWatch.h"
 #import "IXLaunchGuard.h"
 #import "../Backend/IXBackend.h"
 
@@ -217,6 +218,7 @@ void IXSessionDiagAccounts(NSString *phase) {
         int count = IXAccountCount();
         int auth = IXAuthReady();
         int cookie = IXHasSessionCookie();
+        IXSessionWatchSnapshot(when);
         NSString *line = [NSString stringWithFormat:@"accounts phase=%@ count=%d auth=%d cookie=%d container=%@ hooks=off",
                           when,
                           count,
@@ -605,6 +607,7 @@ void IXSessionDiagBoot(void) {
         IXSessionDiagNoteContainer(@"-", @"error");
     }
     IXFreshSignals();
+    IXSessionWatchSnapshot(@"boot");
 }
 
 NSString *IXSessionDiagReport(void) {

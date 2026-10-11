@@ -105,6 +105,37 @@ int IXSessionSeedFresh(int seen_launch, int cookie_file, int marker_on_disk) {
     return 0;
 }
 
+int IXSessionContainerLeaf(const char *identifier, char *out, size_t outLen) {
+    const char *src = (identifier && identifier[0]) ? identifier : "group.com.burbn.instagram";
+    if (strstr(src, "..") || strchr(src, '/') || strchr(src, '\\')) return 0;
+    if (strlen(src) > 180) return 0;
+    return ix_copy(out, outLen, src);
+}
+
+int IXSessionHoldCount(int harvested, int saved, int cookie_present, int within_restore_window) {
+    if (harvested > 0) return harvested;
+    if (saved > 0 && (cookie_present || within_restore_window)) return saved;
+    return 0;
+}
+
+int IXSessionReportAccounts(int harvested, int saved, int cookie_present, int within_restore_window) {
+    if (harvested > 0) return 1;
+    if (saved > 0 && (cookie_present || within_restore_window)) return 2;
+    if (cookie_present || within_restore_window) return -1;
+    return 0;
+}
+
+int IXSessionSensitiveName(const char *name) {
+    if (!name || !name[0]) return 0;
+    if (ix_has(name, "password")) return 0;
+    return ix_has(name, "session") || ix_has(name, "auth") || ix_has(name, "account") ||
+           ix_has(name, "cookie") || ix_has(name, "token") || ix_has(name, "device_id") ||
+           ix_has(name, "ig_did") || ix_has(name, "phone_id") || ix_has(name, "guid") ||
+           ix_has(name, "waterfall") || ix_has(name, "ds_user") || ix_has(name, "authorization") ||
+           ix_has(name, "freshinstall") || ix_has(name, "ixappgroup") ||
+           ix_has(name, "group.com.burbn") || ix_has(name, "group.com.facebook");
+}
+
 int IXSessionOurService(const char *service) {
     if (!service || !service[0]) return 0;
     return strcmp(service, "instagramx.diag") == 0 ||

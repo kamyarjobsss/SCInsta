@@ -77,6 +77,30 @@ int IXFreshMarkerSeed(int persistent_present, int saved_present, int known_key);
    ix_seen_launch=existing, cookie_file=yes, both plists absent. */
 int IXSessionSeedFresh(int seen_launch, int cookie_file, int marker_on_disk);
 
+/* Directory leaf the base sideload helper uses: the group identifier itself,
+   under Documents. A slash, backslash, or ".." is rejected. NULL becomes
+   group.com.burbn.instagram. */
+int IXSessionContainerLeaf(const char *identifier, char *out, size_t outLen);
+
+/* How many accounts to report to the panel.
+   A non-zero harvest is the live count.
+   Zero at launch is not a logout while the session cookie is still present
+   or the restore window is still open: the saved count is kept.
+   Zero after that window with no cookie is a real logout and returns 0. */
+int IXSessionHoldCount(int harvested, int saved, int cookie_present, int within_restore_window);
+
+/* What the heartbeat should put in ig_account_count.
+   1: send the live harvest.
+   2: send the saved list.
+   0: send zero. The cookie is gone and the restore window has closed.
+   -1: omit the fields. A zero harvest before restore, or a cookie with no
+   saved list yet, must not replace the account the panel already stored. */
+int IXSessionReportAccounts(int harvested, int saved, int cookie_present, int within_restore_window);
+
+/* 1 when a defaults key or a filesystem path is an auth/session store.
+   Used to decide which deletions to record. Password values are never logged. */
+int IXSessionSensitiveName(const char *name);
+
 /* 1 when SecItemDelete may run.
    our_service is the diagnostics, backend, or VPN item and is always allowed.
    password_class is a generic password, an internet password, or a query

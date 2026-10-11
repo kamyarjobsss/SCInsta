@@ -3,6 +3,8 @@
 #import "IXPanelURL.h"
 #import "IXPin.h"
 #import "../Launch/IXSessionDiag.h"
+#import "../Launch/IXSessionPersist.h"
+#import "../Launch/IXSessionWatch.h"
 #import "../Proxy/IXTrafficGuard.h"
 
 #import <stdatomic.h>
@@ -31,7 +33,7 @@ static NSString *const kAPIPrefix = @"/api/v1";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.6";
+static NSString *const kAppVersion = @"2.4.7";
 static NSString *const kService = @"instagramx.backend";
 
 static dispatch_queue_t ix_q;
@@ -949,17 +951,48 @@ static void IXFetchConfig(void) {
 
 static void IXSendHeartbeat(void) {
     if (ix_blocked || (ix_token.length == 0 && !IXRegister())) return;
-    __block NSArray *names = @[];
-    if (pthread_main_np()) names = IXInstagramUsernames();
-    else dispatch_sync(dispatch_get_main_queue(), ^{ names = IXInstagramUsernames(); });
+    __block NSArray *harvested = @[];
+    NSArray *saved;
+    NSArray *sent;
+    int cookie;
+    int window;
+    int mode;
+    int include = 1;
+    if (pthread_main_np()) harvested = IXInstagramUsernames();
+    else dispatch_sync(dispatch_get_main_queue(), ^{ harvested = IXInstagramUsernames(); });
+    saved = IXSessionSavedUsernames() ?: @[];
+    cookie = IXSessionCookiePresent();
+    window = IXSessionWithinRestoreWindow();
+    mode = IXSessionReportAccounts((int)harvested.count, (int)saved.count, cookie, window);
+    if (mode == 1) {
+        IXSessionSaveUsernames(harvested);
+        sent = harvested;
+    } else if (mode == 2) {
+        sent = saved;
+    } else if (mode < 0) {
+        include = 0;
+        sent = @[];
+    } else {
+        sent = @[];
+        IXSessionClearUsernames();
+    }
+    IXSessionDiagLine([NSString stringWithFormat:@"ig_report harvested=%lu sent=%lu mode=%d include=%d cookie=%d window=%d",
+                       (unsigned long)harvested.count,
+                       (unsigned long)(include ? sent.count : 0),
+                       mode,
+                       include,
+                       cookie,
+                       window]);
     NSMutableDictionary *body = [@{
         @"vpn_label": ix_vpn_label.length ? ix_vpn_label : [NSNull null],
-        @"ig_usernames": names,
-        @"ig_account_count": @(names.count),
         @"app_version": kAppVersion,
         @"model": IXModel(),
         @"ios": IXIOS()
     } mutableCopy];
+    if (include) {
+        body[@"ig_usernames"] = sent ?: @[];
+        body[@"ig_account_count"] = @(sent.count);
+    }
     (void)body;
     NSInteger status = 0;
     NSData *data = IXRequest(@"POST", @"/api/v1/heartbeat", body, @{@"Authorization": [@"Bearer " stringByAppendingString:ix_token]}, &status, NULL);
@@ -1067,6 +1100,9 @@ void IXBackendStart(void) {
                 dispatch_resume(ix_heartbeat_timer);
             }
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), ix_q, ^{
+                IXSyncPanel();
+            });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(25 * NSEC_PER_SEC)), ix_q, ^{
                 IXSyncPanel();
             });
         }

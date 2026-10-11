@@ -13,7 +13,8 @@
 extern void SCIFakeLocationInstall(void);
 extern void IXUSRegionInstall(void);
 extern void IXBackendStart(void);
-extern void IXPrefsSeedFreshMarkers(void);
+extern void IXSessionWatchArm(void);
+extern void IXSessionWatchSnapshot(NSString *phase);
 
 ///////////////////////////////////////////////////////////
 
@@ -25,7 +26,7 @@ extern void IXPrefsSeedFreshMarkers(void);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.6";
+NSString *SCIVersionString = @"v2.4.7";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -73,6 +74,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 // Tweak first-time setup
 %hook IGInstagramAppDelegate
 - (_Bool)application:(UIApplication *)application willFinishLaunchingWithOptions:(id)arg2 {
+    IXSessionWatchArm();
     IXLaunchGuardRecord();
     if (ix_launch_clock == 0) ix_launch_clock = CFAbsoluteTimeGetCurrent();
     // Default SCInsta config
@@ -237,10 +239,11 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         [[NSUserDefaults standardUserDefaults] setValue:@(NO) forKey:@"instagram.override.project.lucent.navigation"];
     }
 
+    IXSessionWatchSnapshot(@"prelaunch");
     return %orig;
 }
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
-    IXPrefsSeedFreshMarkers();
+    IXSessionWatchArm();
     IXSessionDiagBoot();
     %orig;
 
