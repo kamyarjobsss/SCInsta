@@ -14,12 +14,15 @@
 }
 
 %new - (void)addLongPressGestureRecognizer {
-    if ([self.gestureRecognizers count] == 0) {
-        NSLog(@"[SCInsta] Adding tweak settings long press gesture recognizer");
-
-        UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
-        [self addGestureRecognizer:longPress];
+    for (UIGestureRecognizer *existing in self.gestureRecognizers) {
+        if ([existing isKindOfClass:[UILongPressGestureRecognizer class]] && ((UILongPressGestureRecognizer *)existing).minimumPressDuration >= 0.4) return;
     }
+    NSLog(@"[SCInsta] Adding tweak settings long press gesture recognizer");
+    UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
+    longPress.minimumPressDuration = 0.45;
+    longPress.cancelsTouchesInView = NO;
+    longPress.delaysTouchesBegan = NO;
+    [self addGestureRecognizer:longPress];
 }
 %new - (void)handleLongPress:(UILongPressGestureRecognizer *)sender {
     if (sender.state != UIGestureRecognizerStateBegan) return;
@@ -30,14 +33,16 @@
 }
 %end
 
-// Quick access to tweak settings by holding on home tab button
+// Quick access to tweak settings by holding on the home tab button.
+// In messages-only mode the home tab is gone — fall back to the inbox tab.
 %hook IGTabBarButton
 - (void)didMoveToSuperview {
     %orig;
 
-    // Only work on home/feed tab
-    if (![self.accessibilityIdentifier isEqualToString:@"mainfeed-tab"]) return;
-    
+    BOOL msgOnly = [SCIUtils getBoolPref:@"messages_only"];
+    NSString *target = msgOnly ? @"direct-inbox-tab" : @"mainfeed-tab";
+    if (![self.accessibilityIdentifier isEqualToString:target]) return;
+
     if ([SCIUtils getBoolPref:@"settings_shortcut"]) {
         UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleLongPress:)];
         longPress.minimumPressDuration = 0.3;

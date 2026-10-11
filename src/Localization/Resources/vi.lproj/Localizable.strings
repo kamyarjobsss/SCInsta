@@ -1,0 +1,2477 @@
+/*
+ *  RyukGram — Localizable.strings  (Vietnamese translation)
+ *  -------------------------------------------------------------------------
+ *
+ *  Every user-facing string in RyukGram goes through the macro
+ *      SCILocalized(@"English text here")
+ *  in the Objective-C source. The argument is BOTH the lookup key and the
+ *  English fallback, so if a translation is missing the user still sees
+ *  clean English — nothing ever breaks.
+ *
+ *  Translator: tranbinh02 (https://github.com/tranbinh02)
+ *
+ *
+ *  FILE FORMAT NOTES
+ *  -------------------------------------------------------------------------
+ *
+ *  - UTF-8, LF line endings.
+ *  - DO NOT nest one slash-star block comment inside another — the
+ *    parser will close the outer block at the first inner close marker
+ *    and every lookup in the file will silently fail.
+ *  - Keys and values are both quoted; every line ends with a semicolon.
+ *  - Keep every format specifier (%@, %lu, %d, %lld, %1$@, …) exactly
+ *    as-is in the same order. If you need to reorder them, switch to
+ *    positional specifiers (%1$@ %2$lu).
+ *  - Keep embedded quotes escaped with a backslash: \" — and newlines as \n.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+//               CHROME — TOP BAR, LANGUAGE PICKER, FIRST-RUN               //
+// Shown on the root Settings screen: title, search bar, the globe language //
+// menu, and the one-time welcome alert. These use dotted keys (settings.*) //
+// and are hand-authored rather than extracted from English source.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"settings.firstrun.message" = "Trong tương lai: Nhấn giữ vào biểu tượng ba gạch ở góc trên bên phải trang hồ sơ để mở lại cài đặt Instagram X.";
+"settings.firstrun.ok" = "Tôi hiểu rồi!";
+"settings.firstrun.title" = "Thông tin cài đặt Instagram X";
+"settings.language.english_only" = "Instagram X hiện chỉ hỗ trợ tiếng Anh. Các ngôn ngữ khác đã được chuẩn bị và đang chờ bản dịch — hãy giúp dịch sang ngôn ngữ của bạn bằng cách làm theo hướng dẫn ngắn trong README.";
+"settings.language.help_translate" = "Giúp dịch";
+"settings.language.system" = "Mặc định hệ thống";
+"settings.language.title" = "Ngôn ngữ";
+"settings.language.restart.message" = "Đã cập nhật cài đặt. Khởi động lại Instagram để các menu, nút và thông báo ở những nơi khác trong ứng dụng cũng sử dụng ngôn ngữ mới.";
+"settings.language.restart.title" = "Khởi động lại để áp dụng mọi nơi";
+"settings.language.available" = "Khả dụng";
+"settings.results.many" = "%lu kết quả";
+"settings.results.one" = "%lu kết quả";
+"settings.search.placeholder" = "Tìm kiếm cài đặt";
+"settings.title" = "Cài đặt Instagram X";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GENERAL                                  //
+// Settings → General tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button icon" = "Biểu tượng nút hành động";
+"Adds a copy option to the comment long-press menu" = "Thêm tùy chọn sao chép vào menu nhấn giữ bình luận";
+"Adds a download button next to share/save on the reels audio page" = "Thêm nút tải xuống cạnh nút chia sẻ/lưu trên trang âm thanh reel";
+"Adds download, copy and expand options to GIF and image comments" = "Thêm tùy chọn tải xuống, sao chép và phóng to cho bình luận GIF và ảnh";
+"Allow video in photo sticker" = "Cho phép video trong sticker ảnh";
+"Alternate icons are not supported" = "Không hỗ trợ biểu tượng thay thế";
+"Anonymous live viewing" = "Xem live ẩn danh";
+"App Icon" = "Biểu tượng ứng dụng";
+"Audio page" = "Trang âm thanh";
+"Auto-reveals sensitive media" = "Tự động hiển thị media nhạy cảm";
+"Blocks the viewer-count heartbeat so the broadcaster doesn't see you — you also won't see the viewer count" = "Chặn tín hiệu số lượng người xem để người phát không thấy bạn — bạn cũng sẽ không thấy số lượng người xem";
+"Browser" = "Trình duyệt";
+"Change the app icon from the bundled icons" = "Đổi biểu tượng ứng dụng từ các biểu tượng có sẵn";
+"Choose Icon" = "Chọn biểu tượng";
+"Choose which surfaces hide ads" = "Chọn các khu vực ẩn quảng cáo";
+"Comments" = "Bình luận";
+"Commerce carousels in comments and shoppable CTAs on reels" = "Băng chuyền mua sắm trong bình luận và CTA mua sắm trên reels";
+"Copy comment text" = "Sao chép văn bản bình luận";
+"Copy description" = "Sao chép mô tả";
+"Copy description text fields by long-pressing on them" = "Sao chép trường văn bản mô tả bằng cách nhấn giữ";
+"Custom sticker colors" = "Màu sticker tùy chỉnh";
+"Custom colors aren't supported for this sticker" = "Sticker này không hỗ trợ màu tùy chỉnh";
+"Date format" = "Định dạng ngày";
+"Disable app haptics" = "Tắt rung phản hồi ứng dụng";
+"Disables haptics/vibrations within the app" = "Tắt rung/phản hồi rung trong ứng dụng";
+"Disables liquid glass for accounts that have it enabled by default. Overrides the options above" = "Tắt kính lỏng cho các tài khoản được bật mặc định. Ghi đè các tùy chọn ở trên";
+"Do not save recent searches" = "Không lưu tìm kiếm gần đây";
+"Download GIF & image comments" = "Tải bình luận GIF và ảnh";
+"Download image" = "Tải hình ảnh";
+"Embed domain" = "Tên miền nhúng";
+"Embed domain: %@" = "Tên miền nhúng: %@";
+"Enable liquid glass buttons" = "Bật nút kính lỏng";
+"Enable liquid glass surfaces" = "Bật bề mặt kính lỏng";
+"Enable teen app icons" = "Bật biểu tượng ứng dụng teen";
+"Enables experimental liquid glass buttons" = "Bật nút kính lỏng thử nghiệm";
+"Enables liquid glass tab bar, floating navigation, and other UI elements" = "Bật thanh tab kính lỏng, điều hướng nổi và các thành phần UI khác";
+"End" = "Kết thúc";
+"Experimental features" = "Tính năng thử nghiệm";
+"Explore & search" = "Khám phá & tìm kiếm";
+"Failed to change icon" = "Không thể đổi biểu tượng";
+"Fixed" = "Cố định";
+"Fixed prevents shrinking. Hide makes it disappear when scrolling down" = "Cố định ngăn thu nhỏ. Ẩn sẽ làm nó biến mất khi cuộn xuống";
+"Focus/distractions" = "Tập trung/xao nhãng";
+"General" = "Chung";
+"Gradient color" = "Màu gradient";
+"Hide ads" = "Ẩn quảng cáo";
+"Hide explore posts grid" = "Ẩn lưới bài viết khám phá";
+"Hide friends map" = "Ẩn bản đồ bạn bè";
+"Hide Meta AI" = "Ẩn Meta AI";
+"Hide metrics" = "Ẩn chỉ số";
+"Hide notes tray" = "Ẩn khay ghi chú";
+"Hide on scroll" = "Ẩn khi cuộn";
+"Hide TestFlight popup" = "Ẩn popup TestFlight";
+"Hide trending searches" = "Ẩn tìm kiếm xu hướng";
+"Hide UI on capture" = "Ẩn UI khi chụp";
+"Hides all suggested users for you to follow, outside your feed" = "Ẩn tất cả người dùng được đề xuất để bạn theo dõi bên ngoài bảng tin";
+"Hides like/comment/share counts on posts and reels" = "Ẩn số lượt thích/bình luận/chia sẻ trên bài viết và reel";
+"Hides the friends map icon in the notes tray" = "Ẩn biểu tượng bản đồ bạn bè trong khay ghi chú";
+"Hides the grid of suggested posts on the explore/search tab" = "Ẩn lưới bài viết được đề xuất trên tab khám phá/tìm kiếm";
+"Hides the meta ai buttons/functionality within the app" = "Ẩn nút/chức năng Meta AI trong ứng dụng";
+"Hides the notes tray in the DM inbox" = "Ẩn khay ghi chú trong hộp thư DM";
+"Hides the suggested broadcast channels in direct messages" = "Ẩn kênh phát sóng được đề xuất trong tin nhắn trực tiếp";
+"Hides the trending searches under the explore search bar" = "Ẩn tìm kiếm xu hướng bên dưới thanh tìm kiếm khám phá";
+"Hold down on the Instagram logo to change the app icon" = "Nhấn giữ logo Instagram để đổi biểu tượng ứng dụng";
+"Lets the photo sticker picker show videos too, not just photos" = "Cho phép bộ chọn sticker ảnh hiển thị cả video, không chỉ ảnh";
+"Liquid glass tab bar" = "Thanh tab kính lỏng";
+"Force liquid glass off" = "Buộc tắt kính lỏng";
+"Force progressive blur" = "Buộc làm mờ chuyển tiếp";
+"Keeps the iOS 26 scroll-edge blur visible instead of letting it fade out" = "Giữ hiệu ứng làm mờ mép cuộn của iOS 26 luôn hiển thị thay vì để nó mờ dần";
+"Live" = "Live";
+"Long press on the eyedropper tool in stories to customize the text color more precisely" = "Nhấn giữ công cụ ống nhỏ giọt trong tin để tùy chỉnh màu văn bản chính xác hơn";
+"Long-press the color wheel in sticker editors to pick any solid or gradient color" = "Nhấn giữ bánh xe màu trong trình chỉnh sửa sticker để chọn màu đặc hoặc gradient bất kỳ";
+"Long-press the heart button in a live to hide or show the comments" = "Nhấn giữ nút tim trong live để ẩn hoặc hiện bình luận";
+"Long-press the search tab to open a copied Instagram link" = "Nhấn giữ tab tìm kiếm để mở liên kết Instagram đã sao chép";
+"Master switch. When off, all per-surface toggles below are ignored." = "Công tắc chính. Khi tắt, mọi nút bật/tắt theo từng khu vực bên dưới đều bị bỏ qua.";
+"No suggested chats" = "Không có cuộc trò chuyện được đề xuất";
+"No suggested users" = "Không có người dùng được đề xuất";
+"Notes" = "Ghi chú";
+"Open app icon picker" = "Mở bộ chọn biểu tượng ứng dụng";
+"Open link from clipboard" = "Mở liên kết từ khay nhớ tạm";
+"Open links in external browser" = "Mở liên kết trong trình duyệt ngoài";
+"Opens links in Safari instead of Instagram's in-app browser" = "Mở liên kết bằng Safari thay vì trình duyệt trong ứng dụng củan Instagram";
+"Privacy" = "Quyền riêng tư";
+"Removes ads across enabled surfaces" = "Xóa quảng cáo trên các khu vực đã bật";
+"Removes igsh, utm_source, and other tracking parameters from shared links" = "Xóa igsh, utm_source và các tham số theo dõi khác khỏi liên kết chia sẻ";
+"Removes Instagram tracking wrappers (l.instagram.com) and UTM/fbclid params from URLs" = "Xóa lớp theo dõi củan Instagram (l.instagram.com) và tham số UTM/fbclid khỏi URL";
+"Replace domain in shared links" = "Thay tên miền trong liên kết chia sẻ";
+"Replace IG's relative timestamps (\"3d ago\") with a custom format. Toggle which surfaces it applies to inside the picker." = "Thay thời gian tương đối của IG (\"3 ngày trước\") bằng định dạng tùy chỉnh. Chọn nơi áp dụng trong bộ chọn.";
+"Rewrites copied/shared links to use an embed-friendly domain for previews in Discord, Telegram, etc." = "Viết lại liên kết sao chép/chia sẻ để dùng tên miền hỗ trợ nhúng xem trước trên Discord, Telegram, v.v.";
+"Search bars will no longer save your recent searches" = "Thanh tìm kiếm sẽ không còn lưu tìm kiếm gần đây";
+"Selected" = "Đã chọn";
+"Sharing" = "Chia sẻ";
+"Shopping" = "Mua sắm";
+"Skip sensitive content covers" = "Bỏ qua lớp che nội dung nhạy cảm";
+"Solid color" = "Màu đặc";
+"Sponsored posts in main, contextual, video, and chaining feeds" = "Bài đăng được tài trợ trong bảng tin chính, theo ngữ cảnh, video và nối tiếp";
+"Sponsored posts on the explore grid" = "Bài đăng được tài trợ trên lưới khám phá";
+"Sponsored reels in the sundial feed" = "Reels được tài trợ trong bảng tin sundial";
+"Start" = "Bắt đầu";
+"Story ads and sponsored entries in the story tray" = "Quảng cáo tin và mục được tài trợ trong khay tin";
+"Strip tracking from links" = "Xóa theo dõi khỏi liên kết";
+"Strip tracking params" = "Xóa tham số theo dõi";
+"Suppresses the \"It's time to update Instagram Beta\" nag" = "Ẩn thông báo \"Đã đến lúc cập nhật Instagram Beta\"";
+"Tap to apply" = "Chạm để áp dụng";
+"The selected icon will be saved and shown here the next time you open this page." = "Biểu tượng đã chọn sẽ được lưu và hiển thị tại đây vào lần tiếp theo bạn mở trang này.";
+"Toggle live comments" = "Bật/tắt bình luận trực tiếp";
+"Use detailed color picker" = "Dùng bộ chọn màu chi tiết";
+"Used across feed, stories, reels, and DMs." = "Dùng cho bảng tin, tin, reel và DM";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DATE FORMAT                                //
+// Settings → Date format tab                                               //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld day ago" = "%ld ngày trước";
+"%ld days ago" = "%ld ngày trước";
+"%ld hour ago" = "%ld giờ trước";
+"%ld hours ago" = "%ld giờ trước";
+"%ld minute ago" = "%ld phút trước";
+"%ld minutes ago" = "%ld phút trước";
+"%ld week ago" = "%ld tuần trước";
+"%ld weeks ago" = "%ld tuần trước";
+"%ldd" = "%ldng";
+"%ldh" = "%ldg";
+"%ldm" = "%ldp";
+"%ldw" = "%ldt";
+"Always ask" = "Luôn hỏi";
+"Balanced" = "Cân bằng";
+"Block all" = "Chặn tất cả";
+"Block selected" = "Chặn đã chọn";
+"Button" = "Nút";
+"Date format — %@" = "Định dạng ngày — %@";
+"Default" = "Mặc định";
+"Disabled" = "Đã tắt";
+"Download and share" = "Tải xuống và chia sẻ";
+"Download to Photos" = "Tải vào Ảnh";
+"Save with music" = "Lưu kèm nhạc";
+"Gallery with music" = "Thư viện kèm nhạc";
+"Photo with music" = "Ảnh kèm nhạc";
+"Enabled" = "Đã bật";
+"Expand" = "Mở rộng";
+"Explore" = "Khám phá";
+"Fast" = "Nhanh";
+"Feed" = "Bảng tin";
+"Feed posts" = "Bài đăng trên Feed";
+"High" = "Cao";
+"Inbox" = "Hộp thư";
+"just now" = "vừa xong";
+"Low" = "Thấp";
+"Max" = "Tối đa";
+"Medium" = "Trung bình";
+"Mute/Unmute" = "Tắt/Bật âm thanh";
+"Notes, comments, stories" = "Ghi chú, bình luận, story";
+"now" = "ngay bây giờ";
+"Open menu" = "Mở menu";
+"Pause/Play" = "Tạm dừng/Phát";
+"Profile" = "Hồ sơ";
+"Quality" = "Chất lượng";
+"Reels" = "Reels";
+"Requires restart" = "Cần khởi động lại";
+"Save to Photos" = "Lưu vào Ảnh";
+"Share sheet" = "Bảng chia sẻ";
+"Standard" = "Tiêu chuẩn";
+"Toggle" = "Bật/Tắt";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   FEED                                   //
+// Settings → Feed tab                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button" = "Nút hành động";
+"Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "Thêm 'Xem ảnh đại diện' và 'Xem ảnh bìa' vào menu nhấn giữ khay tin";
+"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X bên dưới mỗi bài viết bảng tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Choose Instagram's default feed or force the Following feed" = "Chọn bảng tin mặc định củan Instagram hoặc buộc dùng bảng tin Đang theo dõi";
+"Main feed" = "Bảng tin chính";
+"Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "Kiểm soát thời điểm và cách bảng tin làm mới. Làm mới nền xảy ra khi quay lại ứng dụng sau khoảng 10 phút. Làm mới nút Trang chủ xảy ra khi chạm vào tab Trang chủ khi đã ở trong đó.";
+"Default tap action" = "Hành động chạm mặc định";
+"Disable background refresh" = "Tắt làm mới nền";
+"Disable home button refresh" = "Tắt làm mới nút Trang chủ";
+"Disable home button scroll" = "Tắt cuộn nút Trang chủ";
+"Disable video autoplay" = "Tắt tự động phát video";
+"Hide" = "Ẩn";
+"Hide entire feed" = "Ẩn toàn bộ bảng tin";
+"Hide repost button" = "Ẩn nút đăng lại";
+"Hide stories tray" = "Ẩn khay tin";
+"Hide suggested stories" = "Ẩn tin được đề xuất";
+"Hide story highlights" = "Ẩn tin nổi bật";
+"Removes resurfaced highlights from the stories tray in feed" = "Xóa tin nổi bật xuất hiện lại khỏi thanh tin trong bảng tin";
+"Hides suggested accounts" = "Ẩn tài khoản được đề xuất";
+"Hides suggested reels" = "Ẩn reel được đề xuất";
+"Hides suggested threads posts" = "Ẩn bài viết Threads được đề xuất";
+"Hides the repost button on feed posts" = "Ẩn nút đăng lại trên bài viết bảng tin";
+"Hides the story tray at the top" = "Ẩn khay tin ở phía trên";
+"Inserts a button row below like/comment/share on each post" = "Chèn hàng nút bên dưới thích/bình luận/chia sẻ trên mỗi bài viết";
+"Long press on media to expand in full-screen viewer" = "Nhấn giữ media để mở rộng trong trình xem toàn màn hình";
+"Start media muted" = "Bắt đầu media tắt tiếng";
+"Expanded videos open with sound off" = "Video mở rộng mở với âm thanh tắt";
+"Enhanced media resolution" = "Độ phân giải media nâng cao";
+"Media saving" = "Lưu media";
+"Spoof device profile so IG serves higher-quality images" = "Giả lập hồ sơ thiết bị để IG cung cấp hình ảnh chất lượng cao hơn";
+"Media" = "Phương tiện";
+"Media zoom" = "Thu phóng media";
+"No suggested for you" = "Không có đề xuất cho bạn";
+"No suggested posts" = "Không có bài viết được đề xuất";
+"No suggested reels" = "Không có reel được đề xuất";
+"No suggested threads" = "Không có Threads được đề xuất";
+"Prevents feed from reloading when returning from background" = "Ngăn bảng tin tải lại khi quay lại từ nền";
+"Prevents videos from playing automatically" = "Ngăn video tự động phát";
+"Refresh" = "Làm mới";
+"Removes all content from your home feed" = "Xóa toàn bộ nội dung khỏi bảng tin trang chủ";
+"Removes suggested accounts from the stories tray" = "Xóa tài khoản được đề xuất khỏi khay tin";
+"Removes suggested posts" = "Xóa bài viết được đề xuất";
+"Scroll to top without refreshing when tapping Home" = "Cuộn lên đầu mà không làm mới khi nhấn Trang chủ";
+"Show action button" = "Hiển thị nút hành động";
+"Show date" = "Hiển thị ngày";
+"Stories tray" = "Khay tin";
+"Tapping Home does nothing when already on feed" = "Nhấn Trang chủ sẽ không làm gì khi đang ở bảng tin";
+"Tray long-press actions" = "Hành động nhấn giữ khay";
+"Composer doesn't accept GIFs" = "Trình soạn không chấp nhận GIF";
+"Copy GIF link" = "Sao chép liên kết GIF";
+"Copy image link" = "Sao chép liên kết hình ảnh";
+"Custom GIF in comments" = "GIF tùy chỉnh trong bình luận";
+"Favorite GIFs" = "GIF yêu thích";
+"Long-press a GIF in the picker to pin it — favorites show first" = "Nhấn giữ một GIF trong bộ chọn để ghim — mục yêu thích hiển thị trước";
+"Added to favorites" = "Đã thêm vào mục yêu thích";
+"Removed from favorites" = "Đã xóa khỏi mục yêu thích";
+"Failed to build GIF model" = "Không thể xây dựng mô hình GIF";
+"GIF link copied" = "Đã sao chép liên kết GIF";
+"Image" = "Hình ảnh";
+"Image link copied" = "Đã sao chép liên kết hình ảnh";
+"Invalid Giphy URL" = "URL Giphy không hợp lệ";
+"Long-press the GIF button to paste any Giphy URL" = "Nhấn giữ nút GIF để dán URL Giphy bất kỳ";
+"Paste Giphy Link" = "Dán liên kết Giphy";
+"Paste a giphy.com URL or media ID" = "Dán URL giphy.com hoặc ID media";
+"Send" = "Gửi";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  REELS                                   //
+// Settings → Reels tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X phía trên thanh bên reel với các mục xem ảnh bìa/tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Always show progress scrubber" = "Luôn hiển thị thanh tua tiến trình";
+"Change what happens when you tap on a reel" = "Thay đổi hành động khi chạm vào reel";
+"Confirm reel refresh" = "Xác nhận làm mới reel";
+"Custom speed" = "Tốc độ tùy chỉnh";
+"Disable auto-unmuting reels" = "Tắt tự động bật tiếng reel";
+"Disable scrolling reels" = "Tắt cuộn reel";
+"Disable tab button refresh" = "Tắt làm mới nút tab";
+"Doom scrolling limit" = "Giới hạn cuộn vô tận";
+"e.g. 1.75" = "ví dụ 1.75";
+"Enter a value between 0.5 and 2.0" = "Nhập giá trị từ 0.5 đến 2.0";
+"Forces the progress bar to appear on every reel" = "Buộc thanh tiến trình xuất hiện trên mọi reel";
+"Hide \"Made with Edits\" badge" = "Ẩn huy hiệu \"Tạo bằng Edits\"";
+"Hide friends avatars" = "Ẩn ảnh đại diện bạn bè";
+"Hide reels header" = "Ẩn tiêu đề reel";
+"Hide social context overlay" = "Ẩn lớp phủ ngữ cảnh xã hội";
+"Hides the avatar bubbles next to the Friends tab in reels" = "Ẩn bong bóng ảnh đại diện cạnh tab Bạn bè trong reel";
+"Hides the Edits app promo pill on reels" = "Ẩn pill quảng bá ứng dụng Edits trên reel";
+"Hides the floating overlay showing who reposted or commented on reels" = "Ẩn lớp phủ nổi hiển thị ai đã đăng lại hoặc bình luận trên reel";
+"Hides the repost button on the reels sidebar" = "Ẩn nút đăng lại trên thanh bên reel";
+"Hides the top navigation bar when watching reels" = "Ẩn thanh điều hướng trên cùng khi xem reel";
+"Hiding" = "Ẩn";
+"Hold the 3-dot on any reel to open speed picker" = "Giữ nút 3 chấm trên reel bất kỳ để mở bộ chọn tốc độ";
+"IG default" = "Mặc định IG";
+"Limits" = "Giới hạn";
+"Limits the amount of reels available to scroll at any given time, and prevents refreshing" = "Giới hạn số lượng reel có thể cuộn tại một thời điểm và ngăn làm mới";
+"Only loads %@ %@" = "Chỉ tải %@ %@";
+"Places a button above the like/comment/share column on each reel" = "Đặt một nút phía trên cột thích/bình luận/chia sẻ trên mỗi reel";
+"Playback speed" = "Tốc độ phát";
+"Prevent doom scrolling" = "Ngăn cuộn vô tận";
+"Prevents reels from being scrolled to the next video" = "Ngăn reel chuyển sang video tiếp theo khi vuốt";
+"Prevents reels from unmuting when the volume/silent button is pressed" = "Ngăn reel bật tiếng khi nhấn nút âm lượng/im lặng";
+"RyukGram" = "Instagram X";
+"Shows an alert when you trigger a reels refresh" = "Hiển thị cảnh báo khi bạn làm mới reel";
+"Shows buttons to reveal and auto-fill the password on locked reels" = "Hiển thị nút hiện và tự động điền mật khẩu trên reel bị khóa";
+"Swipe a reel left to open the author's profile" = "Vuốt một reel sang trái để mở hồ sơ của tác giả";
+"Swipe left to profile" = "Vuốt sang trái để mở hồ sơ";
+"Tap Controls" = "Điều khiển chạm";
+"Tap to mute on photo reels" = "Chạm để tắt tiếng trên reel ảnh";
+"Tapping the Reels tab while on reels does nothing" = "Chạm tab Reels khi đang ở reel sẽ không làm gì";
+"Unlock password-locked reels" = "Mở khóa reel bị khóa bằng mật khẩu";
+"When pause mode is on, tap on photo reels toggles audio instead of the native pause gesture" = "Khi bật chế độ tạm dừng, chạm vào reel ảnh sẽ bật/tắt âm thanh thay vì thao tác tạm dừng mặc định";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 PROFILE                                  //
+// Settings → Profile tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a button to filter & sort any followers/following list. Resets when you leave." = "Thêm nút lọc & sắp xếp mọi danh sách người theo dõi/đang theo dõi. Đặt lại khi bạn thoát.";
+"Adds a view option to the highlight long-press menu to open the cover in full-screen" = "Thêm tùy chọn xem vào menu nhấn giữ highlight để mở ảnh bìa toàn màn hình";
+"Adds the like count to each card" = "Thêm số lượt thích vào mỗi thẻ";
+"Adds the upload date to each card" = "Thêm ngày đăng vào mỗi thẻ";
+"Copy note on long press" = "Sao chép ghi chú khi nhấn giữ";
+"Extra stats shown on each post and reel card in profile grids." = "Số liệu bổ sung hiển thị trên mỗi thẻ bài viết và reel trong lưới hồ sơ.";
+"Fake follower count" = "Giả số người theo dõi";
+"Fake following count" = "Giả số đang theo dõi";
+"Fake post count" = "Giả số bài viết";
+"Fake profile stats" = "Giả thống kê hồ sơ";
+"Fake verified badge" = "Giả huy hiệu xác minh";
+"Fetch missing counts" = "Tải số đếm còn thiếu";
+"Filter & sort lists" = "Lọc & sắp xếp danh sách";
+"Follow indicator" = "Chỉ báo theo dõi";
+"Follower & following lists" = "Danh sách người theo dõi & đang theo dõi";
+"Follower count" = "Số người theo dõi";
+"Following count" = "Số đang theo dõi";
+"Long press a profile picture to open it in full-screen with zoom, share, and save" = "Nhấn giữ ảnh đại diện để mở toàn màn hình với phóng to, chia sẻ và lưu";
+"Long press the note bubble on a profile to copy the text" = "Nhấn giữ bong bóng ghi chú trên hồ sơ để sao chép văn bản";
+"Long press to download directly (ignored when zoom is on)" = "Nhấn giữ để tải trực tiếp (bị bỏ qua khi bật thu phóng)";
+"Long-press gestures on profile elements — kept separate from the per-feature action buttons." = "Cử chỉ nhấn giữ trên các thành phần hồ sơ — được tách riêng khỏi các nút hành động theo tính năng.";
+"Only affects your own profile header. Other users see the real numbers." = "Chỉ ảnh hưởng đến phần đầu hồ sơ của bạn. Người dùng khác sẽ thấy số thật.";
+"Override view count" = "Ghi đè số lượt xem";
+"Post count" = "Số bài viết";
+"Profile card details" = "Chi tiết thẻ hồ sơ";
+"Profile stats" = "Thống kê hồ sơ";
+"Render counts in shortened format." = "Hiển thị số đếm ở dạng rút gọn.";
+"Save profile picture" = "Lưu ảnh hồ sơ";
+"Short numbers" = "Số rút gọn";
+"Show a checkmark next to your name on your own profile" = "Hiển thị dấu tích cạnh tên trên hồ sơ của bạn";
+"Show full follower count" = "Hiển thị đầy đủ số người theo dõi";
+"Show full post count" = "Hiển thị đầy đủ số bài viết";
+"Show like count" = "Hiển thị số lượt thích";
+"Show the custom number set below" = "Hiển thị số tùy chỉnh đặt bên dưới";
+"Show the exact number instead of a shortened one" = "Hiển thị số chính xác thay vì số rút gọn";
+"Show upload date" = "Hiển thị ngày đăng";
+"Shows whether the profile user follows you" = "Hiển thị liệu người dùng hồ sơ có theo dõi bạn không";
+"Tap to set" = "Chạm để đặt";
+"Uses Instagram's API. May hit rate limits." = "Dùng API củan Instagram. Có thể bị giới hạn tốc độ.";
+"View highlight cover" = "Xem ảnh bìa highlight";
+"Zoom profile photo" = "Phóng to ảnh đại diện";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            SAVING & DOWNLOADS                            //
+// Settings → Saving tab                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Active, queued, and finished downloads" = "Tải xuống đang chạy, chờ và đã xong";
+"Auto-retry attempts" = "Số lần tự động thử lại";
+"Auto-retry failed downloads" = "Tự động thử lại các lượt tải thất bại";
+"Confirm before download" = "Xác nhận trước khi tải xuống";
+"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Đã lỗi thời. Nút hành động Instagram X (được cấu hình theo từng tính năng trong Feed/Reels/Stories) là cách mới để tải media. Chỉ bật công tắc chính này nếu bạn thích kiểu nhấn giữ nhiều ngón trực tiếp trên media như cũ.";
+"Don't pause downloads, encoding, or profile scans when you leave the app" = "Không tạm dừng tải xuống, mã hóa hoặc quét hồ sơ khi bạn rời ứng dụng";
+"Download queue" = "Hàng đợi tải xuống";
+"Downloads" = "Tải xuống";
+"Downloads with %@ %@" = "Tải xuống với %@ %@";
+"Enable long-press gesture" = "Bật cử chỉ nhấn giữ";
+"Finger count for long-press" = "Số ngón tay để nhấn giữ";
+"How many downloads run at once — extras wait in line and start as slots free up. Failed downloads retry automatically on network errors. Open the manager to watch, cancel, or retry downloads." = "Số lượt tải chạy cùng lúc — các lượt dư chờ trong hàng đợi và bắt đầu khi có chỗ trống. Lượt tải thất bại tự động thử lại khi lỗi mạng. Mở trình quản lý để theo dõi, hủy hoặc thử lại các lượt tải.";
+"Keep running in background" = "Tiếp tục chạy nền";
+"Legacy long-press gesture" = "Cử chỉ nhấn giữ cũ";
+"Long-press hold time" = "Thời gian giữ nhấn";
+"Master toggle for the deprecated gesture workflow (off by default)" = "Công tắc chính cho quy trình cử chỉ đã lỗi thời (tắt theo mặc định)";
+"Max simultaneous downloads" = "Số lượt tải đồng thời tối đa";
+"Open download manager" = "Mở trình quản lý tải xuống";
+"Press finger(s) for %@ %@" = "Nhấn ngón tay trong %@ %@";
+"Retry automatically when a download drops on a network error" = "Tự động thử lại khi một lượt tải bị rớt do lỗi mạng";
+"Route saves into a custom album in Photos instead of the camera roll root" = "Lưu vào album riêng trong Ảnh thay vì thư viện camera";
+"Run up to %@ %@ at once" = "Chạy tối đa %@ %@ cùng lúc";
+"Save action" = "Hành động lưu";
+"Save to dedicated album" = "Lưu vào album riêng";
+"Show a confirmation dialog before starting a download" = "Hiển thị hộp thoại xác nhận trước khi bắt đầu tải xuống";
+"Try %@ more %@ before giving up" = "Thử thêm %@ %@ trước khi bỏ cuộc";
+"What happens after the gesture downloads" = "Điều gì xảy ra sau khi cử chỉ tải xuống";
+"When \"Save to dedicated album\" is on, downloads and share-sheet \"Save to Photos\" picks are routed into a named album in your Photos library. Tap \"Album name\" to change it." = "Khi bật \"Lưu vào album riêng\", các lượt tải xuống và lựa chọn \"Lưu vào Ảnh\" từ bảng chia sẻ sẽ được đưa vào một album có tên trong thư viện Ảnh của bạn. Chạm \"Tên album\" để thay đổi.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         DOWNLOAD QUEUE & MANAGER                         //
+// Download queue settings + the in-app download manager:                   //
+// active/queued/finished lists, concurrency, auto-retry, background.       //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu failed" = "%lu thất bại";
+"%lu of %lu done" = "Hoàn tất %lu trên %lu";
+"%lu saved, %lu failed" = "Đã lưu %lu, %lu thất bại";
+"Active" = "Đang hoạt động";
+"Auto-retry" = "Tự động thử lại";
+"Clear completed" = "Xóa mục đã xong";
+"Completed" = "Đã hoàn tất";
+"Download settings" = "Cài đặt tải xuống";
+"Downloading %lu items" = "Đang tải %lu mục";
+"Downloading…" = "Đang tải…";
+"Encoding %d%%" = "Đang mã hóa %d%%";
+"Encoding…" = "Đang mã hóa…";
+"Extra downloads wait in line and start as slots free up." = "Các lượt tải dư chờ trong hàng đợi và bắt đầu khi có chỗ trống.";
+"No downloads yet" = "Chưa có lượt tải nào";
+"Preview" = "Xem trước";
+"Queued" = "Đang chờ";
+"Redownload" = "Tải lại";
+"Retry" = "Thử lại";
+"Retrying…" = "Đang thử lại…";
+"Waiting for connection…" = "Đang chờ kết nối…";
+"Waiting…" = "Đang chờ…";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 STORIES                                  //
+// Settings → Stories tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X cạnh nút con mắt trên tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại/xem lượt nhắc. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "Thêm nút loa vào lớp phủ tin để bật/tắt âm thanh. Cũng có trong menu ba chấm";
+"Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "Thêm nút con mắt vào lớp phủ tin. Khi tắt, việc chặn đã xem vẫn bật mà không có nút";
+"Advance on story like" = "Chuyển tiếp khi thích tin";
+"Advance on story reply" = "Chuyển tiếp khi trả lời tin";
+"Advance when marking as seen" = "Chuyển tiếp khi đánh dấu đã xem";
+"Audio" = "Âm thanh";
+"Block all: all stories blocked — listed users are exceptions.\nBlock selected: only listed users are blocked — everything else is normal.\nBoth lists are saved independently." = "Chặn tất cả: mọi tin đều bị chặn — người dùng trong danh sách là ngoại lệ.\nChặn đã chọn: chỉ người dùng trong danh sách bị chặn — mọi thứ khác bình thường.\nCả hai danh sách được lưu độc lập.";
+"Blocking mode" = "Chế độ chặn";
+"Button = single-tap mark seen. Toggle = tap toggles story read receipts on/off (eye fills blue when on)" = "Nút = chạm một lần để đánh dấu đã xem. Công tắc = chạm để bật/tắt thông báo đã xem tin (mắt chuyển xanh khi bật)";
+"Disable story seen receipt" = "Tắt thông báo đã xem tin";
+"Enable story user list" = "Bật danh sách người xem tin";
+"Hides the notification for others when you view their story" = "Ẩn thông báo cho người khác khi bạn xem tin của họ";
+"Inserts a button next to the seen/eye button on story overlays" = "Chèn nút cạnh nút đã xem/con mắt trên lớp phủ tin";
+"Keep stories visually seen locally" = "Giữ trạng thái đã xem tin cục bộ";
+"Liking a story automatically advances to the next one after a short delay" = "Thích một tin sẽ tự động chuyển sang tin tiếp theo sau một khoảng ngắn";
+"Manage list" = "Quản lý danh sách";
+"Manage list (%lu)" = "Quản lý danh sách (%lu)";
+"Manual seen button mode" = "Chế độ nút đã xem thủ công";
+"Mark seen on story like" = "Đánh dấu đã xem khi thích tin";
+"Mark seen on story reply" = "Đánh dấu đã xem khi trả lời tin";
+"Marks a story as seen the moment you tap the heart, even with seen blocking on" = "Đánh dấu tin là đã xem ngay khi bạn chạm tim, kể cả khi bật chặn đã xem";
+"Marks a story as seen when you send a reply or emoji reaction, even with seen blocking on" = "Đánh dấu tin là đã xem khi bạn gửi trả lời hoặc phản ứng emoji, kể cả khi bật chặn đã xem";
+"Marks stories as seen locally (grey ring) while still blocking the seen receipt on the server" = "Đánh dấu tin là đã xem cục bộ (vòng xám) trong khi vẫn chặn thông báo đã xem trên máy chủ";
+"Master toggle. When off, the list is ignored" = "Công tắc chính. Khi tắt, danh sách sẽ bị bỏ qua";
+"Playback" = "Phát lại";
+"Search, sort, swipe to remove" = "Tìm kiếm, sắp xếp, vuốt để xóa";
+"Seen receipts" = "Thông báo đã xem";
+"Sending a reply or emoji reaction automatically advances to the next story" = "Gửi trả lời hoặc phản ứng emoji sẽ tự động chuyển sang tin tiếp theo";
+"Adds a 'View mentions' entry to the action button menu and story 3-dot menu" = "Thêm mục 'Xem lượt nhắc' vào menu nút hành động và menu ba chấm trên tin";
+"Mentions overlay button" = "Nút lớp phủ lượt nhắc";
+"Mentions count badge" = "Huy hiệu số lượt nhắc";
+"Adds a button next to the action/eye button on the story overlay. Only appears when the current story has mentions or shared posts/reels" = "Thêm nút cạnh nút hành động/con mắt trên lớp phủ tin. Chỉ xuất hiện khi tin hiện tại có lượt nhắc hoặc bài viết/reel được chia sẻ";
+"Shows the number of unique mentioned accounts as a red badge on the overlay button" = "Hiển thị số lượng tài khoản được nhắc duy nhất dưới dạng huy hiệu đỏ trên nút lớp phủ";
+"Hide stories midcards" = "Ẩn thẻ giữa trong tin";
+"Removes the Trending and Music promo cards from the stories tray" = "Xóa thẻ quảng bá Xu hướng và Âm nhạc khỏi khay tin";
+"Stickers" = "Sticker";
+"Peek at poll/quiz/slider results before interacting — you can still tap to vote normally. Force legacy adds the Quiz and Reveal stickers back to the story composer." = "Xem trước kết quả thăm dò/quiz/thanh trượt trước khi tương tác — bạn vẫn có thể chạm để bình chọn bình thường. Buộc cũ sẽ thêm lại sticker Quiz và Reveal vào trình soạn tin.";
+"Peek at poll/quiz/slider results on reels before interacting — you can still tap to vote normally." = "Xem trước kết quả thăm dò/quiz/thanh trượt trên reel trước khi tương tác — bạn vẫn có thể chạm để bình chọn bình thường.";
+"Force legacy stickers in tray" = "Buộc sticker cũ trong khay";
+"Adds Quiz and Reveal stickers back to the picker" = "Thêm lại sticker Quiz và Reveal vào bộ chọn";
+"Bypass Reveal sticker" = "Bỏ qua sticker Reveal";
+"Skip the DM-to-reveal step on stories with a Reveal sticker" = "Bỏ qua bước DM-để-hiển-thị trên tin có sticker Reveal";
+"Show quiz answer" = "Hiển thị đáp án quiz";
+"Circle the correct option on quiz stickers, or the leading option on polls" = "Khoanh tùy chọn đúng trên sticker quiz hoặc tùy chọn dẫn đầu trên bình chọn";
+"Show poll vote counts" = "Hiển thị số phiếu bình chọn";
+"Show vote tallies on poll options and slider count/average before you vote" = "Hiển thị số phiếu và số lượng/trung bình thanh trượt trước khi bạn bỏ phiếu";
+"Stop story auto-advance" = "Dừng tự động chuyển tin";
+"Stories" = "Tin";
+"Stories won't auto-skip to the next one when the timer ends. Tap to advance manually" = "Tin sẽ không tự chuyển sang cái tiếp theo khi hết thời gian. Chạm để chuyển thủ công";
+"Story audio toggle" = "Nút bật/tắt âm thanh tin";
+"Story user list" = "Danh sách người xem tin";
+"Tapping the eye button to mark a story as seen advances to the next story automatically" = "Chạm nút con mắt để đánh dấu đã xem sẽ tự động chuyển sang tin tiếp theo";
+"This will send a story view receipt." = "Thao tác này sẽ gửi xác nhận đã xem tin.";
+"View story mentions" = "Xem lượt nhắc trong tin";
+"Which stories get seen-receipt blocking" = "Tin nào bị chặn thông báo đã xem";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — READ RECEIPTS                         //
+// Settings → Read receipts tab                                             //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds the eye button to DM threads. Off keeps receipt blocking on without the button" = "Thêm nút con mắt vào cuộc trò chuyện DM. Khi tắt, việc chặn xác nhận đã đọc vẫn bật mà không có nút";
+"Auto mark seen on interact" = "Tự động đánh dấu đã xem khi tương tác";
+"Auto mark seen on typing" = "Tự động đánh dấu đã xem khi nhập";
+"Blocks the auto read receipt — mark seen happens only when you choose" = "Chặn xác nhận đã đọc tự động — chỉ đánh dấu đã xem khi bạn chọn";
+"Control when messages are marked as seen" = "Kiểm soát thời điểm tin nhắn được đánh dấu đã xem";
+"How the seen button behaves" = "Cách nút đã xem hoạt động";
+"Manually mark messages as seen" = "Đánh dấu tin nhắn là đã xem thủ công";
+"Mark as seen?" = "Đánh dấu là đã xem?";
+"Mark as viewed?" = "Đánh dấu là đã xem nội dung?";
+"Marks messages as seen when you reply, react or send media" = "Đánh dấu tin nhắn là đã xem khi bạn trả lời, thả cảm xúc hoặc gửi phương tiện";
+"Marks messages as seen when you start typing" = "Đánh dấu tin nhắn là đã xem khi bạn bắt đầu nhập";
+"Read receipt mode" = "Chế độ xác nhận đã đọc";
+"Read receipts" = "Xác nhận đã đọc";
+"Show seen button" = "Hiển thị nút đã xem";
+"This will send a read receipt for the latest messages." = "Thao tác này sẽ gửi xác nhận đã đọc cho các tin nhắn mới nhất.";
+"This will send a view receipt for the current message." = "Thao tác này sẽ gửi xác nhận đã xem cho tin nhắn hiện tại.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — KEEP DELETED                          //
+// Settings → Keep deleted messages tab                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Activity" = "Hoạt động";
+"Adds a 'Download' option to the long-press menu on voice messages to save them as M4A audio" = "Thêm tùy chọn 'Tải xuống' vào menu nhấn giữ của tin nhắn thoại để lưu dưới dạng âm thanh M4A";
+"Allows typing and sending DMs longer than Instagram's limit" = "Cho phép nhập và gửi DM dài hơn giới hạn củan Instagram";
+"Adds a 'Send File' option to the plus menu in DMs. Supported file types may be limited by Instagram" = "Thêm tùy chọn 'Gửi tệp' vào menu dấu cộng trong DM. Loại tệp được hỗ trợ có thể bị Instagram giới hạn";
+"Adds an 'Audio File' option to the plus menu in DMs to send audio files as voice messages" = "Thêm tùy chọn 'Tệp âm thanh' vào menu dấu cộng trong DM để gửi tệp âm thanh dưới dạng tin nhắn thoại";
+"Adds copy text, download GIF/audio to the note long-press menu" = "Thêm sao chép văn bản, tải GIF/âm thanh vào menu nhấn giữ ghi chú";
+"Block all: all chats blocked — listed chats are exceptions.\nBlock selected: only listed chats are blocked — everything else is normal.\nBoth lists are saved independently. Long-press a chat in the inbox to add or remove." = "Chặn tất cả: mọi cuộc trò chuyện đều bị chặn — các cuộc trò chuyện trong danh sách là ngoại lệ.\nChặn đã chọn: chỉ các cuộc trò chuyện trong danh sách bị chặn — mọi thứ khác bình thường.\nCả hai danh sách được lưu độc lập. Nhấn giữ cuộc trò chuyện trong hộp thư để thêm hoặc xóa.";
+"Block keep-deleted for excluded chats" = "Chặn giữ tin đã xóa cho cuộc trò chuyện bị loại trừ";
+"Block keep-deleted for unlisted chats" = "Chặn giữ tin đã xóa cho cuộc trò chuyện không có trong danh sách";
+"Bypass DM character limit" = "Bỏ qua giới hạn ký tự DM";
+"Chat list" = "Danh sách trò chuyện";
+"Confirmation dialog before clearing preserved messages" = "Hộp thoại xác nhận trước khi xóa tin nhắn đã lưu giữ";
+"Copies note text directly on long press without opening the menu" = "Sao chép trực tiếp văn bản ghi chú khi nhấn giữ mà không mở menu";
+"Copy text on hold" = "Sao chép văn bản khi giữ";
+"Adds Background, Text and Emoji buttons to the note editor" = "Thêm nút Nền, Văn bản và Emoji vào trình chỉnh sửa ghi chú";
+"Custom note themes" = "Giao diện ghi chú tùy chỉnh";
+"Disable vanish mode swipe" = "Tắt vuốt chế độ biến mất";
+"Disable typing status" = "Tắt trạng thái đang nhập";
+"Disable view-once limitations" = "Tắt giới hạn xem một lần";
+"Download voice messages" = "Tải tin nhắn thoại";
+"Enable chat list" = "Bật danh sách trò chuyện";
+"Enable note theming" = "Bật giao diện ghi chú";
+"Enables the notes theme picker" = "Bật bộ chọn giao diện ghi chú";
+"Files" = "Tệp";
+"Full last active date" = "Ngày hoạt động cuối đầy đủ";
+"Hide reels blend button" = "Ẩn nút trộn reel";
+"Hide send to group chat" = "Ẩn gửi tới nhóm trò chuyện";
+"Pin recipients on long-press" = "Ghim người nhận khi nhấn giữ";
+"Long-press in the share sheet to pin a chat/user to the top" = "Nhấn giữ trong bảng chia sẻ để ghim cuộc trò chuyện/người dùng lên trên cùng";
+"Long-press a recipient to pin or unpin. Pinned recipients render at the top." = "Nhấn giữ một người nhận để ghim hoặc bỏ ghim. Người nhận đã ghim hiển thị ở trên cùng.";
+"Recipient pinned" = "Đã ghim người nhận";
+"Recipient unpinned" = "Đã bỏ ghim người nhận";
+"Couldn't resolve recipient id" = "Không thể phân giải ID người nhận";
+"Hide video call button" = "Ẩn nút gọi video";
+"Hide voice call button" = "Ẩn nút gọi thoại";
+"Hides the blend button in DMs" = "Ẩn nút blend trong DM";
+"Removes the create/send to group chat row when sharing to multiple recipients" = "Xóa hàng tạo/gửi tới nhóm trò chuyện khi chia sẻ tới nhiều người nhận";
+"Hides typing indicator from others" = "Ẩn trạng thái đang nhập khỏi người khác";
+"Indicate unsent messages" = "Hiển thị tin nhắn đã thu hồi";
+"Keep deleted messages" = "Giữ tin nhắn đã xóa";
+"Makes view-once messages behave like normal visual messages (loopable/pauseable)" = "Biến tin nhắn xem một lần hoạt động như tin nhắn hình ảnh bình thường (có thể lặp/tạm dừng)";
+"Note actions" = "Hành động ghi chú";
+"Preserves messages that others unsend" = "Giữ lại tin nhắn người khác đã thu hồi";
+"Prevents accidental swipe-up activation of vanish mode" = "Ngăn vô tình vuốt lên kích hoạt chế độ biến mất";
+"Quick list button in chats" = "Nút danh sách nhanh trong trò chuyện";
+"Removes the audio call button from DM thread header" = "Xóa nút gọi thoại khỏi đầu đoạn chat DM";
+"Removes the video call button from DM thread header" = "Xóa nút gọi video khỏi đầu đoạn chat DM";
+"Replay visual messages without expiring. Toggle in the eye button menu, or as a standalone button when the eye button is disabled" = "Phát lại tin nhắn hình ảnh mà không hết hạn. Bật trong menu nút con mắt hoặc dùng nút riêng khi nút con mắt bị tắt";
+"Search, sort, swipe to remove or toggle keep-deleted" = "Tìm kiếm, sắp xếp, vuốt để xóa hoặc bật giữ mục đã xóa";
+"Send audio as file" = "Gửi âm thanh dưới dạng tệp";
+"Send files (experimental)" = "Gửi tệp (thử nghiệm)";
+"File sending not available" = "Không thể gửi tệp";
+"Show full date instead of \"Active 2h ago\"" = "Hiển thị ngày đầy đủ thay vì \"Hoạt động 2 giờ trước\"";
+"Shows a button in DM threads to add/remove chats from the list. Long-press for more options" = "Hiển thị nút trong đoạn chat DM để thêm/xóa chat khỏi danh sách. Nhấn giữ để xem thêm tùy chọn";
+"Shows a notification pill when a message is unsent" = "Hiển thị pill thông báo khi tin nhắn bị thu hồi";
+"Shows an \"Unsent\" label on preserved messages" = "Hiển thị nhãn \"Đã thu hồi\" trên tin nhắn được giữ lại";
+"Unlimited replay of visual messages" = "Phát lại không giới hạn tin nhắn hình ảnh";
+"Unsent message notification" = "Thông báo tin nhắn đã thu hồi";
+"Voice messages" = "Tin nhắn thoại";
+"Warn before clearing on refresh" = "Cảnh báo trước khi xóa khi làm mới";
+"Which chats get read-receipt blocking" = "Cuộc trò chuyện nào bị chặn thông báo đã xem";
+"⚠️ Pull-to-refresh in the DMs tab clears all preserved messages. Enable the warning below to get a confirmation dialog." = "⚠️ Kéo để làm mới trong tab DM sẽ xóa toàn bộ tin nhắn đã lưu giữ. Bật cảnh báo bên dưới để hiển thị hộp thoại xác nhận.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                       MESSAGES — DELETED MESSAGES LOG                    //
+// Settings → Messages → Deleted messages log + the in-app log UI           //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@%lu deleted" = "Đã xóa %@%lu";
+"%lu selected" = "Đã chọn %lu";
+"Absolute date + time" = "Ngày + giờ tuyệt đối";
+"Adjust the filters or clear the search to see more." = "Điều chỉnh bộ lọc hoặc xóa tìm kiếm để xem thêm.";
+"All time" = "Mọi lúc";
+"Browse, filter and search recorded messages" = "Duyệt, lọc và tìm kiếm tin nhắn đã ghi";
+"Captures unsent messages with their text or media" = "Lưu lại tin nhắn đã thu hồi cùng văn bản hoặc media";
+"Clear deleted-message log?" = "Xóa nhật ký tin nhắn đã xóa?";
+"Clear from this user" = "Xóa từ người dùng này";
+"Clear log" = "Xóa nhật ký";
+"Clear log for this account" = "Xóa nhật ký cho tài khoản này";
+"Clear log for this user?" = "Xóa nhật ký của người dùng này?";
+"Clear media files" = "Xóa tệp media";
+"Clearing media keeps the records (text, sender, timestamp). Clearing the log removes everything for this account." = "Xóa media giữ lại các bản ghi (văn bản, người gửi, thời gian). Xóa nhật ký sẽ xóa mọi thứ cho tài khoản này.";
+"Close" = "Đóng";
+"Content unavailable" = "Nội dung không khả dụng";
+"Copied" = "Đã sao chép";
+"Copy URL" = "Sao chép URL";
+"Date range" = "Khoảng thời gian";
+"Deleted messages" = "Tin nhắn đã xóa";
+"Deleted messages log" = "Nhật ký tin nhắn đã xóa";
+"Deleted: %@\n" = "Đã xóa: %@\n";
+"Edit %lu" = "Chỉnh sửa %lu";
+"Edit history" = "Lịch sử chỉnh sửa";
+"Edited" = "Đã chỉnh sửa";
+"Empty" = "Trống";
+"Enable deleted messages log" = "Bật nhật ký tin nhắn đã xóa";
+"Enable Settings → Messages → Deleted messages log to start recording." = "Bật Cài đặt → Tin nhắn → Nhật ký tin nhắn đã xóa để bắt đầu ghi.";
+"GIF" = "GIF";
+"Hashtag" = "Hashtag";
+"IGTV" = "IGTV";
+"Kind: %@\n" = "Loại: %@\n";
+"Last 30 days" = "30 ngày qua";
+"Last 7 days" = "7 ngày qua";
+"Link" = "Liên kết";
+"Live location" = "Vị trí trực tiếp";
+"Location" = "Vị trí";
+"Logging is off" = "Ghi nhật ký đang tắt";
+"Media on disk" = "Media trên ổ đĩa";
+"Most messages" = "Nhiều tin nhắn nhất";
+"Most recent" = "Mới nhất";
+"No deleted messages yet" = "Chưa có tin nhắn đã xóa";
+"No matches" = "Không có kết quả khớp";
+"Nothing to save" = "Không có gì để lưu";
+"Oldest first" = "Cũ nhất trước";
+"Open log" = "Mở nhật ký";
+"Group chat" = "Trò chuyện nhóm";
+"%lu messages in %lu chats" = "%lu tin nhắn trong %lu cuộc trò chuyện";
+"%lu people · %lu deleted" = "%lu người · %lu đã xóa";
+"When someone unsends a message, it will appear here grouped by chat." = "Khi ai đó thu hồi một tin nhắn, nó sẽ xuất hiện ở đây theo từng cuộc trò chuyện.";
+"Clear this chat" = "Xóa cuộc trò chuyện này";
+"Clear log for this chat?" = "Xóa nhật ký cho cuộc trò chuyện này?";
+"Removes every preserved deleted message from this group chat." = "Xóa mọi tin nhắn đã xóa được lưu từ cuộc trò chuyện nhóm này.";
+"Reaction removed" = "Đã gỡ biểu cảm";
+"Log removed reactions" = "Ghi lại biểu cảm đã gỡ";
+"Also records when someone removes a reaction, and which message it was on" = "Cũng ghi lại khi ai đó gỡ biểu cảm và biểu cảm đó ở tin nhắn nào.";
+"Removed a reaction" = "Đã gỡ một biểu cảm";
+"on @%@: %@" = "trên @%@: %@";
+"on: %@" = "trên: %@";
+"a message" = "một tin nhắn";
+"removed %@ on: %@" = "đã gỡ %@ trên: %@";
+"removed reaction %@" = "đã gỡ biểu cảm %@";
+"%@ removed the %@ reaction." = "%@ đã gỡ biểu cảm %@.";
+"Removed %@" = "Đã gỡ %@";
+"Someone" = "Ai đó";
+"Photo or video" = "Ảnh hoặc video";
+"Refresh names & photos" = "Làm mới tên và ảnh";
+"Refreshing names & photos" = "Đang làm mới tên và ảnh";
+"Records every message someone unsends, grouped by chat" = "Ghi lại mọi tin nhắn bị thu hồi, nhóm theo cuộc trò chuyện";
+"Open profile" = "Mở hồ sơ";
+"Original" = "Gốc";
+"Play" = "Phát";
+"Post" = "Bài viết";
+"Reel" = "Reel";
+"Relative (1m / 3h / 3d ago)" = "Tương đối (1p / 3g / 3 ngày trước)";
+"Removes every preserved deleted message and its captured media for the current account. This cannot be undone." = "Xóa mọi tin nhắn đã xóa được lưu giữ và media đã chụp cho tài khoản hiện tại. Không thể hoàn tác.";
+"Removes every preserved deleted message and its captured media for this account." = "Xóa mọi tin nhắn đã xóa được lưu giữ và media đã chụp cho tài khoản này.";
+"Removes every preserved deleted message from this sender." = "Xóa mọi tin nhắn đã xóa được lưu giữ từ người gửi này.";
+"Removes every saved photo, video and voice clip. Records keep their text and sender info." = "Xóa mọi ảnh, video và đoạn thoại đã lưu. Bản ghi vẫn giữ văn bản và thông tin người gửi.";
+"Search messages" = "Tìm kiếm tin nhắn";
+"Search senders or messages" = "Tìm kiếm người gửi hoặc tin nhắn";
+"Select" = "Chọn";
+"Show edit history" = "Hiện lịch sử chỉnh sửa";
+"Source URL recorded but media not stored.\n" = "Đã ghi URL nguồn nhưng media không được lưu.\n";
+"Sticker" = "Nhãn dán";
+"Tap to open in Instagram" = "Chạm để mở trong Instagram";
+"Tap to open in Maps" = "Chạm để mở trong Maps";
+"Tap to play" = "Chạm để phát";
+"Tap to play · %@" = "Chạm để phát · %@";
+"Text" = "Văn bản";
+"This account" = "Tài khoản này";
+"Unknown" = "Không xác định";
+"Video" = "Video";
+"View" = "Xem";
+"Voice" = "Thoại";
+"When enabled, deleted messages and their media are saved on this device. Toggle off and clear the log to wipe history." = "Khi bật, tin nhắn đã xóa và media của chúng sẽ được lưu trên thiết bị này. Tắt và xóa nhật ký để xóa lịch sử.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 MESSAGES                                 //
+// Settings → Messages tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Bypass \"You can't send messages\"" = "Bỏ qua “Bạn không thể gửi tin nhắn”";
+"Removes the blocked composer banner and restores the text input in restricted threads" = "Xóa biểu ngữ ô nhập bị chặn và khôi phục ô nhập văn bản trong các cuộc trò chuyện bị hạn chế";
+"Custom chat background" = "Hình nền trò chuyện tùy chỉnh";
+"DM Save button" = "Nút Lưu trong DM";
+"Make Instagram's built-in Save button on DM photos & videos download to Photos, the Gallery, or Share" = "Khiến nút Lưu tích hợp củan Instagram trên ảnh và video trong DM tải về Ảnh, Thư viện hoặc Chia sẻ";
+"Reroute native Save" = "Chuyển hướng nút Lưu gốc";
+"Save media" = "Lưu phương tiện";
+"Incoming calls stay silent — no ring, no screen, no notification" = "Cuộc gọi đến luôn im lặng — không chuông, không màn hình, không thông báo";
+"Messages" = "Tin nhắn";
+"Silence incoming calls" = "Tắt tiếng cuộc gọi đến";
+"Threads" = "Threads";
+"Use your own images as chat backgrounds" = "Dùng ảnh của riêng bạn làm hình nền trò chuyện";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            MESSAGES — INSTANTS                           //
+// Settings → Messages → Instants section                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ (%lu)" = "%@ (%lu)";
+"Adds a gallery button to the instants camera so you can send a photo from your album" = "Thêm nút thư viện vào camera instants để bạn có thể gửi ảnh từ album";
+"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Thêm nút hành động Instagram X vào tiêu đề trình xem instants với các mục mở rộng, lưu, chia sẻ và lưu hàng loạt";
+"All loaded instants" = "Tất cả instants đã tải";
+"Auto advance after reaction" = "Tự động chuyển sau khi thả cảm xúc";
+"Automatically moves to the next instant after you like or react" = "Tự động chuyển sang Instant tiếp theo sau khi bạn thích hoặc thả cảm xúc";
+"Bypasses the Instants screenshot block" = "Bỏ qua chặn chụp màn hình Instants";
+"Could not locate the instant on screen" = "Không thể định vị instant trên màn hình";
+"Current instant" = "Instant hiện tại";
+"In-app Gallery" = "Thư viện trong ứng dụng";
+"Instant" = "Instant";
+"Instants" = "Instants";
+"Auto-saved instants log" = "Nhật ký instants đã tự động lưu";
+"Auto-save instants" = "Tự động lưu instants";
+"Automatically saves every instant you view, including as you swipe — each one only once" = "Tự động lưu mọi instant bạn xem, kể cả khi vuốt — mỗi cái chỉ một lần";
+"Instants action button" = "Nút hành động Instants";
+"No instants currently loaded" = "Hiện không có instants nào được tải";
+"No media available to save" = "Không có media nào để lưu";
+"Photos library" = "Thư viện Ảnh";
+"Pick from" = "Chọn từ";
+"Queued %lu instants" = "Đã xếp hàng %lu instants";
+"Save all to Gallery" = "Lưu tất cả vào Thư viện";
+"Save all to Photos" = "Lưu tất cả vào Ảnh";
+"Save to Gallery" = "Lưu vào Thư viện";
+"Send from gallery" = "Gửi từ thư viện";
+"Tweaks for the QuickSnap / Instants camera surface." = "Tinh chỉnh cho giao diện camera QuickSnap / Instants.";
+"Use" = "Dùng";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                NAVIGATION                                //
+// Settings → Navigation tab                                                //
+//////////////////////////////////////////////////////////////////////////////
+
+"Also hide the bottom tab bar — only the inbox is visible" = "Cũng ẩn thanh tab dưới cùng — chỉ hiển thị hộp thư";
+"Hide search tab" = "Ẩn tab tìm kiếm";
+"Remove the search/explore button from the tab bar" = "Xóa nút tìm kiếm/khám phá khỏi thanh tab";
+"Hide tab bar" = "Ẩn thanh tab";
+"Hides every tab except DM inbox + profile and forces launch into the inbox. Settings shortcut moves to long-press on the inbox tab." = "Ẩn mọi tab ngoại trừ hộp thư DM + hồ sơ và buộc khởi chạy vào hộp thư. Phím tắt cài đặt được chuyển sang nhấn giữ trên tab hộp thư.";
+"Icon order" = "Thứ tự biểu tượng";
+"Launch tab" = "Tab khởi chạy";
+"Lets you swipe to switch between navigation bar tabs" = "Cho phép vuốt để chuyển giữa các tab thanh điều hướng";
+"Messages only" = "Chỉ tin nhắn";
+"Messages-only mode" = "Chế độ chỉ tin nhắn";
+"Navigation" = "Điều hướng";
+"Swipe between tabs" = "Vuốt giữa các tab";
+"Tab the app opens to. Ignored when Messages-only is on" = "Tab ứng dụng mở vào. Bị bỏ qua khi bật chỉ Tin nhắn";
+"The order of the icons on the bottom navigation bar" = "Thứ tự biểu tượng trên thanh điều hướng dưới";
+"Drag the ≡ handle to reorder tabs. Toggle a tab off to hide it from the bottom navigation bar." = "Kéo tay nắm ≡ để sắp xếp lại các tab. Tắt một tab để ẩn nó khỏi thanh điều hướng dưới cùng.";
+"This will restore the default tab order and unhide all tabs." = "Thao tác này sẽ khôi phục thứ tự tab mặc định và hiện lại tất cả các tab.";
+"Turn IG into a DM-only client" = "Biến IG thành ứng dụng chỉ nhắn tin";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CONFIRM ACTIONS                              //
+// Settings → Confirm actions tab                                           //
+//////////////////////////////////////////////////////////////////////////////
+
+"All" = "Tất cả";
+"Calls" = "Cuộc gọi";
+"Comments & posts" = "Bình luận & bài đăng";
+"Confirm actions" = "Xác nhận hành động";
+"Confirm changing theme" = "Xác nhận đổi giao diện";
+"Confirm disappearing media mark as viewed" = "Xác nhận đánh dấu nội dung tự hủy là đã xem";
+"Confirm DM mark as seen" = "Xác nhận đánh dấu DM là đã xem";
+"Confirm follow" = "Xác nhận theo dõi";
+"Confirm follow requests" = "Xác nhận yêu cầu theo dõi";
+"Confirm Instants capture" = "Xác nhận chụp Instants";
+"Confirm Instants emoji reaction" = "Xác nhận phản ứng emoji với Instant";
+"Confirm like: Posts" = "Xác nhận thích: Bài viết";
+"Confirm like: Reels" = "Xác nhận thích: Reel";
+"Confirm note emoji reaction" = "Xác nhận phản ứng emoji với ghi chú";
+"Confirm note like" = "Xác nhận thích ghi chú";
+"Confirm posting comment" = "Xác nhận đăng bình luận";
+"Confirm repost" = "Xác nhận đăng lại";
+"Confirm send to group chat" = "Xác nhận gửi tới nhóm trò chuyện";
+"Confirm sticker interaction (highlights)" = "Xác nhận tương tác sticker (highlight)";
+"Confirm sticker interaction (stories)" = "Xác nhận tương tác sticker (tin)";
+"Confirm story emoji reaction" = "Xác nhận phản ứng emoji với tin";
+"Confirm story like" = "Xác nhận thích tin";
+"Confirm story mark as seen" = "Xác nhận đánh dấu tin là đã xem";
+"Confirm switching Instant" = "Xác nhận chuyển Instant";
+"Confirm unfollow" = "Xác nhận bỏ theo dõi";
+"Confirm vanish mode" = "Xác nhận chế độ biến mất";
+"Confirm video call" = "Xác nhận cuộc gọi video";
+"Confirm voice call" = "Xác nhận cuộc gọi thoại";
+"Confirm voice messages" = "Xác nhận tin nhắn thoại";
+"Follows" = "Theo dõi";
+"Likes" = "Lượt thích";
+"Messaging" = "Nhắn tin";
+"Reaction stickers only" = "Chỉ sticker phản ứng";
+"Reactions" = "Cảm xúc";
+"Send to group chat?" = "Gửi tới nhóm trò chuyện?";
+"Shows an alert before creating/sending to a group chat from the share sheet" = "Hiển thị cảnh báo trước khi tạo/gửi tới nhóm trò chuyện từ bảng chia sẻ";
+"Shows an alert before marking a disappearing message as viewed" = "Hiển thị cảnh báo trước khi đánh dấu tin nhắn tự hủy là đã xem";
+"Shows an alert before sending a read receipt from the DM seen button or menu" = "Hiển thị cảnh báo trước khi gửi xác nhận đã đọc từ nút đã xem trong DM hoặc menu";
+"Shows an alert before sending a story view receipt from the eye button or menu" = "Hiển thị cảnh báo trước khi gửi xác nhận đã xem tin từ nút con mắt hoặc menu";
+"Shows an alert before sending an emoji reaction on a note" = "Hiển thị cảnh báo trước khi gửi phản ứng emoji trên ghi chú";
+"Shows an alert before sending an emoji reaction on a story" = "Hiển thị cảnh báo trước khi gửi phản ứng emoji trên tin";
+"Shows an alert before sending an emoji reaction on an Instant" = "Hiển thị cảnh báo trước khi gửi phản ứng emoji trên Instant";
+"Shows an alert before taking a photo with the Instants camera" = "Hiển thị cảnh báo trước khi chụp ảnh bằng camera Instants";
+"Shows an alert before tapping to switch to the next/previous Instant" = "Hiển thị cảnh báo trước khi chạm để chuyển sang Instant kế tiếp/trước đó";
+"Shows an alert to confirm before sending a voice message" = "Hiển thị cảnh báo xác nhận trước khi gửi tin nhắn thoại";
+"Shows an alert to confirm before toggling vanish mode" = "Hiển thị cảnh báo xác nhận trước khi bật/tắt chế độ biến mất";
+"Shows an alert when you accept/decline a follow request" = "Hiển thị cảnh báo khi bạn chấp nhận/từ chối yêu cầu theo dõi";
+"Shows an alert when you change a chat theme to confirm" = "Hiển thị cảnh báo xác nhận khi đổi giao diện chat";
+"Shows an alert when you click the follow button to confirm the follow" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút theo dõi";
+"Shows an alert when you click the like button on notes to confirm the like" = "Hiển thị cảnh báo khi bạn nhấn nút thích trên ghi chú để xác nhận";
+"Shows an alert when you click the like button on posts to confirm the like" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút thích trên bài viết";
+"Shows an alert when you click the like button on reels to confirm the like" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút thích trên reel";
+"Shows an alert when you click the like button on stories to confirm the like" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút thích trên tin";
+"Shows an alert when you click the post comment button to confirm" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút đăng bình luận";
+"Shows an alert when you click the repost button to confirm before reposting" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút đăng lại trước khi đăng lại";
+"Shows an alert when you click the unfollow button to confirm" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút bỏ theo dõi";
+"Shows an alert when you click the video call button to confirm before calling" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút gọi video trước khi gọi";
+"Shows an alert when you click the voice call button to confirm before calling" = "Hiển thị cảnh báo xác nhận khi bạn nhấn nút gọi thoại trước khi gọi";
+"Shows an alert when you tap a sticker inside a highlight" = "Hiển thị cảnh báo khi bạn chạm sticker trong highlight";
+"Shows an alert when you tap a sticker on someone's story" = "Hiển thị cảnh báo khi bạn chạm sticker trên tin của người khác";
+"Stories & highlights" = "Tin & tin nổi bật";
+
+//////////////////////////////////////////////////////////////////////////////
+//                           SECURITY & PRIVACY                             //
+// Settings → Security & Privacy                                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld h" = "%ld giờ";
+"%ld locked" = "%ld đã khoá";
+"%ld min" = "%ld phút";
+"%ldh idle" = "nhàn rỗi %ld giờ";
+"%ldm idle" = "nhàn rỗi %ld phút";
+"%lds" = "%ldgi";
+"%lds idle" = "nhàn rỗi %lds";
+"%lu hidden" = "%lu đã ẩn";
+"4 digits" = "4 chữ số";
+"6 digits" = "6 chữ số";
+"Add hidden chat" = "Thêm chat đã ẩn";
+"Add locked chat" = "Thêm chat đã khoá";
+"Allow Instants screenshots" = "Cho phép chụp Instants";
+"Always ask when opening again" = "Luôn hỏi khi mở lại";
+"Ask again after Instagram returns" = "Hỏi lại sau khi Instagram quay lại";
+"Auto-relock after idle" = "Tự khoá lại sau khi nhàn rỗi";
+"Balanced default" = "Mặc định cân bằng";
+"Best for sensitive sections" = "Tốt nhất cho các mục nhạy cảm";
+"Biometric" = "Sinh trắc học";
+"Change passcode" = "Đổi mật khẩu";
+"Chat hidden" = "Đã ẩn chat";
+"Chat locked" = "Đã khoá chat";
+"Chat unlocked" = "Đã mở khoá chat";
+"Choose a code you'll remember." = "Chọn mã bạn sẽ nhớ.";
+"Choose how long this section stays unlocked while idle. Never keeps it unlocked until Instagram closes or goes to background." = "Chọn thời gian mục này vẫn mở khóa khi không hoạt động. Không bao giờ giữ mở khóa cho đến khi Instagram đóng hoặc chạy nền.";
+"Confirm current passcode" = "Xác nhận mật khẩu hiện tại";
+"Confirm passcode" = "Xác nhận mật khẩu";
+"Could not save passcode" = "Không thể lưu mật khẩu";
+"Create passcode" = "Tạo mật khẩu";
+"Derivation failed" = "Tạo khóa thất bại";
+"DM inbox" = "Hộp thư DM";
+"Don't share unlock" = "Không dùng chung mở khóa";
+"Each target has its own enable, timeout, and re-lock configuration." = "Mỗi mục tiêu có cấu hình bật, hết giờ và khóa lại riêng.";
+"Enable lock" = "Bật khóa";
+"Enter passcode" = "Nhập mật khẩu";
+"Enter value" = "Nhập giá trị";
+"Enter your current passcode to change it" = "Nhập mật khẩu hiện tại để thay đổi";
+"Enter your current passcode to reset it" = "Nhập mật mã hiện tại để đặt lại";
+"Enter your passcode to continue" = "Nhập mật khẩu để tiếp tục";
+"every use" = "mỗi lần dùng";
+"Every use" = "Mỗi lần dùng";
+"Hidden chats" = "Chat đã ẩn";
+"Hide chat" = "Ẩn chat";
+"Hide message preview" = "Ẩn xem trước tin nhắn";
+"Hide this chat?" = "Ẩn chat này?";
+"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Ẩn giao diện Instagram X khỏi ảnh chụp/bản ghi và bỏ qua cảnh báo chụp màn hình củan Instagram cho từng tính năng.";
+"Idle timeout" = "Hết thời gian nhàn rỗi";
+"Instagram" = "Instagram";
+"Keep this target locked separately" = "Giữ mục tiêu này khóa riêng";
+"Less frequent prompts" = "Hỏi ít thường xuyên hơn";
+"Lock" = "Khoá";
+"Lock chat" = "Khoá chat";
+"Lock every time" = "Khoá mỗi lần";
+"Lock every time overrides idle timeout. Don't share unlock keeps this target separate." = "Khóa mỗi lần ưu tiên hơn thời gian chờ không hoạt động. Không dùng chung mở khóa giữ mục tiêu này tách biệt.";
+"Lock targets" = "Mục tiêu khoá";
+"Lock the tweak" = "Khoá tweak";
+"Lock this chat" = "Khoá chat này";
+"Lock this chat?" = "Khoá chat này?";
+"Lock with passcode" = "Khoá bằng mật khẩu";
+"Locked chats" = "Chat đã khoá";
+"Long-press a chat to lock it individually" = "Giữ lâu một chat để khoá riêng nó";
+"Long-press a DM thread → Hide chat to add it here. Hidden chats are filtered out of the inbox until you remove them from this list." = "Giữ lâu một chat DM → Ẩn chat để thêm vào đây. Chat đã ẩn sẽ bị lọc khỏi hộp thư cho đến khi bạn xoá khỏi danh sách này.";
+"Long-press a DM to add" = "Giữ lâu một DM để thêm";
+"Longest idle window" = "Khoảng chờ không hoạt động dài nhất";
+"Manage locked chats" = "Quản lý chat đã khoá";
+"Master switch. Turn off to disable every lock target without losing per-target configuration." = "Công tắc chính. Tắt để vô hiệu hoá mọi mục tiêu khoá mà không mất cấu hình từng mục tiêu.";
+"Never" = "Không bao giờ";
+"No passcode set" = "Chưa đặt mật khẩu";
+"Nothing here yet." = "Chưa có gì ở đây.";
+"Off" = "Tắt";
+"On" = "Bật";
+"On — %@" = "Bật — %@";
+"On — %@ + %ld more" = "Bật — %@ + thêm %ld";
+"On — no targets enabled" = "Bật — chưa bật mục tiêu nào";
+"Passcode" = "Mật khẩu";
+"Passcode + biometric. Gate the tweak settings popup, gallery, deleted-messages log, individual chats and the whole app." = "Mật khẩu + sinh trắc học. Khoá cửa sổ cài đặt tweak, bộ sưu tập, nhật ký tin nhắn đã xoá, từng chat và toàn bộ ứng dụng.";
+"Passcode changed" = "Đã đổi mật khẩu";
+"Passcode reset" = "Đã đặt lại mật khẩu";
+"Passcode set" = "Đã đặt mật khẩu";
+"Passcode too short" = "Mật mã quá ngắn";
+"Passcodes did not match — try again" = "Mật khẩu không khớp — thử lại";
+"Per-chat locks" = "Khoá theo từng chat";
+"Prompt before Instagram opens" = "Hỏi trước khi mở Instagram";
+"Prompt before Profile Analyzer opens" = "Hỏi trước khi mở Phân tích hồ sơ";
+"Prompt before the deleted-messages log opens" = "Hỏi trước khi mở nhật ký tin nhắn đã xoá";
+"Prompt before the gallery opens" = "Hỏi trước khi mở bộ sưu tập";
+"Prompt before tweak settings open" = "Hỏi trước khi mở cài đặt tweak";
+"Prompt on every entry to the DM inbox, including launch-to-messages" = "Hỏi mỗi khi vào hộp thư DM, kể cả mở thẳng vào tin nhắn";
+"Re-enter the same passcode" = "Nhập lại cùng mật khẩu";
+"Re-lock on background" = "Khoá lại khi vào nền";
+"re-lock on bg" = "khoá lại khi nền";
+"Recently hidden" = "Đã ẩn gần đây";
+"Recently locked" = "Đã khoá gần đây";
+"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "Ẩn các nút Instagram X khỏi ảnh chụp, bản ghi màn hình và phản chiếu";
+"Remove screenshot alert" = "Xoá cảnh báo chụp màn hình";
+"Replace inbox preview with • • •" = "Thay bản xem trước hộp thư bằng • • •";
+"Require passcode for this section" = "Yêu cầu mật mã cho mục này";
+"Requires your current passcode" = "Yêu cầu mật mã hiện tại của bạn";
+"Reset passcode" = "Đặt lại mật khẩu";
+"Reset passcode?" = "Đặt lại mật khẩu?";
+"Screenshots & capture" = "Chụp & quay màn hình";
+"Security & Privacy" = "Bảo mật & Quyền riêng tư";
+"Set a passcode to protect Settings, Gallery, deleted messages, chats, the DM inbox, Profile Analyzer, or Instagram itself." = "Đặt mật khẩu để khoá Cài đặt, Bộ sưu tập, nhật ký tin nhắn đã xoá, từng chat, hộp thư DM, Phân tích hồ sơ hoặc chính Instagram.";
+"Set passcode" = "Đặt mật khẩu";
+"Short idle window" = "Khoảng chờ không hoạt động ngắn";
+"Stay unlocked until app close or background" = "Giữ mở khóa cho đến khi đóng ứng dụng hoặc chạy nền";
+"Suppress IG's \"X took a screenshot\" notification across stories, DMs and disappearing media" = "Chặn thông báo \"X đã chụp màn hình\" của IG trên tin, tin nhắn và media biến mất";
+"Tap Unlock" = "Chạm Mở khoá";
+"Tap Unlock or enter your passcode" = "Chạm Mở khoá hoặc nhập mật khẩu";
+"This clears the passcode, disables every lock target, and unlocks all chats. Gallery and Keep-Deleted data are untouched." = "Thao tác này xoá mật khẩu, tắt mọi mục tiêu khoá và mở khoá toàn bộ chat. Bộ sưu tập và dữ liệu tin nhắn đã xoá không bị ảnh hưởng.";
+"Thread %@" = "Cuộc trò chuyện %@";
+"Tweak settings" = "Cài đặt tweak";
+"Unlock" = "Mở khoá";
+"Unlock %@" = "Mở khoá %@";
+"Unlock chat" = "Mở khoá chat";
+"Unlock Instagram" = "Mở khoá Instagram";
+"Unlock this chat" = "Mở khoá chat này";
+"Use %@" = "Dùng %@";
+"Username (looks up the DM thread) or raw thread ID" = "Tên người dùng (tra cứu chat DM) hoặc ID chat thô";
+"Username or thread ID" = "Tên người dùng hoặc ID chat";
+"Wrong passcode" = "Sai mật khẩu";
+"Wrong passcode • %ld attempts" = "Sai mật mã • %ld lần thử";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             BACKUP & RESTORE                             //
+// Settings → Backup & Restore tab                                          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu account(s)" = "%lu tài khoản";
+"%lu account(s) · %lu image(s) · %@" = "%lu tài khoản · %lu ảnh · %@";
+"%lu file(s) · %@" = "%lu tệp · %@";
+"%lu preferences" = "%lu tùy chọn";
+"(none)" = "(không có)";
+"Apply backup?" = "Áp dụng bản sao lưu?";
+"Applying backup…" = "Đang áp dụng bản sao lưu…";
+"archive error" = "lỗi lưu trữ";
+"Archived snapshots" = "Ảnh chụp đã lưu trữ";
+"Backup & Restore" = "Sao lưu & Khôi phục";
+"Backup exported" = "Đã xuất bản sao lưu";
+"Backup failed" = "Sao lưu thất bại";
+"Backup has no importable sections." = "Bản sao lưu không có mục nào để nhập.";
+"Chat & story filters" = "Bộ lọc trò chuyện & tin";
+"Chat backgrounds" = "Hình nền trò chuyện";
+"Clear selected data" = "Xóa dữ liệu đã chọn";
+"Corrupt entry path." = "Đường dẫn mục bị hỏng.";
+"Could not decompress archive." = "Không thể giải nén tệp lưu trữ.";
+"Could not open archive." = "Không thể mở tệp lưu trữ.";
+"Could not open staging file." = "Không thể mở tệp tạm.";
+"Could not read the backup archive." = "Không thể đọc tệp sao lưu.";
+"Could not write archive." = "Không thể ghi tệp lưu trữ.";
+"Could not write backup file." = "Không thể ghi tệp sao lưu.";
+"Could not write extracted file." = "Không thể ghi tệp đã giải nén.";
+"Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "Dữ liệu hiện có của các mục đã chọn sẽ bị thay thế. Có thể cần khởi động lại để mọi thứ có hiệu lực.";
+"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "Xuất hoặc nhập dữ liệu Instagram X — cài đặt, bộ lọc theo từng tài khoản, cuộc trò chuyện ẩn & đã khóa, Profile Analyzer, thư viện, hình nền trò chuyện, tin nhắn đã xóa và nhật ký đã xem. Chọn bất kỳ tổ hợp nào ở mỗi trang. Cài đặt được giữ dưới dạng tệp JSON thuần; gói có kèm media được xuất dưới dạng .ryukbak nén.";
+"Feature data" = "Dữ liệu tính năng";
+"Import mode" = "Chế độ nhập";
+"Merge" = "Gộp";
+"Replace" = "Thay thế";
+"Add the backup's data to what's already here" = "Thêm dữ liệu của bản sao lưu vào dữ liệu hiện có";
+"Clear existing data, then apply the backup" = "Xóa dữ liệu hiện tại, sau đó áp dụng bản sao lưu";
+"Merge keeps what's on this device and adds the backup's data — duplicates are combined, including the gallery." = "Gộp giữ lại dữ liệu trên thiết bị này và thêm dữ liệu của bản sao lưu — các mục trùng được gộp lại, bao gồm cả thư viện.";
+"Replace clears existing data for each ticked item, then applies the backup." = "Thay thế xóa dữ liệu hiện có của từng mục được chọn, sau đó áp dụng bản sao lưu.";
+"The backup will be merged into your existing data — nothing is deleted, duplicates are combined. A restart may be needed for everything to take effect." = "Bản sao lưu sẽ được gộp vào dữ liệu hiện có của bạn — không có gì bị xóa, các mục trùng được gộp lại. Có thể cần khởi động lại để mọi thứ có hiệu lực.";
+"Hidden & locked chats" = "Cuộc trò chuyện ẩn & đã khóa";
+"Import" = "Nhập";
+"Inspect the full manifest" = "Xem toàn bộ manifest";
+"Load a .json or .ryukbak backup" = "Tải bản sao lưu .json hoặc .ryukbak";
+"Not a RyukGram backup archive." = "Không phải tệp sao lưu Instagram X.";
+"PK %@" = "PK %@";
+"Preparing backup…" = "Đang chuẩn bị bản sao lưu…";
+"Reading backup…" = "Đang đọc bản sao lưu…";
+"Save settings or a full backup" = "Lưu cài đặt hoặc bản sao lưu đầy đủ";
+"Tick what to apply. Rows not in this backup are hidden." = "Chọn nội dung cần áp dụng. Các hàng không có trong bản sao lưu này sẽ bị ẩn.";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "Chọn nội dung cần đưa vào. Chạm một hàng để xem chi tiết. Thêm thư viện, hình nền trò chuyện hoặc tin nhắn đã xóa sẽ tạo gói .ryukbak nén.";
+"Truncated entry data." = "Dữ liệu mục bị cắt cụt.";
+"Truncated entry length." = "Độ dài mục bị cắt cụt.";
+"Truncated entry path." = "Đường dẫn mục bị cắt cụt.";
+"Unsafe entry path." = "Đường dẫn mục không an toàn.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 ADVANCED                                 //
+// Settings → Advanced tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Advanced" = "Nâng cao";
+"Auto-clear cache" = "Tự động xóa bộ nhớ đệm";
+"Automatically opens settings when the app launches" = "Tự động mở cài đặt khi ứng dụng khởi chạy";
+"Cache" = "Bộ nhớ đệm";
+"Cache cleared" = "Đã xóa bộ nhớ đệm";
+"Calculating cache size…" = "Đang tính kích thước bộ nhớ đệm…";
+"Clear" = "Xóa";
+"Clear cache" = "Xóa bộ nhớ đệm";
+"Clear cache (%@)" = "Xóa bộ nhớ đệm (%@)";
+"Clearing cache…" = "Đang xóa bộ nhớ đệm…";
+"Clearing still scans on demand." = "Việc xóa vẫn quét theo yêu cầu.";
+"Daily" = "Hàng ngày";
+"All tweak options are disabled" = "Tất cả tùy chọn tweak đã tắt";
+"Disable all tweak options" = "Tắt tất cả tùy chọn tweak";
+"Instagram runs stock while this is on. Turn it back off to restore your settings." = "Instagram chạy như gốc khi bật mục này. Tắt đi để khôi phục cài đặt của bạn.";
+"Tap to re-enable everything" = "Chạm để bật lại tất cả";
+"Turn every feature off — your settings are kept" = "Tắt mọi tính năng — cài đặt của bạn được giữ lại";
+"Disable safe mode" = "Tắt chế độ an toàn";
+"Enable tweak settings quick-access" = "Bật truy cập nhanh cài đặt tweak";
+"Fix duplicate notifications" = "Sửa thông báo trùng lặp";
+"Free %@ of Instagram cache." = "Giải phóng %@ bộ nhớ đệm Instagram.";
+"Freed %@" = "Đã giải phóng %@";
+"Hold on the home tab to open RyukGram settings" = "Nhấn giữ tab trang chủ để mở cài đặt Instagram X";
+"Monthly" = "Hàng tháng";
+"Nothing to clear" = "Không có gì để xóa";
+"Off skips the size scan when Advanced opens." = "Tắt sẽ bỏ qua quét kích thước khi mở Nâng cao.";
+"Pause playback when opening settings" = "Tạm dừng phát khi mở cài đặt";
+"Always show what's new" = "Luôn hiển thị tính năng mới";
+"Keep the blue dot on every new feature instead of clearing it once viewed" = "Giữ chấm xanh trên mọi tính năng mới thay vì xóa sau khi xem";
+"Preserve messages database" = "Giữ cơ sở dữ liệu tin nhắn";
+"Pauses any playing video/audio when settings opens" = "Tạm dừng mọi video/âm thanh đang phát khi mở cài đặt";
+"Prevents Instagram from resetting settings after crashes (at your own risk)" = "Ngăn Instagram đặt lại cài đặt sau khi gặp sự cố (tự chịu rủi ro)";
+"Prevents two banners for the same message when IG is in the foreground" = "Ngăn hai biểu ngữ cho cùng một tin nhắn khi IG đang chạy nền trước";
+"Remove Instagram's cached images, videos, and temporary files." = "Xóa ảnh, video và tệp tạm đã lưu trong bộ nhớ đệm củan Instagram.";
+"Reset onboarding state" = "Đặt lại trạng thái hướng dẫn";
+"Run a silent cache clear on launch when the interval has elapsed." = "Tự động xóa bộ nhớ đệm âm thầm khi khởi chạy nếu đã đến thời gian.";
+"Show cache size" = "Hiển thị kích thước bộ nhớ đệm";
+"Skip the messages database when clearing — keeps DMs, drafts, and saved messages." = "Bỏ qua cơ sở dữ liệu tin nhắn khi xóa — giữ DM, bản nháp và tin nhắn đã lưu.";
+"Show tweak settings on app launch" = "Hiển thị cài đặt tweak khi khởi chạy ứng dụng";
+"Suppresses the second notification IG enqueues in-app while the notification extension is also delivering it." = "Loại bỏ thông báo thứ hai mà IG đưa vào hàng đợi trong ứng dụng khi tiện ích thông báo cũng đang gửi nó.";
+"Weekly" = "Hàng tuần";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         ADVANCED EXPERIMENTAL                            //
+// Settings → Advanced → Advanced experimental features                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Actions" = "Hành động";
+"Advanced experimental features" = "Tính năng thử nghiệm nâng cao";
+"All experimental toggles will be turned off. Instagram will restart." = "Tất cả công tắc thử nghiệm sẽ bị tắt. Instagram sẽ khởi động lại.";
+"Direct Notes — Audio reply" = "Ghi chú trực tiếp — Trả lời âm thanh";
+"Direct Notes — Avatar reply" = "Ghi chú trực tiếp — Trả lời avatar";
+"Direct Notes — Friend Map" = "Ghi chú trực tiếp — Bản đồ bạn bè";
+"Direct Notes — GIFs & stickers reply" = "Ghi chú trực tiếp — Trả lời GIF & sticker";
+"Direct Notes — Photo reply" = "Ghi chú trực tiếp — Trả lời ảnh";
+"Disabled after repeated crashes." = "Đã tắt sau nhiều lần gặp sự cố.";
+"Enables GIF/sticker replies" = "Bật trả lời bằng GIF/sticker";
+"Enables photo replies" = "Bật trả lời bằng ảnh";
+"Enables the audio-note reply type" = "Bật kiểu trả lời ghi chú âm thanh";
+"Enables the avatar reply type" = "Bật kiểu trả lời avatar";
+"Experimental flags reset" = "Đã đặt lại cờ thử nghiệm";
+"Flip what you want on, then tap Apply to restart. Some flags may not work on every account or IG version. Flags auto-reset if IG crashes on launch 3 times." = "Bật những gì bạn muốn, sau đó chạm Áp dụng để khởi động lại. Một số cờ có thể không hoạt động trên mọi tài khoản hoặc phiên bản IG. Cờ sẽ tự đặt lại nếu IG gặp sự cố khi khởi chạy 3 lần.";
+"Forces Prism-gated experiments on" = "Buộc bật thử nghiệm bị khóa bởi Prism";
+"Forces the Homecoming home surface / nav on" = "Buộc bật giao diện / điều hướng Homecoming";
+"Forces the QuickSnap / Instants surface on in feed, inbox, stories, and notes tray" = "Buộc bật giao diện QuickSnap / Instants trong bảng tin, hộp thư, tin và khay ghi chú";
+"Got it" = "Đã hiểu";
+"Heads up" = "Lưu ý";
+"Hidden Instagram experiments" = "Thử nghiệm Instagram ẩn";
+"Hidden Instagram experiments (in Advanced)" = "Thử nghiệm Instagram ẩn (trong Nâng cao)";
+"Homecoming" = "Homecoming";
+"Notes & QuickSnap" = "Ghi chú & QuickSnap";
+"Prism design system" = "Hệ thống thiết kế Prism";
+"QuickSnap (Instants)" = "QuickSnap (Instants)";
+"Reset all experimental flags" = "Đặt lại tất cả cờ thử nghiệm";
+"Reset experimental flags?" = "Đặt lại cờ thử nghiệm?";
+"Restart Instagram to apply changes" = "Khởi động lại Instagram để áp dụng thay đổi";
+"Shows the friend map entry in Direct Notes" = "Hiển thị mục bản đồ bạn bè trong Ghi chú trực tiếp";
+"Surfaces" = "Giao diện";
+"These toggles flip hidden Instagram experiments on. Some features may not work on every account or IG version. If IG keeps crashing on launch, the flags auto-reset after 3 failed starts." = "Các công tắc này bật thử nghiệm ẩn củan Instagram. Một số tính năng có thể không hoạt động trên mọi tài khoản hoặc phiên bản IG. Nếu IG liên tục gặp sự cố khi khởi chạy, các cờ sẽ tự đặt lại sau 3 lần khởi động thất bại.";
+"Toggle hidden Instagram experiments. Some may not work on every account or IG version." = "Bật/tắt thử nghiệm ẩn củan Instagram. Một số có thể không hoạt động trên mọi tài khoản hoặc phiên bản IG.";
+"Turn every experimental toggle off" = "Tắt mọi tùy chọn thử nghiệm";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  DEBUG                                   //
+// Settings → Debug tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Button Cell" = "Ô nút";
+"Change the value on the right" = "Thay đổi giá trị bên phải";
+"Could not delete: %@" = "Không thể xóa: %@";
+"Debug" = "Gỡ lỗi";
+"Delete an imported override and fall back to the shipped strings" = "Xóa ghi đè đã nhập và quay về chuỗi mặc định";
+"Deleted %@ override. Restart to apply." = "Đã xóa ghi đè %@. Khởi động lại để áp dụng.";
+"Enable FLEX gesture" = "Bật cử chỉ FLEX";
+"Enable file logging" = "Bật ghi nhật ký ra tệp";
+"Export strings" = "Xuất chuỗi";
+"Hold 5 fingers on the screen to open FLEX" = "Giữ 5 ngón tay trên màn hình để mở FLEX";
+"I have %@%@" = "Tôi có %@%@";
+"Import a .strings file for a language" = "Nhập tệp .strings cho một ngôn ngữ";
+"Import a .strings file to update a translation. Pick a language, select the file, restart." = "Nhập tệp .strings để cập nhật bản dịch. Chọn ngôn ngữ, chọn tệp, khởi động lại.";
+"Link Cell" = "Ô liên kết";
+"Localization" = "Bản địa hóa";
+"Log file is empty" = "Tệp nhật ký trống";
+"Logging" = "Ghi nhật ký";
+"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Ghi lại hoạt động của riêng Instagram X vào một tệp duy nhất có thể chia sẻ trên ứng dụng và các tiện ích mở rộng. Mặc định tắt — bật lên, tái hiện sự cố, rồi chia sẻ.";
+"Menu Cell" = "Ô menu";
+"Navigation Cell" = "Ô điều hướng";
+"No imported localization files to reset." = "Không có tệp bản địa hóa đã nhập để đặt lại.";
+"No overrides" = "Không có ghi đè";
+"Open FLEX on app focus" = "Mở FLEX khi ứng dụng được chọn";
+"Open FLEX on app launch" = "Mở FLEX khi khởi chạy ứng dụng";
+"Opens FLEX when the app is focused" = "Mở FLEX khi ứng dụng được chọn";
+"Opens FLEX when the app launches" = "Mở FLEX khi ứng dụng khởi chạy";
+"Pick a language to delete the imported file" = "Chọn ngôn ngữ để xóa tệp đã nhập";
+"Pick a language to export" = "Chọn ngôn ngữ để xuất";
+"Reset localization" = "Đặt lại bản địa hóa";
+"Share log file" = "Chia sẻ tệp nhật ký";
+"Pick a language and share its .strings file" = "Chọn ngôn ngữ để chia sẻ tệp .strings của nó";
+"Static Cell" = "Ô tĩnh";
+"Stepper cell" = "Ô bước";
+"Switch Cell" = "Ô công tắc";
+"Switch Cell (Restart)" = "Ô công tắc (Khởi động lại)";
+"Tap the switch" = "Chạm công tắc";
+"These features rely on hidden Instagram flags and may not work on all accounts or versions." = "Các tính năng này phụ thuộc vào cờ ẩn củan Instagram và có thể không hoạt động trên mọi tài khoản hoặc phiên bản.";
+"Update localization file" = "Cập nhật tệp bản địa hóa";
+"Using icon" = "Đang dùng biểu tượng";
+"Using image" = "Đang dùng ảnh";
+
+//////////////////////////////////////////////////////////////////////////////
+//                        DOWNLOADS & MEDIA ACTIONS                         //
+// Action button menus, download/share/copy toasts, quality picker pills.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ settings" = "Cài đặt %@";
+"%lu items" = "%lu mục";
+"Cancelled" = "Đã hủy";
+"Carousel" = "Băng chuyền";
+"Carousel · %lu items" = "Băng chuyền · %lu mục";
+"Copied %lu URLs" = "Đã sao chép %lu URL";
+"Copied caption" = "Đã sao chép chú thích";
+"Copied download URL" = "Đã sao chép URL tải xuống";
+"Copied quality info" = "Đã sao chép thông tin chất lượng";
+"Copied video URL" = "Đã sao chép URL video";
+"Copy all URLs" = "Sao chép tất cả URL";
+"Copy caption" = "Sao chép chú thích";
+"Copy download URL" = "Sao chép URL tải xuống";
+"Could not extract any URLs" = "Không thể trích xuất URL nào";
+"Could not extract audio URL" = "Không thể trích xuất URL âm thanh";
+"Could not extract media URL" = "Không thể trích xuất URL media";
+"Could not extract photo URL" = "Không thể trích xuất URL ảnh";
+"Could not extract video URL" = "Không thể trích xuất URL video";
+"Done" = "Xong";
+"Download all stories and share?" = "Tải tất cả tin và chia sẻ?";
+"Download all to Photos" = "Tải tất cả vào Ảnh";
+"Download and share all" = "Tải xuống và chia sẻ tất cả";
+"Download failed" = "Tải xuống thất bại";
+"Downloaded %lu items" = "Đã tải %lu mục";
+"Downloading audio…" = "Đang tải âm thanh…";
+"Failed to save" = "Lưu thất bại";
+"File" = "Tệp";
+"HD" = "HD";
+"HD download complete" = "Tải HD hoàn tất";
+"HD video" = "Video HD";
+"Mute audio" = "Tắt âm thanh";
+"No caption on this post" = "Không có chú thích trong bài viết này";
+"No carousel children" = "Không có mục con carousel";
+"No cover image" = "Không có ảnh bìa";
+"No media" = "Không có media";
+"No media to expand" = "Không có media để mở rộng";
+"No media to show" = "Không có media để hiển thị";
+"No media URL" = "Không có URL media";
+"No URLs" = "Không có URL";
+"No URLs found" = "Không tìm thấy URL";
+"No video URL" = "Không có URL video";
+"Not a carousel" = "Không phải carousel";
+"Nothing to share" = "Không có gì để chia sẻ";
+"Opening creator…" = "Đang mở người tạo...";
+"Photo library access denied" = "Quyền truy cập thư viện ảnh bị từ chối";
+"Photos access denied" = "Quyền truy cập Ảnh bị từ chối";
+"Preparing repost…" = "Đang chuẩn bị đăng lại...";
+"Raw image" = "Ảnh thô";
+"Repost" = "Đăng lại";
+"Repost unavailable" = "Không thể đăng lại";
+"Save failed" = "Lưu thất bại";
+"Saved %lu items" = "Đã lưu %lu mục";
+"Saved to Photos" = "Đã lưu vào Ảnh";
+"Saved to RyukGram" = "Đã lưu vào Instagram X";
+"Saving to Photos" = "Đang lưu vào Ảnh";
+"Saving…" = "Đang lưu...";
+"Unmute audio" = "Bật âm thanh";
+"Video · %@" = "Video · %@";
+"View cover" = "Xem ảnh bìa";
+"View mentions" = "Xem lượt nhắc";
+
+//////////////////////////////////////////////////////////////////////////////
+//                      STORIES & MESSAGES (FEATURES)                       //
+// Buttons, menu entries, toasts and alerts shown while watching stories or //
+// inside DM threads.                                                       //
+//////////////////////////////////////////////////////////////////////////////
+
+"  %lu votes · avg %.0f%%  " = "  %lu lượt bình chọn · trung bình %.0f%%  ";
+"%@ can't be converted" = "%@ không thể chuyển đổi";
+"%@ unsent a message" = "%@ đã thu hồi một tin nhắn";
+"%@ unsent a message from %@" = "%@ đã thu hồi một tin nhắn từ %@";
+"A message was unsent" = "Một tin nhắn đã được thu hồi";
+"Add" = "Thêm";
+"Add to block list" = "Thêm vào danh sách chặn";
+"Added to block list" = "Đã thêm vào danh sách chặn";
+"Added to exclude list" = "Đã thêm vào danh sách loại trừ";
+"Audio not loaded yet. Play the message first and try again." = "Âm thanh chưa được tải. Hãy phát tin nhắn trước rồi thử lại.";
+"Audio sent" = "Đã gửi âm thanh";
+"Audio URL not available" = "URL âm thanh không khả dụng";
+"Audio/Video from Files" = "Âm thanh/Video từ Tệp";
+"Blocked" = "Đã chặn";
+"Cancel" = "Hủy";
+"Clear preserved messages?" = "Xóa tin nhắn đã lưu giữ?";
+"Converting…" = "Đang chuyển đổi...";
+"Copy link" = "Sao chép liên kết";
+"Copy text" = "Sao chép văn bản";
+"Could not copy selected video" = "Không thể sao chép video đã chọn";
+"Could not find media" = "Không thể tìm thấy media";
+"Could not find story media" = "Không thể tìm thấy media tin";
+"Could not get audio data. Try again after refreshing the chat." = "Không thể lấy dữ liệu âm thanh. Hãy thử lại sau khi làm mới cuộc trò chuyện.";
+"Disable read receipts" = "Tắt xác nhận đã đọc";
+"Disappearing media" = "Media biến mất";
+"Download audio" = "Tải âm thanh";
+"Enable read receipts" = "Bật xác nhận đã đọc";
+"Error: %@" = "Lỗi: %@";
+"Exclude chat" = "Loại trừ cuộc trò chuyện";
+"Exclude from seen" = "Loại trừ khỏi đã xem";
+"Exclude story seen" = "Loại trừ đã xem tin";
+"Excluded" = "Đã loại trừ";
+"Extracting audio…" = "Đang trích xuất âm thanh...";
+"FFmpeg conversion failed" = "Chuyển đổi FFmpeg thất bại";
+"File sending not supported" = "Không hỗ trợ gửi tệp";
+"Follow" = "Theo dõi";
+"Following" = "Đang theo dõi";
+"Format not supported without FFmpegKit" = "Không hỗ trợ định dạng nếu thiếu FFmpegKit";
+"Inserts a button on disappearing media overlays" = "Chèn nút trên lớp phủ media biến mất";
+"Inserts a speaker button to mute/unmute disappearing media" = "Chèn nút loa để bật/tắt âm thanh media biến mất";
+"Inserts an eye button to mark the current disappearing media as viewed" = "Chèn nút con mắt để đánh dấu media biến mất hiện tại là đã xem";
+"Link copied" = "Đã sao chép liên kết";
+"Mark as viewed" = "Đánh dấu là đã xem";
+"Marking as viewed advances to the next stacked media instead of closing" = "Đánh dấu đã xem sẽ chuyển sang phương tiện xếp chồng tiếp theo thay vì đóng lại";
+"Mark messages as seen" = "Đánh dấu tin nhắn là đã xem";
+"Mark seen" = "Đánh dấu đã xem";
+"Marked as viewed" = "Đã đánh dấu là đã xem";
+"Marked messages as seen" = "Đã đánh dấu tin nhắn là đã xem";
+"Mentions" = "Lượt nhắc";
+"Message from %@ was unsent" = "Tin nhắn từ %@ đã bị thu hồi";
+"Message sender not found" = "Không tìm thấy người gửi tin nhắn";
+"Messages settings" = "Cài đặt tin nhắn";
+"Mute story audio" = "Tắt âm thanh tin";
+"no audio track could be read" = "không đọc được bản âm thanh";
+"No audio URL found. Try again after refreshing the chat." = "Không tìm thấy URL âm thanh. Hãy thử lại sau khi làm mới cuộc trò chuyện.";
+"No mentions in this story" = "Không có lượt nhắc trong tin này";
+"No thread key" = "Không có khóa thread";
+"No video selected" = "Chưa chọn video";
+"No voice send method found" = "Không tìm thấy phương thức gửi thoại";
+"Note has no downloadable content" = "Ghi chú không có nội dung tải xuống được";
+"Note text copied" = "Đã sao chép văn bản ghi chú";
+"Open GitHub" = "Mở GitHub";
+"Pick audio or video" = "Chọn âm thanh hoặc video";
+"Read receipts disabled" = "Đã tắt xác nhận đã đọc";
+"Read receipts enabled" = "Đã bật xác nhận đã đọc";
+"Read receipts will be blocked for this chat." = "Xác nhận đã đọc sẽ bị chặn cho cuộc trò chuyện này.";
+"Read receipts will no longer be blocked for this chat." = "Xác nhận đã đọc sẽ không còn bị chặn cho cuộc trò chuyện này.";
+"Refreshing the DMs tab will clear %lu preserved unsent message. This cannot be undone." = "Làm mới tab DM sẽ xóa %lu tin nhắn đã thu hồi được lưu giữ. Không thể hoàn tác.";
+"Refreshing the DMs tab will clear %lu preserved unsent messages. This cannot be undone." = "Làm mới tab DM sẽ xóa %lu tin nhắn đã thu hồi được lưu giữ. Không thể hoàn tác.";
+"Remove" = "Xóa";
+"Remove from block list" = "Xóa khỏi danh sách chặn";
+"Remove from exclude list" = "Xóa khỏi danh sách loại trừ";
+"Removed" = "Đã xóa";
+"Removed from list" = "Đã xóa khỏi danh sách";
+"Save GIF" = "Lưu GIF";
+"Selection too short (min 0.5s)" = "Đoạn chọn quá ngắn (tối thiểu 0.5 giây)";
+"Send anyway" = "Vẫn gửi";
+"Send Audio" = "Gửi âm thanh";
+"Send failed: %@" = "Gửi thất bại: %@";
+"Send File" = "Gửi tệp";
+"Send service not found" = "Không tìm thấy dịch vụ gửi";
+"Show audio toggle" = "Hiển thị nút bật/tắt âm thanh";
+"Show mark-as-viewed button" = "Hiển thị nút đánh dấu đã xem";
+"Story read receipts disabled" = "Đã tắt xác nhận đã xem tin";
+"Story read receipts enabled" = "Đã bật xác nhận đã xem tin";
+"This chat will resume normal read-receipt behavior." = "Cuộc trò chuyện này sẽ trở lại hành vi xác nhận đã đọc bình thường.";
+"This file" = "Tệp này";
+"Total: %@" = "Tổng: %@";
+"Un-exclude chat" = "Bỏ loại trừ cuộc trò chuyện";
+"Un-exclude story seen" = "Bỏ loại trừ đã xem tin";
+"Un-excluded" = "Đã bỏ loại trừ";
+"Unblocked" = "Đã bỏ chặn";
+"Unlimited replay enabled" = "Đã bật phát lại không giới hạn";
+"Unmute story audio" = "Bật âm thanh tin";
+"Unsent" = "Đã thu hồi";
+"Upload Audio" = "Tải âm thanh lên";
+"VC not found" = "Không tìm thấy VC";
+"Video from Library" = "Video từ Thư viện";
+"Visual messages will expire" = "Tin nhắn hình ảnh sẽ hết hạn";
+"Visual messages: expiring" = "Tin nhắn hình ảnh: sẽ hết hạn";
+"Visual messages: unlimited replay" = "Tin nhắn hình ảnh: phát lại không giới hạn";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CHAT BACKGROUNDS                             //
+// Custom per-chat image backgrounds: importer, library, per-image          //
+// settings, chat picker, defaults.                                         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add Background" = "Thêm hình nền";
+"Add Chat Background" = "Thêm hình nền trò chuyện";
+"Adds your own image backgrounds to Instagram chats" = "Thêm hình nền của riêng bạn vào các cuộc trò chuyện Instagram";
+"After enabling, open any chat, tap the theme button, then tap the photo icon at the top-right." = "Sau khi bật, mở một cuộc trò chuyện bất kỳ, chạm nút chủ đề, rồi chạm biểu tượng ảnh ở góc trên bên phải.";
+"Blur" = "Làm mờ";
+"Browse chats" = "Duyệt cuộc trò chuyện";
+"Browse chats (%ld)" = "Duyệt cuộc trò chuyện (%ld)";
+"Change Background" = "Đổi hình nền";
+"Change default" = "Đổi mặc định";
+"Chat Backgrounds" = "Hình nền trò chuyện";
+"Choose an image used when no chat override exists" = "Chọn ảnh dùng khi không có thiết lập riêng cho cuộc trò chuyện";
+"Choose Image" = "Chọn ảnh";
+"Clear default" = "Xóa mặc định";
+"Couldn't import image" = "Không thể nhập ảnh";
+"Custom Chat Background" = "Hình nền trò chuyện tùy chỉnh";
+"Default background" = "Hình nền mặc định";
+"Delete library images, default background, and chat overrides" = "Xóa ảnh trong thư viện, hình nền mặc định và thiết lập riêng của cuộc trò chuyện";
+"Dim in dark mode" = "Làm tối ở chế độ tối";
+"Edit image settings" = "Chỉnh cài đặt ảnh";
+"Enable custom backgrounds" = "Bật hình nền tùy chỉnh";
+"Enter a username, chat name, or thread ID." = "Nhập tên người dùng, tên cuộc trò chuyện hoặc ID thread.";
+"Group" = "Nhóm";
+"Image Settings" = "Cài đặt ảnh";
+"Auto bubble color" = "Màu bong bóng tự động";
+"Bubble color" = "Màu bong bóng";
+"Me" = "Tôi";
+"Both" = "Cả hai";
+"Gradient" = "Chuyển sắc";
+"Direction" = "Hướng";
+"Vertical" = "Dọc";
+"Horizontal" = "Ngang";
+"Diagonal" = "Chéo";
+"Text color" = "Màu chữ";
+"Automatic (contrast)" = "Tự động (tương phản)";
+"Choose color…" = "Chọn màu…";
+"Tap to apply · hold to edit" = "Chạm để áp dụng · giữ để chỉnh sửa";
+"Library" = "Thư viện";
+"Library, default, and per-chat overrides will be deleted." = "Thư viện, mặc định và các thiết lập riêng theo cuộc trò chuyện sẽ bị xóa.";
+"No Custom" = "Không tùy chỉnh";
+"Opacity" = "Độ mờ";
+"Photo Library" = "Thư viện ảnh";
+"Pick default" = "Chọn mặc định";
+"Pinch + drag to position" = "Chụm + kéo để định vị";
+"Quit and reopen Instagram for the change to take effect." = "Thoát và mở lại Instagram để thay đổi có hiệu lực.";
+"Recently set" = "Đặt gần đây";
+"Remove the global fallback background" = "Xóa hình nền dự phòng toàn cục";
+"Replace the default background image" = "Thay ảnh nền mặc định";
+"Reset all backgrounds" = "Đặt lại tất cả hình nền";
+"Reset all backgrounds?" = "Đặt lại tất cả hình nền?";
+"Reset sets opacity to 1.0, blur to 0, dim to 0." = "Đặt lại đưa độ mờ về 1.0, làm mờ về 0, làm tối về 0.";
+"RyukGram Gallery" = "Thư viện Instagram X";
+"Search username, name, or thread ID" = "Tìm tên người dùng, tên hoặc ID thread";
+"Set as default" = "Đặt làm mặc định";
+"Tap plus to add. Tap a background to edit, set as default, or delete." = "Chạm dấu cộng để thêm. Chạm một hình nền để chỉnh sửa, đặt làm mặc định hoặc xóa.";
+"This Chat Background" = "Hình nền cuộc trò chuyện này";
+"Thread ID" = "ID thread";
+"Used only when a chat does not have its own custom background." = "Chỉ dùng khi một cuộc trò chuyện không có hình nền tùy chỉnh riêng.";
+"View and manage chats with custom backgrounds" = "Xem và quản lý các cuộc trò chuyện có hình nền tùy chỉnh";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             GENERAL FEATURES                             //
+// Strings inside per-feature overlays: fake location, color picker, notes  //
+// customization, profile copy, etc.                                        //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add location" = "Thêm vị trí";
+"Add preset" = "Thêm cài đặt sẵn";
+"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Ảnh hưởng đến mọi thứ ở trên. Khi tắt, giao diện và ghi đè bề mặt củan Instagram X chỉ áp dụng khi iOS ở chế độ tối — không đụng đến chế độ sáng.";
+"Apply & restart" = "Áp dụng & khởi động lại";
+"Background" = "Nền";
+"Behavior" = "Hành vi";
+"Change location" = "Đổi vị trí";
+"Clipboard is not an Instagram URL" = "Bảng tạm không phải URL Instagram";
+"Comments hidden" = "Đã ẩn bình luận";
+"Comments shown" = "Đã hiện bình luận";
+"Copied text to clipboard" = "Đã sao chép văn bản vào bảng tạm";
+"Copy" = "Sao chép";
+"Copy bio" = "Sao chép tiểu sử";
+"Copy name" = "Sao chép tên";
+"Could not find cover image" = "Không thể tìm thấy ảnh bìa";
+"Current: %@" = "Hiện tại: %@";
+"Dark" = "Tối";
+"Disable" = "Tắt";
+"Download GIF" = "Tải GIF";
+"Dropped pin" = "Đã ghim vị trí";
+"Emoji" = "Emoji";
+"Enable" = "Bật";
+"Enable Location Services for Instagram in Settings to use your current location." = "Bật Dịch vụ định vị cho Instagram trong Cài đặt để sử dụng vị trí hiện tại của bạn.";
+"Enter emoji" = "Nhập emoji";
+"Fake location" = "Vị trí giả";
+"Force theme" = "Buộc giao diện";
+"Keyboard theme" = "Giao diện bàn phím";
+"Light" = "Sáng";
+"Location access denied" = "Quyền truy cập vị trí bị từ chối";
+"Location Services off" = "Dịch vụ định vị đã tắt";
+"Name" = "Tên";
+"Nothing to copy" = "Không có gì để sao chép";
+"Off, Light, Dark, or OLED" = "Tắt, Sáng, Tối, hoặc OLED";
+"OLED" = "OLED";
+"OLED chat theme" = "Giao diện chat OLED";
+"Open Settings" = "Mở Cài đặt";
+"Optional per-surface overrides. Each one is independent of the theme above." = "Tùy chọn ghi đè theo từng giao diện. Mỗi cái độc lập với giao diện ở trên.";
+"Override iOS appearance regardless of system mode" = "Ghi đè giao diện iOS bất kể chế độ hệ thống";
+"Override the keyboard appearance when typing" = "Ghi đè giao diện bàn phím khi nhập";
+"Pick location" = "Chọn vị trí";
+"Pure black DM thread + incoming bubbles" = "Đoạn chat DM + bong bóng nhận màu đen tuyền";
+"Reset theme" = "Đặt lại giao diện";
+"Restart Instagram to apply your theme changes" = "Khởi động lại Instagram để áp dụng thay đổi giao diện";
+"Save" = "Lưu";
+"Save preset" = "Lưu cài đặt sẵn";
+"Saved locations" = "Vị trí đã lưu";
+"Select color" = "Chọn màu";
+"Set location" = "Đặt vị trí";
+"The theme RyukGram applies to Instagram." = "Giao diện mà Instagram X áp dụng cho Instagram.";
+"Theme" = "Giao diện";
+"Turn every theme option off and restart" = "Tắt mọi tùy chọn giao diện và khởi động lại";
+"Turn Location Services on in Settings → Privacy to use your current location." = "Bật Dịch vụ định vị trong Cài đặt → Quyền riêng tư để sử dụng vị trí hiện tại của bạn.";
+"Type an emoji to use as the note bubble icon." = "Nhập một emoji để dùng làm biểu tượng bong bóng ghi chú.";
+"View profile picture" = "Xem ảnh đại diện";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE ANALYZER                              //
+// Settings → Profile Analyzer                                              //
+//////////////////////////////////////////////////////////////////////////////
+
+" BETA " = " BETA ";
+"%lu of %lu checks on" = "Đã bật %lu trên %lu mục kiểm tra";
+"Checks" = "Mục kiểm tra";
+"Pick which categories each scan computes. A disabled check is greyed out and skipped — it won't be calculated or shown." = "Chọn những danh mục mà mỗi lần quét sẽ tính toán. Mục kiểm tra bị tắt sẽ hiển thị mờ và bị bỏ qua — không được tính toán hay hiển thị.";
+"Snapshot saved" = "Đã lưu ảnh chụp nhanh";
+"Your current scan was archived" = "Lần quét hiện tại của bạn đã được lưu trữ";
+"%@ %lu accounts? The first %ld will be processed to avoid rate limits." = "%@ %lu tài khoản? %ld tài khoản đầu tiên sẽ được xử lý để tránh giới hạn tốc độ.";
+"%@ %lu accounts? This runs sequentially with a short pause between each." = "%@ %lu tài khoản? Thao tác này chạy tuần tự với khoảng nghỉ ngắn giữa mỗi lần.";
+"%@ followers · %@ following" = "%@ người theo dõi · %@ đang theo dõi";
+"%@ · %ld" = "%@ · %ld";
+"%dd ago" = "%d ngày trước";
+"%dh ago" = "%d giờ trước";
+"%dm ago" = "%d phút trước";
+"%lu accounts followed" = "Đã theo dõi %lu tài khoản";
+"%lu accounts unfollowed" = "Đã bỏ theo dõi %lu tài khoản";
+"%lu followers · %lu following" = "%lu người theo dõi · %lu đang theo dõi";
+"%lu of %lu" = "%lu trên %lu";
+"%lu saved · comparing against %@" = "Đã lưu %lu · so sánh với %@";
+"(empty)" = "(trống)";
+"(no analyzer data)" = "(không có dữ liệu phân tích)";
+"a saved snapshot" = "một ảnh chụp đã lưu";
+"About Profile Analyzer" = "Giới thiệu về Phân tích hồ sơ";
+"All preferences (%lu)" = "Tất cả tùy chọn (%lu)";
+"Analysis complete" = "Phân tích hoàn tất";
+"Analysis failed" = "Phân tích thất bại";
+"Another analysis is already running" = "Một phân tích khác đang chạy";
+"Available after your next scan" = "Có sẵn sau lần quét tiếp theo";
+"Batch follow" = "Theo dõi hàng loạt";
+"Batch follow finished" = "Đã hoàn tất theo dõi hàng loạt";
+"Batch unfollow" = "Bỏ theo dõi hàng loạt";
+"Batch unfollow finished" = "Đã hoàn tất bỏ theo dõi hàng loạt";
+"Categories" = "Danh mục";
+"Clear visited profiles" = "Xóa hồ sơ đã ghé";
+"Compare next scan against" = "So sánh lần quét tới với";
+"Comparing against %@" = "Đang so sánh với %@";
+"Continue" = "Tiếp tục";
+"Couldn't fetch profile information" = "Không thể lấy thông tin hồ sơ";
+"Delete %lu snapshots? This can't be undone." = "Xóa %lu ảnh chụp? Không thể hoàn tác.";
+"Delete (%lu)" = "Xóa (%lu)";
+"Delete snapshots" = "Xóa ảnh chụp";
+"Delete this snapshot? This can't be undone." = "Xóa ảnh chụp này? Không thể hoàn tác.";
+"Each scan saves a full copy of your followers and following so you can compare against it later. Everything stays on this device." = "Mỗi lần quét lưu một bản sao đầy đủ người theo dõi và đang theo dõi của bạn để bạn so sánh sau này. Mọi thứ đều ở trên thiết bị này.";
+"Export" = "Xuất";
+"Fetching followers (%lu/%ld)…" = "Đang lấy người theo dõi (%lu/%ld)…";
+"Fetching following (%lu/%ld)…" = "Đang lấy đang theo dõi (%lu/%ld)…";
+"Fetching profile info…" = "Đang lấy thông tin hồ sơ…";
+"File is not a valid RyukGram backup." = "Tệp không phải bản xuất Instagram X hợp lệ.";
+"Filter" = "Lọc";
+"Filter · %lu" = "Lọc · %lu";
+"First scan: %@" = "Lần quét đầu tiên: %@";
+"First scan: we collect your followers and following lists and save them locally." = "Lần quét đầu tiên: chúng tôi thu thập danh sách người theo dõi và đang theo dõi của bạn rồi lưu cục bộ.";
+"Follower count exceeds %ld — analysis disabled to avoid rate limits." = "Số người theo dõi vượt quá %ld — đã tắt phân tích để tránh giới hạn tốc độ.";
+"Followers" = "Người theo dõi";
+"Following… %lu / %lu" = "Đang theo dõi… %lu / %lu";
+"Gained since last scan" = "Tăng từ lần quét trước";
+"Heads up: this feature is in beta and hits Instagram's private API. Running it back-to-back or right after heavy follow/unfollow activity can trigger a short rate-limit. Use it sparingly and at your own risk." = "Lưu ý: tính năng này đang ở giai đoạn beta và sử dụng API riêng tư củan Instagram. Chạy liên tiếp hoặc ngay sau hoạt động theo dõi/bỏ theo dõi nhiều có thể kích hoạt giới hạn tốc độ ngắn hạn. Hãy sử dụng hạn chế và tự chịu rủi ro.";
+"Import complete" = "Đã nhập hoàn tất";
+"Include" = "Bao gồm";
+"Keep newest" = "Giữ mới nhất";
+"Keep newest snapshots" = "Giữ ảnh chụp mới nhất";
+"Large accounts are blocked: analysis is disabled above 13,000 followers to avoid Instagram rate-limiting the whole app." = "Tài khoản lớn bị chặn: phân tích bị vô hiệu hóa trên 13.000 người theo dõi để tránh Instagram giới hạn tốc độ toàn bộ ứng dụng.";
+"Last scan: %@" = "Lần quét cuối: %@";
+"Logs every profile you open. Stays on-device." = "Ghi lại mọi hồ sơ bạn mở. Chỉ lưu trên thiết bị.";
+"Lost followers" = "Người theo dõi đã mất";
+"Most visited" = "Ghé nhiều nhất";
+"Mutual followers" = "Người theo dõi chung";
+"Name: %@ → %@" = "Tên: %@ → %@";
+"New followers" = "Người theo dõi mới";
+"NEW" = "MỚI";
+"New first" = "Mới trước";
+"New only" = "Chỉ mới";
+"No active Instagram session found" = "Không tìm thấy phiên Instagram đang hoạt động";
+"No results" = "Không có kết quả";
+"No scan yet" = "Chưa quét";
+"Not following you back" = "Không theo dõi lại bạn";
+"Not verified only" = "Chỉ chưa xác minh";
+"Nothing is uploaded — everything stays on this device and can be wiped from the trash icon." = "Không có gì được tải lên — mọi thứ đều ở trên thiết bị này và có thể xóa bằng biểu tượng thùng rác.";
+"Nothing was applied." = "Không có gì được áp dụng.";
+"OK" = "OK";
+"Older snapshots beyond the limit are removed automatically" = "Ảnh chụp cũ vượt quá giới hạn sẽ tự động bị xóa";
+"Older snapshots beyond this limit are deleted on the next scan." = "Ảnh chụp cũ vượt quá giới hạn này sẽ bị xóa ở lần quét tiếp theo.";
+"Pick what to remove. Snapshots clears the scan diffs and every recorded snapshot; visited profiles wipes the visit history." = "Chọn nội dung cần xóa. Ảnh chụp xóa các khác biệt quét và mọi ảnh chụp đã ghi; hồ sơ đã xem xóa lịch sử truy cập.";
+"Posts" = "Bài viết";
+"Preferences" = "Tùy chọn";
+"Previous scan" = "Lần quét trước";
+"Private account" = "Tài khoản riêng tư";
+"Private only" = "Chỉ riêng tư";
+"Profile Analyzer" = "Phân tích hồ sơ";
+"Profile Analyzer data" = "Dữ liệu Phân tích hồ sơ";
+"Profile picture changed" = "Ảnh hồ sơ đã thay đổi";
+"Profile updates" = "Cập nhật hồ sơ";
+"Profiles you've opened recently" = "Hồ sơ bạn đã mở gần đây";
+"Raw" = "Thô";
+"Raw JSON" = "JSON thô";
+"Record snapshots" = "Ghi ảnh chụp";
+"Recording" = "Đang ghi";
+"Request failed" = "Yêu cầu thất bại";
+"Reset analyzer data" = "Đặt lại dữ liệu phân tích";
+"Reset complete" = "Đã đặt lại hoàn tất";
+"Reset everything" = "Đặt lại mọi thứ";
+"Reset selected data?" = "Đặt lại dữ liệu đã chọn?";
+"Reset snapshots" = "Đặt lại ảnh chụp";
+"Rolling — always your last run" = "Cuốn chiếu — luôn là lần chạy gần nhất của bạn";
+"Run analysis" = "Chạy phân tích";
+"Run your first analysis" = "Chạy phân tích đầu tiên";
+"Save a dated entry on every scan" = "Lưu một mục có ngày tháng cho mỗi lần quét";
+"Second scan onward: each scan compares against the last, so we can show gained/lost followers, your own follow/unfollow moves, and profile updates." = "Từ lần quét thứ hai trở đi: mỗi lần quét sẽ so sánh với lần trước để hiển thị người theo dõi tăng/giảm, lượt theo dõi/bỏ theo dõi của bạn và cập nhật hồ sơ.";
+"Settings" = "Cài đặt";
+"Since last scan" = "Kể từ lần quét trước";
+"Snapshot" = "Ảnh chụp";
+"Snapshots" = "Ảnh chụp";
+"Snapshots let you archive each scan and pick which one new scans compare against. Track visits records every profile you open so you can review them here." = "Ảnh chụp cho phép bạn lưu trữ mỗi lần quét và chọn lần nào để các lần quét mới so sánh với. Theo dõi truy cập ghi lại mọi hồ sơ bạn mở để bạn xem lại tại đây.";
+"Sort" = "Sắp xếp";
+"Starting…" = "Đang khởi động…";
+"They follow you, you don't follow back" = "Họ theo dõi bạn, bạn chưa theo dõi lại";
+"This can't be undone." = "Không thể hoàn tác.";
+"Ticked data will be cleared. Tap a row to see what's stored." = "Dữ liệu đã chọn sẽ bị xóa. Chạm vào bất kỳ hàng nào để xem nội dung đã lưu.";
+"Today" = "Hôm nay";
+"Too many followers" = "Quá nhiều người theo dõi";
+"Too many followers to analyze" = "Quá nhiều người theo dõi để phân tích";
+"Track visited profiles" = "Theo dõi hồ sơ đã ghé";
+"Tracking" = "Theo dõi";
+"Tracking off — enable below to log visits" = "Theo dõi đã tắt — bật bên dưới để ghi lượt ghé";
+"Unfollow" = "Bỏ theo dõi";
+"Unfollow %lu" = "Bỏ theo dõi %lu";
+"Unfollow @%@?" = "Bỏ theo dõi @%@?";
+"Unfollowed you since last scan" = "Đã bỏ theo dõi bạn từ lần quét trước";
+"Unfollowing… %lu / %lu" = "Đang bỏ theo dõi… %lu / %lu";
+"Unlimited" = "Không giới hạn";
+"Username A → Z" = "Tên người dùng A → Z";
+"Username Z → A" = "Tên người dùng Z → A";
+"Username, name or picture changes" = "Thay đổi tên người dùng, tên hoặc ảnh";
+"Username: @%@ → @%@" = "Tên người dùng: @%@ → @%@";
+"Using %@ across %lu snapshots." = "Đang dùng %@ trên %lu ảnh chụp.";
+"Verified only" = "Chỉ đã xác minh";
+"Visited" = "Đã ghé";
+"Visited profiles" = "Hồ sơ đã ghé";
+"We refuse to run when the follower count exceeds %ld to avoid Instagram rate limits." = "Chúng tôi từ chối chạy khi số lượng người theo dõi vượt quá %ld để tránh giới hạn tốc độ củan Instagram.";
+"You both follow each other" = "Hai bạn theo dõi lẫn nhau";
+"You don't follow back" = "Bạn không theo dõi lại";
+"You follow them, they don't follow back" = "Bạn theo dõi họ, họ không theo dõi lại";
+"You started following" = "Bạn đã bắt đầu theo dõi";
+"You unfollowed" = "Bạn đã bỏ theo dõi";
+"your previous scan" = "lần quét trước của bạn";
+"“Previous scan” always measures against your last run. Pick a saved snapshot to compare against a fixed point in time instead." = "“Lần quét trước” luôn đo lường so với lần chạy gần nhất của bạn. Chọn một ảnh chụp đã lưu để so sánh với một thời điểm cố định thay vào đó.";
+"⚠️ This is getting large — lower the limit or delete older snapshots to free space." = "⚠️ Dung lượng đang lớn dần — hãy giảm giới hạn hoặc xóa ảnh chụp cũ để giải phóng dung lượng.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         SETTINGS VIEWS & DIALOGS                         //
+// Excluded-lists managers, backup/restore flows, in-picker labels.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Absolute format" = "Định dạng tuyệt đối";
+"Add chat" = "Thêm cuộc trò chuyện";
+"Add custom domain" = "Thêm tên miền tùy chỉnh";
+"Add to list?" = "Thêm vào danh sách?";
+"Add user" = "Thêm người dùng";
+"Apply" = "Áp dụng";
+"Apply to" = "Áp dụng cho";
+"Chats" = "Cuộc trò chuyện";
+"Colored" = "Có màu";
+"Could not read file." = "Không thể đọc tệp.";
+"Could not resolve user ID" = "Không thể phân giải ID người dùng";
+"Current location" = "Vị trí hiện tại";
+"Custom" = "Tùy chỉnh";
+"Delete" = "Xóa";
+"Each surface in IG goes through a different NSDate formatter. Toggle the ones you want this format to apply to." = "Mỗi giao diện trong IG sử dụng bộ định dạng NSDate khác nhau. Bật những giao diện bạn muốn áp dụng định dạng này.";
+"Enable fake location" = "Bật vị trí giả";
+"Excluded chats" = "Cuộc trò chuyện bị loại trừ";
+"Excluded users" = "Người dùng bị loại trừ";
+"Follow default" = "Theo dõi mặc định";
+"Force OFF (allow unsends)" = "Buộc TẮT (cho phép thu hồi)";
+"Force ON (preserve unsends)" = "Buộc BẬT (giữ tin đã thu hồi)";
+"Include seconds when the format already shows time. The custom format controls seconds itself with {ss}." = "Bao gồm giây khi định dạng đã hiển thị giờ. Định dạng tùy chỉnh tự kiểm soát giây bằng {ss}.";
+"Add custom format…" = "Thêm định dạng tùy chỉnh…";
+"Edit" = "Chỉnh sửa";
+"Template" = "Mẫu";
+"Placeholders" = "Phần giữ chỗ";
+"Placeholders are replaced with date parts; anything else is shown as-is." = "Phần giữ chỗ được thay bằng các thành phần ngày; phần còn lại hiển thị nguyên văn.";
+"Tap a placeholder to insert it at the cursor." = "Chạm vào phần giữ chỗ để chèn tại vị trí con trỏ.";
+"Included chats" = "Cuộc trò chuyện được bao gồm";
+"Included users" = "Người dùng được bao gồm";
+"KD: default" = "KD: mặc định";
+"KD: ON" = "KD: BẬT";
+"Keep-deleted" = "Giữ đã xóa";
+"Keep-deleted override" = "Ghi đè giữ đã xóa";
+"Name (A–Z)" = "Tên (A–Z)";
+"No DM thread found with @%@" = "Không tìm thấy cuộc trò chuyện DM với @%@";
+"Presets" = "Cài đặt sẵn";
+"Recently added" = "Mới thêm gần đây";
+"Relative time" = "Thời gian tương đối";
+"Relative within" = "Tương đối trong";
+"Remove from list" = "Xóa khỏi danh sách";
+"Reset" = "Đặt lại";
+"Search" = "Tìm kiếm";
+"Search address or place" = "Tìm địa chỉ hoặc địa điểm";
+"Search by name or username" = "Tìm theo tên hoặc tên người dùng";
+"Search by username or name" = "Tìm theo tên người dùng hoặc tên";
+"Select location on map" = "Chọn vị trí trên bản đồ";
+"Set current location" = "Đặt vị trí hiện tại";
+"Set keep-deleted override" = "Đặt ghi đè giữ đã xóa";
+"Show map button" = "Hiển thị nút bản đồ";
+"Show relative time for dates younger than this many days. 0 disables it." = "Hiển thị thời gian tương đối cho ngày trẻ hơn số ngày này. 0 sẽ tắt.";
+"Show seconds" = "Hiển thị giây";
+"Sort by" = "Sắp xếp theo";
+"Thread" = "Cuộc trò chuyện";
+"Time" = "Giờ";
+"Use this location" = "Dùng vị trí này";
+"User '%@' not found" = "Không tìm thấy người dùng '%@'";
+"Username (A–Z)" = "Tên người dùng (A–Z)";
+"Within %ld days" = "Trong %ld ngày";
+"Within 1 day" = "Trong 1 ngày";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             REELS (FEATURES)                             //
+// Strings from Reels.                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"No password found" = "Không tìm thấy mật khẩu";
+"No text field found" = "Không tìm thấy trường văn bản";
+"Refresh Reels?" = "Làm mới Reels?";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE (FEATURES)                            //
+// Strings from Profile.                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu accounts" = "%lu tài khoản";
+"%lu loaded" = "Đã tải %lu";
+"%lu loaded · all loaded" = "Đã tải %lu · đã tải hết";
+"Doesn't follow you" = "Không theo dõi bạn";
+"Everyone is already loaded." = "Đã tải hết mọi người.";
+"Filter & sort" = "Lọc & sắp xếp";
+"Follows me" = "Theo dõi tôi";
+"Follows me first" = "Theo dõi tôi trước";
+"Follows you" = "Theo dõi bạn";
+"Hides everyone who doesn't match all picked filters." = "Ẩn tất cả những người không khớp mọi bộ lọc đã chọn.";
+"Jump to bottom" = "Nhảy xuống cuối";
+"Jump to top" = "Nhảy lên đầu";
+"List" = "Danh sách";
+"List fully loaded" = "Đã tải hết danh sách";
+"Load more" = "Tải thêm";
+"Loaded more" = "Đã tải thêm";
+"Mutuals" = "Theo dõi lẫn nhau";
+"Mutuals first" = "Theo dõi lẫn nhau trước";
+"Note copied" = "Đã sao chép ghi chú";
+"People I follow" = "Người tôi theo dõi";
+"People I follow first" = "Người tôi theo dõi trước";
+"Reverse order" = "Đảo thứ tự";
+"Show only" = "Chỉ hiện";
+"Verified" = "Đã xác minh";
+"Verified first" = "Đã xác minh trước";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   MISC                                   //
+// Anything that didn't fit a named section. Usually short labels.          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ - BETA" = "%@ - BETA";
+"(unset)" = "(chưa đặt)";
+"720p • progressive • fastest" = "720p • progressive • nhanh nhất";
+"Add language" = "Thêm ngôn ngữ";
+"Album name" = "Tên album";
+"Are you sure?" = "Bạn có chắc không?";
+"Bundle" = "Bundle";
+"Copy audio URL" = "Sao chép URL âm thanh";
+"Copy quality info" = "Sao chép thông tin chất lượng";
+"Copy video URL" = "Sao chép URL video";
+"Could not access reel media" = "Không thể truy cập media reel";
+"Could not access reel photo" = "Không thể truy cập ảnh reel";
+"Could not write file." = "Không thể ghi tệp.";
+"Download all and share?" = "Tải tất cả và chia sẻ?";
+"Download Quality" = "Chất lượng tải xuống";
+"Downloading %d%%" = "Đang tải %d%%";
+"e.g. 1000000" = "ví dụ: 1000000";
+"Localization file not found" = "Không tìm thấy tệp bản địa hóa";
+"Enter the language code (e.g. fr, de, ja)" = "Nhập mã ngôn ngữ (vd: fr, de, ja)";
+"Error" = "Lỗi";
+"Extras" = "Bổ sung";
+"FFmpegKit Debug" = "Gỡ lỗi FFmpegKit";
+"File is empty or not a valid .strings file." = "Tệp trống hoặc không phải tệp .strings hợp lệ.";
+"KD: OFF" = "KD: TẮT";
+"Keep-deleted: OFF" = "  • Giữ đã xóa: TẮT";
+"Keep-deleted: ON" = "  • Giữ đã xóa: BẬT";
+"Later" = "Để sau";
+"Loading" = "Đang tải";
+"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Tên album Ảnh mà Instagram X lưu vào. Để trống để khôi phục mặc định.";
+"Next" = "Tiếp";
+"No results found." = "Không tìm thấy kết quả.";
+"No!" = "Không!";
+"Pick a language to update, or add a new one" = "Chọn ngôn ngữ để cập nhật, hoặc thêm ngôn ngữ mới";
+"Preset" = "Cài đặt sẵn";
+"Restart" = "Khởi động lại";
+"Restart now" = "Khởi động lại ngay";
+"Restart required" = "Cần khởi động lại";
+"Saved preset \"%@\"" = "Đã lưu cài đặt sẵn \"%@\"";
+"selected" = "đã chọn";
+"Shared icon, or override per button" = "Biểu tượng chung, hoặc ghi đè theo từng nút";
+"Speed" = "Tốc độ";
+"Unset" = "Bỏ đặt";
+"Update localization" = "Cập nhật bản địa hóa";
+"Updated %@ (%ld keys). Restart to apply." = "Đã cập nhật %@ (%ld khóa). Khởi động lại để áp dụng.";
+"Use default" = "Dùng mặc định";
+"Username or PK" = "Tên người dùng hoặc PK";
+"Username or raw user PK" = "Tên người dùng hoặc PK người dùng thô";
+"Yes" = "Có";
+"You must restart the app to apply this change" = "Bạn phải khởi động lại ứng dụng để áp dụng thay đổi này";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               ABOUT / CREDITS                            //
+// Strings from the About / Credits footer of Settings.                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ — GitHub, Telegram, Donate" = "%@ — GitHub, Telegram, Ủng hộ";
+"About" = "Giới thiệu";
+"Arabic translation" = "Bản dịch tiếng Ả Rập";
+"Chinese (Traditional and Simplified) translation" = "Bản dịch tiếng Trung (phồn thể và giản thể)";
+"Credits" = "Ghi công";
+"Developers" = "Nhà phát triển";
+"Donate to SoCuul" = "Ủng hộ SoCuul";
+"installed" = "đã cài đặt";
+"Korean translation" = "Bản dịch tiếng Hàn";
+"Portuguese (Brazil) translation" = "Bản dịch tiếng Bồ Đào Nha (Brazil)";
+"Turkish translation" = "Bản dịch tiếng Thổ Nhĩ Kỳ";
+"Vietnamese translation" = "Bản dịch tiếng Việt";
+"French translation" = "Bản dịch tiếng Pháp";
+"Code contributions" = "Đóng góp mã";
+"Following feed mode (from InstaSane)" = "Chế độ bảng tin Đang theo dõi (từ InstaSane)";
+"latest" = "mới nhất";
+"Links" = "Liên kết";
+"No releases" = "Không có bản phát hành";
+"Original SCInsta developer" = "Nhà phát triển SCInsta gốc";
+"Release notes" = "Ghi chú phát hành";
+"Releases" = "Bản phát hành";
+"Report an issue" = "Báo cáo sự cố";
+"Russian translation" = "Bản dịch tiếng Nga";
+"RyukGram developer" = "Nhà phát triển Instagram X";
+"Join Telegram channel" = "Tham gia kênh Telegram";
+"Source code" = "Mã nguồn";
+"View on GitHub" = "Xem trên GitHub";
+"Spanish translation" = "Bản dịch tiếng Tây Ban Nha";
+"Support the original SCInsta developer" = "Ủng hộ nhà phát triển SCInsta gốc";
+"Inspirations" = "Nguồn cảm hứng";
+"Inspirations, contributors, translators" = "Cảm hứng, người đóng góp, dịch giả";
+"Code and research" = "Mã và nghiên cứu";
+"Translators" = "Dịch giả";
+"Original BHInstagram developer" = "Nhà phát triển BHInstagram gốc";
+"OLED theme inspiration" = "Cảm hứng giao diện OLED";
+"Donate to Ryuk" = "Ủng hộ Ryuk";
+"Support RyukGram development" = "Ủng hộ phát triển Instagram X";
+"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X là một nhánh được làm lại đáng kể từ SCInsta — việc ủng hộ nhà phát triển gốc rất được trân trọng.";
+"Browse changes from previous releases" = "Duyệt các thay đổi từ bản phát hành trước";
+"Code inspiration" = "Cảm hứng mã";
+"zxPluginsInject sideload compatibility shim" = "Lớp tương thích sideload zxPluginsInject";
+"Telegram channel" = "Kênh Telegram";
+"Testing and feature suggestions" = "Thử nghiệm và đề xuất tính năng";
+"Version" = "Phiên bản";
+"Version, credits, and links" = "Phiên bản, ghi công và liên kết";
+"What's new in RyukGram" = "Có gì mới trong Instagram X";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             HD DOWNLOADS                                 //
+// Enhanced / HD downloads settings (DASH + FFmpegKit encoding).            //
+//////////////////////////////////////////////////////////////////////////////
+
+"720p • progressive • silent" = "720p • progressive • im lặng";
+"Audio only" = "Chỉ âm thanh";
+"Audio ready" = "Âm thanh sẵn sàng";
+"Download video at the highest available quality" = "Tải video ở chất lượng cao nhất hiện có";
+"Downloads HD video via DASH streams and encodes to H.264. Requires FFmpegKit." = "Tải video HD qua luồng DASH và mã hóa sang H.264. Yêu cầu FFmpegKit.";
+"Encoding in software" = "Đang mã hóa bằng phần mềm";
+"Encoding speed" = "Tốc độ mã hóa";
+"Enhanced downloads" = "Tải xuống nâng cao";
+"Faster = lower quality" = "Nhanh hơn = chất lượng thấp hơn";
+"FFmpeg not available" = "FFmpeg không khả dụng";
+"FFmpegKit is not available. Install the sideloaded IPA or the _ffmpeg .deb variant to enable." = "FFmpegKit không khả dụng. Hãy cài IPA sideload hoặc biến thể .deb _ffmpeg để bật.";
+"Hardware encoder isn't available in the background — your quality settings were kept." = "Bộ mã hóa phần cứng không khả dụng khi chạy nền — cài đặt chất lượng của bạn vẫn được giữ.";
+"No audio track found" = "Không tìm thấy bản âm thanh";
+"Photo" = "Ảnh";
+"Photo quality" = "Chất lượng ảnh";
+"Size unknown" = "Không rõ kích thước";
+"calculating size…" = "đang tính kích thước…";
+"silent" = "im lặng";
+"Use highest resolution available" = "Dùng độ phân giải cao nhất hiện có";
+"Video encoder locked up — restart Instagram to encode again" = "Bộ mã hóa video bị treo — khởi động lại Instagram để mã hóa lại";
+"Video quality" = "Chất lượng video";
+"Which quality to download" = "Chọn chất lượng để tải xuống";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            ADVANCED ENCODING                             //
+// Advanced encoding page — codecs, profiles, CRF/bitrate, audio,           //
+// container. Manual ffmpeg controls behind “Advanced encoding” toggle.     //
+//////////////////////////////////////////////////////////////////////////////
+
+"'%@' is not in this FFmpegKit build — using hardware h264 instead." = "'%@' không có trong bản FFmpegKit này — dùng h264 phần cứng thay thế.";
+"10-bit 4:2:0. ~2x slower, smoother gradients." = "10-bit 4:2:0. Chậm hơn ~2 lần, chuyển màu mượt hơn.";
+"10-bit colour. Slower, smoother gradients. Software only." = "Màu 10-bit. Chậm hơn, chuyển màu mượt hơn. Chỉ phần mềm.";
+"1080p30 baseline." = "Cơ bản 1080p30.";
+"4K30 baseline." = "Cơ bản 4K30.";
+"8-bit 4:2:0. Universal default." = "8-bit 4:2:0. Mặc định phổ thông.";
+"8-bit 4:2:2 chroma. Niche playback." = "Chroma 8-bit 4:2:2. Phát lại chuyên biệt.";
+"8-bit 4:2:2 chroma. Software only." = "Chroma 8-bit 4:2:2. Chỉ phần mềm.";
+"8-bit 4:4:4 chroma. Software only." = "Chroma 8-bit 4:4:4. Chỉ phần mềm.";
+"8-bit 4:4:4 full chroma. Niche playback." = "Chroma đầy đủ 8-bit 4:4:4. Phát lại chuyên biệt.";
+"8-bit. Best for modern devices." = "8-bit. Tốt nhất cho thiết bị hiện đại.";
+"Advanced encoding" = "Mã hóa nâng cao";
+"Advanced encoding settings" = "Cài đặt mã hóa nâng cao";
+"Archival quality." = "Chất lượng lưu trữ.";
+"Audio bitrate" = "Bitrate âm thanh";
+"Audio channels" = "Kênh âm thanh";
+"Audio codec" = "Codec âm thanh";
+"Audio conversion failed" = "Chuyển đổi âm thanh thất bại";
+"Audio sample rate" = "Tần số lấy mẫu âm thanh";
+"Balanced. libx264 default." = "Cân bằng. Mặc định libx264.";
+"Best practical quality per bit." = "Chất lượng thực tế tốt nhất trên mỗi bit.";
+"Bitrate, channels, and sample rate apply only when the codec is AAC (re-encoding)." = "Bitrate, kênh và tần số lấy mẫu chỉ áp dụng khi codec là AAC (mã hóa lại).";
+"Cartoons / anime." = "Hoạt hình / anime.";
+"Cinematic. Smaller files." = "Điện ảnh. Tệp nhỏ hơn.";
+"Codec" = "Codec";
+"Container" = "Định dạng chứa";
+"Copy (passthrough)" = "Sao chép (truyền thẳng)";
+"CRF quality" = "Chất lượng CRF";
+"Downloading video…" = "Đang tải video…";
+"Easier to play back on weak devices." = "Dễ phát lại hơn trên thiết bị yếu.";
+"Encoder unavailable" = "Bộ mã hóa không khả dụng";
+"Examples: 8M, 12M, 25M, 4500k. Leave empty for auto." = "Ví dụ: 8M, 12M, 25M, 4500k. Để trống để tự động.";
+"Failed to download video" = "Tải video thất bại";
+"Fast, fixed-bitrate, GPU-accelerated." = "Nhanh, bitrate cố định, tăng tốc GPU.";
+"Fastest, worst compression." = "Nhanh nhất, nén kém nhất.";
+"Faststart" = "Faststart";
+"Faststart moves the MP4 index to the start so playback begins before the file fully buffers. Strip metadata removes source tags (creation date, handler, encoder) from the file." = "Faststart chuyển chỉ mục MP4 lên đầu để phát lại bắt đầu trước khi tệp được nạp đệm đầy đủ. Xóa siêu dữ liệu loại bỏ các thẻ nguồn (ngày tạo, trình xử lý, bộ mã hóa) khỏi tệp.";
+"FFmpeg documentation" = "Tài liệu FFmpeg";
+"FFmpeg mux failed" = "FFmpeg ghép luồng thất bại";
+"Frame rate" = "Tốc độ khung hình";
+"H.264 level" = "Cấp độ H.264";
+"H.264 profile" = "Hồ sơ H.264";
+"Hardware (VideoToolbox)" = "Phần cứng (VideoToolbox)";
+"Hardware (VideoToolbox) only supports yuv420p — '%@' was ignored. Switch to Software (libx264) to use it." = "Phần cứng (VideoToolbox) chỉ hỗ trợ yuv420p — '%@' đã bị bỏ qua. Chuyển sang Phần mềm (libx264) để dùng.";
+"Keep original audio. Fast." = "Giữ âm thanh gốc. Nhanh.";
+"Keep the source frame rate." = "Giữ tốc độ khung hình nguồn.";
+"Let the encoder pick." = "Để bộ mã hóa tự chọn.";
+"Live-action video." = "Video người thật.";
+"Lossless. Huge files." = "Không mất dữ liệu. Tệp rất lớn.";
+"Low-latency streaming." = "Truyền phát độ trễ thấp.";
+"Manual ffmpeg controls in place of Encoding speed." = "Điều khiển ffmpeg thủ công thay cho Tốc độ mã hóa.";
+"Marginal gain, huge time cost." = "Cải thiện không đáng kể, tốn rất nhiều thời gian.";
+"Max resolution" = "Độ phân giải tối đa";
+"Mono" = "Mono";
+"No tuning. Default." = "Không tinh chỉnh. Mặc định.";
+"None" = "Không có";
+"Pixel format" = "Định dạng điểm ảnh";
+"Pixel format ignored" = "Đã bỏ qua định dạng điểm ảnh";
+"Preserve film grain." = "Giữ hạt phim.";
+"Preset and Tune apply to Software (libx264) only. Pair profile with pixel format: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. Mismatches downconvert silently. Hardware always uses yuv420p." = "Preset và Tune chỉ áp dụng cho Phần mềm (libx264). Ghép hồ sơ với định dạng điểm ảnh: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. Không khớp sẽ tự hạ cấp thầm lặng. Phần cứng luôn dùng yuv420p.";
+"Re-encode. Use when source is opus or unsupported." = "Mã hóa lại. Dùng khi nguồn là opus hoặc không được hỗ trợ.";
+"Reset advanced encoding" = "Đặt lại mã hóa nâng cao";
+"Setting a video bitrate switches Software to fixed-bitrate and ignores CRF. Leave empty for CRF. Hardware uses bitrate." = "Đặt bitrate video chuyển Phần mềm sang bitrate cố định và bỏ qua CRF. Để trống để dùng CRF. Phần cứng dùng bitrate.";
+"Slideshow-like content." = "Nội dung kiểu trình chiếu.";
+"Slower, better compression per bit." = "Chậm hơn, nén tốt hơn trên mỗi bit.";
+"Smaller, visible artefacts." = "Nhỏ hơn, có hiện tượng nhiễu thấy được.";
+"Software (libx264)" = "Phần mềm (libx264)";
+"Standard 8-bit." = "8-bit tiêu chuẩn.";
+"Stereo" = "Stereo";
+"Streaming default." = "Mặc định truyền phát.";
+"Strip metadata" = "Xóa siêu dữ liệu";
+"Top of AAC." = "Cao nhất của AAC.";
+"Tune" = "Điều chỉnh";
+"Unknown error" = "Lỗi không xác định";
+"Very high quality." = "Chất lượng rất cao.";
+"Video bitrate" = "Bitrate video";
+"Video codec" = "Codec video";
+"Visually lossless. RyukGram default." = "Không mất dữ liệu về thị giác. Mặc định Instagram X.";
+"Widest compatibility, no B-frames." = "Tương thích rộng nhất, không có B-frame.";
+"Worst quality." = "Chất lượng kém nhất.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                          ACTION MENU CONFIG                              //
+// Profile action button: per-section toggles, reorder handles, default-tap //
+// behavior, reset confirmations, action catalog labels.                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Long-press gestures" = "Cử chỉ nhấn giữ";
+"Inserts a button in the profile navigation header" = "Chèn nút trong tiêu đề điều hướng hồ sơ";
+"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Thêm nút hành động Instagram X vào tiêu đề hồ sơ với các mục sao chép, xem ảnh, chia sẻ, lưu và thông tin hồ sơ. Chạm mở menu theo mặc định; thay đổi hành vi chạm trong menu Cấu hình.";
+"Configure menu" = "Cấu hình menu";
+"Reorder, enable/disable, set default tap, show date" = "Sắp xếp lại, bật/tắt, đặt chạm mặc định, hiển thị ngày";
+"Reorder, enable/disable, set default tap" = "Sắp xếp lại, bật/tắt, đặt chạm mặc định";
+"RyukGram profile actions" = "Hành động hồ sơ Instagram X";
+"Reorder sections" = "Sắp xếp lại các phần";
+"Drag the ≡ handle to reorder sections." = "Kéo tay nắm ≡ để sắp xếp lại các phần.";
+"Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "Kéo tay nắm ≡ để sắp xếp lại. Tắt một hàng để ẩn nó khỏi menu. Đánh dấu một phần là menu phụ để thu gọn các hành động sau một mục duy nhất.";
+"Show as submenu" = "Hiển thị dưới dạng menu phụ";
+"Collapse this section's actions behind a single entry" = "Thu gọn hành động của phần này sau một mục duy nhất";
+"Configure: %@" = "Cấu hình: %@";
+"What happens on a single tap. Long-press always opens the full menu." = "Điều xảy ra khi chạm một lần. Nhấn giữ luôn mở menu đầy đủ.";
+"Reset to defaults" = "Đặt lại về mặc định";
+"This will restore the default sections, order, and toggles for this menu." = "Thao tác này sẽ khôi phục các phần, thứ tự và công tắc mặc định cho menu này.";
+"Audio & visibility" = "Âm thanh & hiển thị";
+"DM disappearing media" = "Media biến mất trong DM";
+"Bulk download" = "Tải hàng loạt";
+"Feed settings" = "Cài đặt bảng tin";
+"Reels settings" = "Cài đặt reel";
+"Profile settings" = "Cài đặt hồ sơ";
+"Stories settings" = "Cài đặt tin";
+"Copy ID" = "Sao chép ID";
+"Copy Info" = "Sao chép thông tin";
+"Copy all info" = "Sao chép tất cả thông tin";
+"Copy media URL" = "Sao chép URL media";
+"Copy profile link" = "Sao chép liên kết hồ sơ";
+"Copy username" = "Sao chép tên người dùng";
+"Download" = "Tải xuống";
+"Download to Gallery" = "Tải vào Thư viện";
+"Download all to Gallery" = "Tải tất cả vào Thư viện";
+"Exclude/include user" = "Loại trừ/bao gồm người dùng";
+"Mute / unmute audio" = "Tắt / bật âm thanh";
+"Save picture to Gallery" = "Lưu ảnh vào Thư viện";
+"Share picture" = "Chia sẻ ảnh";
+"View picture" = "Xem ảnh";
+"Bio" = "Tiểu sử";
+"ID" = "ID";
+"Info" = "Thông tin";
+"Profile info" = "thông tin hồ sơ";
+"Profile link" = "Liên kết hồ sơ";
+"Picture not found" = "Không tìm thấy ảnh";
+"Private profile" = "Hồ sơ riêng tư";
+"Profile unavailable" = "Hồ sơ không khả dụng";
+"Public profile" = "Hồ sơ công khai";
+"Username" = "Tên người dùng";
+"Followers: %@" = "Người theo dõi: %@";
+"Following: %@" = "Đang theo dõi: %@";
+"Copied %@" = "Đã sao chép %@";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GALLERY                                  //
+// On-device media library: enable + save mode, browsing, filters, sort,    //
+// delete tools, picker entries, and the Photos/Gallery download submenu.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%.0f kbps" = "%.0f kbps";
+"%.1f Mbps" = "%.1f Mbps";
+"(unknown)" = "(không xác định)";
+"All files deleted" = "Đã xóa tất cả tệp";
+"Browsing" = "Duyệt";
+"By source" = "Theo nguồn";
+"By type" = "Theo loại";
+"By user" = "Theo người dùng";
+"Clear filters" = "Xóa bộ lọc";
+"Comment" = "Bình luận";
+"Create" = "Tạo";
+"Create & Move" = "Tạo & Di chuyển";
+"Delete %@?" = "Xóa %@?";
+"Delete all files" = "Xóa tất cả tệp";
+"Delete all images" = "Xóa tất cả hình ảnh";
+"Delete all videos" = "Xóa tất cả video";
+"Delete by user" = "Xóa theo người dùng";
+"Delete DM media" = "Xóa media DM";
+"Delete feed posts" = "Xóa bài viết bảng tin";
+"Delete files" = "Xóa tệp";
+"Delete Folder" = "Xóa thư mục";
+"Delete from Gallery?" = "Xóa khỏi Thư viện?";
+"Delete profile pictures" = "Xóa ảnh hồ sơ";
+"Delete reels" = "Xóa reel";
+"Delete selected" = "Xóa đã chọn";
+"Delete Selected Files?" = "Xóa tệp đã chọn?";
+"Delete stories" = "Xóa tin";
+"Delete thumbnails" = "Xóa ảnh thu nhỏ";
+"Deleted from Gallery" = "Đã xóa khỏi Thư viện";
+"Deleted selected files" = "Đã xóa tệp đã chọn";
+"Deselect All" = "Bỏ chọn tất cả";
+"DM media deleted" = "Đã xóa media DM";
+"DMs" = "DM";
+"Each user appears as a folder next to your real folders." = "Mỗi người dùng xuất hiện dưới dạng thư mục bên cạnh các thư mục thực của bạn.";
+"Each user gets a labelled section in the grid/list." = "Mỗi người dùng có một phần được dán nhãn trong lưới/danh sách.";
+"Enable gallery" = "Bật thư viện";
+"Failed" = "Thất bại";
+"Failed to delete" = "Xóa thất bại";
+"Favorite" = "Yêu thích";
+"Favorite selected" = "Yêu thích đã chọn";
+"Favorites only" = "Chỉ yêu thích";
+"Feed posts deleted" = "Đã xóa bài viết bảng tin";
+"Files deleted" = "Đã xóa tệp";
+"Flat list. No grouping." = "Danh sách phẳng. Không nhóm.";
+"Folder name" = "Tên thư mục";
+"Folders" = "Thư mục";
+"From RyukGram Gallery" = "Âm thanh từ Thư viện Instagram X";
+"Gallery" = "Thư viện";
+"Gallery only" = "Chỉ Thư viện";
+"Gallery save mode" = "Chế độ lưu thư viện";
+"Gallery Settings" = "Cài đặt Thư viện";
+"GIFs" = "GIF";
+"Grid view" = "Chế độ xem lưới";
+"Group by user" = "Nhóm theo người dùng";
+"Hold DM tab to open gallery" = "Giữ tab DM để mở thư viện";
+"Images" = "Hình ảnh";
+"Images deleted" = "Đã xóa hình ảnh";
+"Images first" = "Hình ảnh trước";
+"item" = "mục";
+"items" = "mục";
+"Largest first" = "Lớn nhất trước";
+"List view" = "Chế độ xem danh sách";
+"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "Nhấn giữ nút hộp thư trên thanh tab dưới để mở thư viện Instagram X";
+"Manage" = "Quản lý";
+"More" = "Thêm";
+"Move selected" = "Di chuyển đã chọn";
+"Move to Folder" = "Di chuyển đến thư mục";
+"Name A-Z" = "Tên A-Z";
+"Name Z-A" = "Tên Z-A";
+"New Folder" = "Thư mục mới";
+"New folder…" = "Thư mục mới…";
+"Newest first" = "Mới nhất trước";
+"No files in Gallery" = "Không có tệp trong Thư viện";
+"No files to delete" = "Không có tệp để xóa";
+"No matching files" = "Không có tệp khớp";
+"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "Thư viện media trên thiết bị được tải quan Instagram X. Chế độ lưu chọn nơi 'Tải vào Ảnh' thực sự ghi.";
+"Open" = "Mở";
+"Open Original Post" = "Mở bài viết gốc";
+"Options" = "Tùy chọn";
+"Other" = "Khác";
+"Photos + Gallery" = "Ảnh + Thư viện";
+"Photos only" = "Chỉ Ảnh";
+"Profile pictures deleted" = "Đã xóa ảnh hồ sơ";
+"Reels deleted" = "Đã xóa reel";
+"Rename" = "Đổi tên";
+"Rename Folder" = "Đổi tên thư mục";
+"Root" = "Gốc";
+"Save media from the preview screen\nto see it here." = "Lưu media từ màn hình xem trước\nđể xem nó ở đây.";
+"Saved %lu items to Gallery" = "Đã lưu %lu mục vào Thư viện";
+"Saved to Gallery" = "Đã lưu vào Thư viện";
+"Saving to Gallery" = "Đang lưu vào Thư viện...";
+"Search users" = "Tìm người dùng";
+"Sections" = "Phần";
+"Select All" = "Chọn tất cả";
+"Share" = "Chia sẻ";
+"Share selected" = "Chia sẻ đã chọn";
+"Show favorites at top" = "Hiển thị mục yêu thích trên cùng";
+"Show gallery entries in download menus and unlock the gallery button" = "Hiển thị mục thư viện trong menu tải xuống và mở khóa nút thư viện";
+"Smallest first" = "Nhỏ nhất trước";
+"Source" = "Nguồn";
+"Source user" = "Người dùng nguồn";
+"Storage" = "Lưu trữ";
+"Stories deleted" = "Đã xóa tin";
+"Story" = "Tin";
+"The original content may no longer exist." = "Nội dung gốc có thể không còn tồn tại.";
+"This folder contains %ld file(s). They will be moved to the parent folder." = "Thư mục này chứa %ld tệp. Chúng sẽ được di chuyển sang thư mục cha.";
+"This folder is empty." = "Thư mục này trống.";
+"This will permanently remove %ld file%@ from the gallery." = "Thao tác này sẽ xóa vĩnh viễn %ld tệp%@ khỏi thư viện.";
+"This will permanently remove %ld file(s)." = "Thao tác này sẽ xóa vĩnh viễn %ld tệp.";
+"This will permanently remove this file from the gallery." = "Thao tác này sẽ xóa vĩnh viễn tệp này khỏi thư viện.";
+"Thumb" = "Thu nhỏ";
+"Thumbnails deleted" = "Đã xóa ảnh thu nhỏ";
+"to Gallery" = "vào Thư viện";
+"Total files" = "Tổng số tệp";
+"Total size" = "Tổng dung lượng";
+"Type" = "Loại";
+"Unable to open original post" = "Không thể mở bài viết gốc";
+"Unable to open profile" = "Không thể mở hồ sơ";
+"Unfavorite" = "Bỏ yêu thích";
+"Unknown user" = "Người dùng không xác định";
+"User files deleted" = "Đã xóa tệp người dùng";
+"Videos" = "Video";
+"Videos deleted" = "Đã xóa video";
+"Videos first" = "Video trước";
+"When enabled, favorites are pinned above other files inside the current sort and folder context." = "Khi bật, mục yêu thích được ghim phía trên các tệp khác trong ngữ cảnh sắp xếp và thư mục hiện tại.";
+"Where 'Download to Photos' actually writes when gallery is on" = "Nơi 'Tải vào Ảnh' thực sự ghi khi bật thư viện";
+"Yesterday" = "Hôm qua";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              HOME SHORTCUT                               //
+// Extra button on the home top bar (right of the create-post +) — picks    //
+// between Gallery, Changelog, etc. Configure-screen and the row reorderer. //
+//////////////////////////////////////////////////////////////////////////////
+
+"Home shortcut button" = "Nút phím tắt trang chủ";
+"Show the extra button on the home top bar" = "Cấu hình nút phụ trên thanh trên cùng của trang chủ";
+"Auto" = "Tự động";
+"Icon" = "Biểu tượng";
+"Drag the ≡ handle to reorder. Toggle actions off to hide them. With one action enabled, tapping fires it directly. With two or more, tapping opens a menu." = "Kéo tay nắm ≡ để sắp xếp lại. Tắt một hàng để ẩn đích đến đó. Khi chỉ bật một hành động, chạm sẽ kích hoạt nó; khi có hai hoặc nhiều hơn, chạm sẽ mở menu.";
+"Changelog" = "Nhật ký thay đổi";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              INTERFACE PAGE                              //
+// Settings → Interface (renamed Navigation tab)                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds an extra shortcut button beside the create-post + button on the home top bar." = "Thêm nút lối tắt bên cạnh nút tạo bài đăng + trên thanh trên cùng của trang chủ.";
+"All buttons" = "Tất cả nút";
+"Choose icon, reorder actions, and enable menu items" = "Chọn biểu tượng, sắp xếp lại thao tác và bật các mục trong menu";
+"Choose the icon shown on the home top bar. Auto uses the selected action icon when only one action is enabled." = "Chọn biểu tượng hiển thị trên thanh trên cùng của trang chủ. Tự động dùng biểu tượng thao tác đã chọn khi chỉ bật một thao tác.";
+"Configure button" = "Cấu hình nút";
+"Global Action Icons" = "Biểu tượng thao tác toàn cục";
+"Interface" = "Giao diện";
+"Override the icon for a specific button. Buttons left on Default follow the shared icon above." = "Ghi đè biểu tượng cho một nút cụ thể. Các nút để ở Mặc định sẽ theo biểu tượng chung ở trên.";
+"Per button" = "Theo từng nút";
+"Show home shortcut button" = "Hiện nút lối tắt trang chủ";
+"Tab bar" = "Thanh tab";
+"Universal in-app notifications. Pick style, position, per-action routing (custom pill / IG-native / off)." = "Thông báo trong ứng dụng phổ quát. Chọn kiểu, vị trí, định tuyến theo từng hành động (pill tùy chỉnh / IG gốc / tắt).";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              NOTIFICATIONS                               //
+// Settings → Interface → Notifications + the universal pill / toast system //
+//////////////////////////////////////////////////////////////////////////////
+
+"Notifications" = "Thông báo";
+"Appearance" = "Giao diện";
+"Routing" = "Định tuyến";
+"Style" = "Kiểu";
+"Position" = "Vị trí";
+"Stack size" = "Kích thước chồng";
+"Duration" = "Thời lượng";
+"Default surface" = "Bề mặt mặc định";
+"System notifications" = "Thông báo hệ thống";
+"Mirror to notification centre" = "Phản chiếu vào trung tâm thông báo";
+"While the app is in the background, toasts are delivered to the iOS notification centre instead so they aren't missed." = "Khi ứng dụng chạy nền, các thông báo nhanh sẽ được gửi vào trung tâm thông báo iOS để bạn không bỏ lỡ.";
+"Clear when app opens" = "Xóa khi mở ứng dụng";
+"Remove mirrored notifications from notification centre when you return to the app." = "Xóa các thông báo phản chiếu khỏi trung tâm thông báo khi bạn quay lại ứng dụng.";
+"Background mirror" = "Phản chiếu nền";
+"Uses Instagram's notification permission. Per-action overrides live in each action's menu under Background mirror; actions set to Off never mirror." = "Dùng quyền thông báo củan Instagram. Tùy chỉnh theo từng hành động nằm trong menu của mỗi hành động, mục Phản chiếu nền; hành động đặt Tắt sẽ không bao giờ được phản chiếu.";
+"Enable notifications" = "Bật thông báo";
+"Haptic feedback" = "Phản hồi rung";
+"Preview pill" = "Xem trước pill";
+"Preview download pill" = "Xem trước pill tải xuống";
+"Preview loading pill" = "Xem trước pill đang tải";
+"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "Công tắc chính. Khi tắt, không có pill Instagram X hay toast IG gốc nào được phát ra.";
+"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "Thông báo trong ứng dụng phổ quát. Mọi phản hồi củan Instagram X (tải xuống, sao chép, lỗi, thông báo thành công) đều đi qua đây.";
+"Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Tối giản: làm mờ phẳng. Sắc màu: nhuộm theo tông. Phát sáng: viền sáng có màu. Đảo: viên nang dynamic island.";
+"Top slides down, bottom slides up." = "Trên trượt xuống, dưới trượt lên.";
+"How many pills can show at once before queueing." = "Số pill có thể hiển thị cùng lúc trước khi xếp hàng.";
+"Multiplies how long toasts stay on screen." = "Nhân thời gian toast hiển thị trên màn hình.";
+"Vibration on success/error pills." = "Rung trên pill thành công/lỗi.";
+"For toast-style actions you can choose between our pill and IG's native bottom toast. Per-action overrides live below." = "Đối với hành động kiểu toast, bạn có thể chọn giữa pill của chúng tôi và toast dưới gốc của IG. Ghi đè theo từng hành động ở bên dưới.";
+"What to use when an action doesn't have its own override." = "Dùng gì khi một hành động không có ghi đè riêng.";
+"Tap to cycle: info → success → warning → error" = "Chạm để xoay vòng: thông tin → thành công → cảnh báo → lỗi";
+"Tap to cycle between success and failure" = "Chạm để xoay vòng giữa thành công và thất bại";
+"Progress UI — pill or off only." = "Giao diện tiến trình — chỉ pill hoặc tắt.";
+"Minimal" = "Tối giản";
+"Colorful" = "Sắc màu";
+"Glow" = "Phát sáng";
+"Island" = "Đảo";
+"Top" = "Trên";
+"Bottom" = "Dưới";
+"Custom pill" = "Pill tùy chỉnh";
+"IG native toast" = "Toast IG gốc";
+"Short" = "Ngắn";
+"Normal" = "Bình thường";
+"Long" = "Dài";
+"Very long" = "Rất dài";
+"Downloads & saving" = "Tải xuống & lưu";
+"Copy to clipboard" = "Sao chép vào bảng tạm";
+"Read receipts & seen" = "Xác nhận đã đọc & đã xem";
+"Block, exclude & pin" = "Chặn, loại trừ & ghim";
+"Stories & messages" = "Tin & tin nhắn";
+"Voice & audio" = "Thoại & âm thanh";
+"Errors" = "Lỗi";
+"Download progress" = "Tiến trình tải xuống";
+"Bulk download progress" = "Tiến trình tải hàng loạt";
+"Repost progress" = "Tiến trình đăng lại";
+"Copied post / reel URL" = "Đã sao chép URL bài viết / reel";
+"Copied comment text" = "Đã sao chép văn bản bình luận";
+"Copied GIF link" = "Đã sao chép liên kết GIF";
+"Copied note text" = "Đã sao chép văn bản ghi chú";
+"Copied profile info" = "Đã sao chép thông tin hồ sơ";
+"Copied audio URL" = "Đã sao chép URL âm thanh";
+"Copied quality picker URL" = "Đã sao chép URL bộ chọn chất lượng";
+"Copied unlocked password" = "Đã sao chép mật khẩu đã mở khóa";
+"Copied description text" = "Đã sao chép văn bản mô tả";
+"DM seen / read receipts" = "Xác nhận đã xem / đã đọc DM";
+"Story seen / read receipts" = "Xác nhận đã xem / đã đọc tin";
+"Someone read your message" = "Ai đó đã đọc tin nhắn của bạn";
+"User blocked / unblocked" = "Đã chặn / bỏ chặn người dùng";
+"Chat added / removed from exclude" = "Đã thêm / xóa cuộc trò chuyện khỏi loại trừ";
+"Story user added / removed from exclude" = "Đã thêm / xóa người dùng tin khỏi loại trừ";
+"Share-sheet recipient pinned" = "Đã ghim người nhận bảng chia sẻ";
+"Unsent message detected" = "Đã phát hiện tin nhắn thu hồi";
+"Reaction removed detected" = "Phát hiện gỡ biểu cảm";
+"%lu messages unsent" = "Đã thu hồi %lu tin nhắn";
+"%lu reactions removed" = "Đã gỡ %lu biểu cảm";
+"%lu chats marked seen" = "Đã đánh dấu đã xem %lu cuộc trò chuyện";
+"%lu stories marked seen" = "Đã đánh dấu đã xem %lu tin";
+"%lu of your messages read" = "%lu tin nhắn của bạn đã được đọc";
+"%lu notifications" = "%lu thông báo";
+"Live comments toggled" = "Đã bật/tắt bình luận trực tiếp";
+"Custom GIF sent" = "Đã gửi GIF tùy chỉnh";
+"GIF favorited / unfavorited" = "Đã thêm / xóa GIF khỏi mục yêu thích";
+"Voice DM sent" = "Đã gửi DM thoại";
+"Audio extraction status" = "Trạng thái trích xuất âm thanh";
+"Profile Analyzer complete" = "Đã hoàn tất phân tích hồ sơ";
+"Profile Analyzer progress" = "Tiến trình phân tích hồ sơ";
+"Media extraction failed" = "Trích xuất media thất bại";
+"Permission denied" = "Quyền bị từ chối";
+"Validation error" = "Lỗi xác thực";
+"Network / API error" = "Lỗi mạng / API";
+"Action error fallback" = "Phương án dự phòng lỗi hành động";
+"Unlock failed" = "Mở khoá thất bại";
+"Chat locked / unlocked" = "Khoá / mở khoá chat";
+"Invalid clipboard link" = "Liên kết bảng tạm không hợp lệ";
+"Experimental flag warning" = "Cảnh báo cờ thử nghiệm";
+"Settings action confirmed" = "Đã xác nhận hành động cài đặt";
+"Cache clearing progress" = "Tiến trình xóa bộ nhớ đệm";
+"Backup export / import" = "Xuất / nhập bản sao lưu";
+"Other / uncategorized" = "Khác / chưa phân loại";
+"Comment copied" = "Đã sao chép bình luận";
+"FFmpeg log copied" = "Đã sao chép nhật ký FFmpeg";
+"GIF inserted" = "Đã chèn GIF";
+"Story marked as seen" = "Đã đánh dấu tin là đã xem";
+"Saved" = "Đã lưu";
+"Tap to retry" = "Chạm để thử lại";
+"Looks great" = "Trông tuyệt vời";
+"Something broke" = "Có gì đó hỏng";
+"Just so you know" = "Chỉ để bạn biết";
+"Success preview" = "Xem trước thành công";
+"Error preview" = "Xem trước lỗi";
+"Warning preview" = "Xem trước cảnh báo";
+"Info preview" = "Xem trước thông tin";
+"Preview download…" = "Xem trước tải xuống…";
+"Colors" = "Màu sắc";
+"+ Add new language" = "+ Thêm ngôn ngữ mới";
+"Each chat can override this in the list" = "Mỗi cuộc trò chuyện có thể ghi đè điều này trong danh sách";
+"When on, Instagram location requests return your selected fake location. The map button adds a quick shortcut inside Friends Map." = "Khi bật, các yêu cầu vị trí củan Instagram sẽ trả về vị trí giả bạn đã chọn. Nút bản đồ thêm phím tắt nhanh trong Bản đồ bạn bè.";
+"Tap a preset to make it active. Swipe left to delete." = "Chạm vào một cài đặt sẵn để kích hoạt. Vuốt sang trái để xóa.";
+"Override Instagram location reads." = "Ghi đè đọc vị trí củan Instagram.";
+"Show the quick button in Friends Map." = "Hiển thị nút nhanh trong Bản đồ bạn bè.";
+"Pick how absolute dates are written. “Default” leaves IG's own format untouched. Swipe a custom format to edit or delete it." = "Chọn cách viết ngày tuyệt đối. “Mặc định” giữ nguyên định dạng của IG. Vuốt một định dạng tùy chỉnh để chỉnh sửa hoặc xóa.";
+"Dates younger than the threshold show as relative time. Older dates fall back to the absolute format. “Combine with date” shows both — “Jan 5, 2026 (2h)” or “2h – Jan 5, 2026”." = "Ngày trẻ hơn ngưỡng hiển thị dưới dạng thời gian tương đối. Ngày cũ hơn quay về định dạng tuyệt đối. “Kết hợp với ngày” hiển thị cả hai — “05/01/2026 (2g)” hoặc “2g – 05/01/2026”.";
+"Compact style" = "Kiểu rút gọn";
+"Example: “1h” instead of “1 hour ago”" = "Ví dụ: “1g” thay vì “1 giờ trước”";
+"Example: “Jan 5, 2026 (2h)”" = "Ví dụ: “05/01/2026 (2g)”";
+"iOS audio APIs couldn't process this file%@%@\n\nYou can try sending it to Instagram as-is, or open a support issue." = "API âm thanh iOS không thể xử lý tệp này%@%@\n\nBạn có thể thử gửi nó tới Instagram nguyên trạng, hoặc mở issue hỗ trợ.";
+"Combine with date" = "Kết hợp với ngày";
+"Absolute then relative" = "Tuyệt đối rồi tương đối";
+"Relative – absolute" = "Tương đối – tuyệt đối";
+"Relative when young, absolute when older." = "Tương đối nếu mới, tuyệt đối nếu cũ.";
+"Example: “2h – Jan 5, 2026”" = "Ví dụ: “2g – 05/01/2026”";
+"Catch view-once media unsent while you're away. ⚠️ May drain battery" = "Bắt giữ nội dung xem một lần bị thu hồi khi bạn vắng mặt. ⚠️ Có thể hao pin";
+"Disappearing (view-once) media" = "Nội dung biến mất (xem một lần)";
+"Disappearing media expired before it could be saved" = "Nội dung biến mất đã hết hạn trước khi kịp lưu";
+"Disappearing media — gone before it could be saved" = "Nội dung biến mất — đã mất trước khi kịp lưu";
+"Disappearing only" = "Chỉ nội dung biến mất";
+"Forces Instagram to keep running in the background so it can capture disappearing media that someone unsends while you're not in the app.\n\nMainly useful for view-once media — normal photos/videos are usually still recoverable without it. ⚠️ May significantly drain your battery, and can't capture anything if you force-quit Instagram from the app switcher.\n\nEnable it?" = "Buộc Instagram tiếp tục chạy nền để có thể bắt giữ nội dung biến mất mà ai đó thu hồi khi bạn không ở trong ứng dụng.\n\nChủ yếu hữu ích cho nội dung xem một lần — ảnh/video thông thường thường vẫn khôi phục được mà không cần đến nó. ⚠️ Có thể hao pin đáng kể và không thể bắt giữ gì nếu bạn buộc thoát Instagram từ trình chuyển ứng dụng.\n\nBật chứ?";
+"Keep Instagram active in background" = "Giữ Instagram hoạt động ở chế độ nền";
+"Media couldn’t be downloaded — the link expired" = "Không thể tải nội dung — liên kết đã hết hạn";
+"Media wasn’t available to save" = "Nội dung không khả dụng để lưu";
+"Retrying download…" = "Đang thử tải lại…";
+"Try to download again" = "Thử tải lại";
+"%lu followers removed" = "Đã xóa %lu người theo dõi";
+"Batch remove followers" = "Xóa người theo dõi hàng loạt";
+"Batch remove followers finished" = "Đã hoàn tất xóa người theo dõi hàng loạt";
+"Follow back" = "Theo dõi lại";
+"Remove @%@ as a follower?" = "Xóa @%@ khỏi người theo dõi?";
+"Remove follower" = "Xóa người theo dõi";
+"Removing… %lu / %lu" = "Đang xóa… %lu / %lu";
+
+//////////////////////////////////////////////////////////////////////////
+//                            READ RECEIPTS                              //
+//////////////////////////////////////////////////////////////////////////
+
+"Read receipts log" = "Nhật ký đã xem";
+"Date" = "Ngày";
+"Reads" = "Lượt xem";
+"Person" = "Người";
+"Chat" = "Trò chuyện";
+"%@ · on @%@" = "%@ · trên @%@";
+"%lu read · %@" = "%lu lượt xem · %@";
+"%lu reads · %@" = "%lu lượt xem · %@";
+"%lu reads · %lu reader · %@" = "%lu lượt xem · %lu người · %@";
+"%lu reads · %lu readers · %@" = "%lu lượt xem · %lu người · %@";
+"Browse who read your messages, grouped by person" = "Xem ai đã đọc tin nhắn của bạn, nhóm theo người";
+"Clear all" = "Xóa tất cả";
+"Clear all records" = "Xóa tất cả bản ghi";
+"Clear read receipts?" = "Xóa nhật ký đã xem?";
+"Detects when others read your messages and notifies you" = "Phát hiện khi người khác đọc tin nhắn và thông báo cho bạn";
+"Ignored people & chats" = "Người và cuộc trò chuyện bị bỏ qua";
+"Ignored" = "Đã bỏ qua";
+"Log group chats" = "Ghi lại nhóm chat";
+"Most reads" = "Nhiều lượt xem nhất";
+"No read receipts yet.\nWhen someone reads a message you sent, it shows up here." = "Chưa có xác nhận đã xem.\nKhi ai đó đọc tin nhắn bạn gửi, nó sẽ hiện ở đây.";
+"Notifies and records when someone reads a message you sent" = "Thông báo và ghi lại khi ai đó đọc tin nhắn bạn gửi";
+"Nothing is ignored. Long-press someone in the log to stop logging them." = "Không có gì bị bỏ qua. Nhấn giữ một người trong nhật ký để ngừng ghi lại.";
+"Nothing matches your filters." = "Không có gì khớp với bộ lọc.";
+"Read %@ · %@" = "Đã xem %@ · %@";
+"Record reads on this device. Off = notifications only, nothing stored" = "Lưu lượt xem trên thiết bị này. Tắt = chỉ thông báo, không lưu";
+"Resume logging" = "Tiếp tục ghi";
+"Save to log" = "Lưu vào nhật ký";
+"Search by username" = "Tìm theo tên người dùng";
+"Stop logging %@" = "Ngừng ghi %@";
+"Delete records" = "Xóa bản ghi";
+"When enabled, a notification fires when someone reads your message. Turn off \"Save to log\" for toast-only mode. Long-press a person in the log to stop logging them." = "Khi bật, bạn sẽ nhận thông báo khi ai đó đọc tin nhắn của bạn. Tắt \"Lưu vào nhật ký\" để chỉ nhận thông báo. Nhấn giữ một người trong nhật ký để ngừng ghi lại họ.";
+"Swipe to remove. Removing resumes logging for that person or chat." = "Vuốt để xóa. Xóa sẽ tiếp tục ghi lại người hoặc cuộc trò chuyện đó.";
+"This removes all recorded reads on this device." = "Thao tác này xóa mọi lượt xem đã ghi trên thiết bị này.";
+"Updating names and photos" = "Đang cập nhật tên và ảnh";
+"Your message" = "Tin nhắn của bạn";
+"read your message in %@" = "đã đọc tin nhắn của bạn trong %@";
+"read your message" = "đã đọc tin nhắn của bạn";
+"Also track reads in group chats. Off by default — groups can be noisy" = "Theo dõi cả lượt xem trong nhóm. Mặc định tắt — nhóm có thể gây nhiễu";
+"Refreshing…" = "Đang làm mới…";
+"Pinned" = "Đã ghim";
+"Liked the story" = "Đã thích tin";
+"Default (recent first)" = "Mặc định (mới nhất trước)";
+"Liked first" = "Người đã thích trước";
+"Load all viewers" = "Tải tất cả người xem";
+"%lu viewers" = "%lu người xem";
+"Viewer pinned" = "Đã ghim người xem";
+"Viewer unpinned" = "Đã bỏ ghim người xem";
+"Pin a viewer" = "Ghim người xem";
+"Pin order" = "Thứ tự ghim";
+"Pin this viewer?" = "Ghim người xem này?";
+"Filter, sort & pin viewers" = "Lọc, sắp xếp & ghim người xem";
+"Adds controls to your story viewers list" = "Thêm các điều khiển vào danh sách người xem tin của bạn";
+"Add by username, remove, reorder" = "Thêm theo tên người dùng, xóa, sắp xếp lại";
+"Pinned viewers (%lu)" = "Người xem đã ghim (%lu)";
+"Viewers list" = "Danh sách người xem";
+"Settings are saved and reused next time." = "Cài đặt được lưu và dùng lại cho lần sau.";
+"Tick several to combine them. Pinned viewers always stay on top and ignore these filters." = "Chọn nhiều mục để kết hợp. Người xem đã ghim luôn ở trên cùng và bỏ qua các bộ lọc này.";
+"Pinned viewers" = "Người xem đã ghim";
+"Pin" = "Ghim";
+"On the 'who viewed my story' list, adds a filter/sort button (bottom-right) with sticky settings. Long-press a viewer to pin them. Pinned viewers always show at the top — even before they view your story." = "Trong danh sách \"ai đã xem tin của tôi\", thêm nút lọc/sắp xếp (góc dưới bên phải) với cài đặt được lưu. Nhấn giữ một người xem để ghim. Người xem đã ghim luôn hiển thị ở trên cùng — kể cả trước khi họ xem tin của bạn.";
+"Username or raw user PK. Pinned users always show at the top of your story viewers, even before they view it." = "Tên người dùng hoặc PK người dùng. Người dùng đã ghim luôn hiển thị ở đầu danh sách người xem tin của bạn, kể cả trước khi họ xem.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DEVICE ID                                  //
+// Settings -> Advanced -> Device ID, and the login-screen Device ID button //
+//////////////////////////////////////////////////////////////////////////////
+"Roll a new fingerprint" = "Tạo dấu vân tay mới";
+"New device fingerprint" = "Dấu vân tay thiết bị mới";
+"New ID only" = "Chỉ ID mới";
+"New ID + clear IG data" = "ID mới + xóa dữ liệu IG";
+"Fresh random device ID + FDID" = "ID thiết bị và FDID ngẫu nhiên mới";
+"Enter ID manually…" = "Nhập ID thủ công…";
+"Manual device ID" = "ID thiết bị thủ công";
+"Paste or type the UUID this device should report." = "Dán hoặc nhập UUID mà thiết bị này nên báo cáo.";
+"Device ID set" = "Đã đặt ID thiết bị";
+"Identity masked" = "Đã che danh tính";
+"Copy current ID" = "Sao chép ID hiện tại";
+"Revert to my real device ID" = "Khôi phục ID thiết bị thật của tôi";
+"Restore the original, stop masking" = "Khôi phục bản gốc, ngừng che";
+"Spoofing off" = "Đã tắt giả mạo";
+"Relaunch now" = "Khởi động lại ngay";
+"Relaunch to apply" = "Khởi động lại để áp dụng";
+"Clear device & relaunch" = "Xóa thiết bị và khởi động lại";
+"Clear device & relaunch?" = "Xóa thiết bị và khởi động lại?";
+"Clear & relaunch" = "Xóa và khởi động lại";
+"Strongest — full device reset" = "Mạnh nhất — đặt lại toàn bộ thiết bị";
+"Device ID" = "ID thiết bị";
+"Device identity" = "Danh tính thiết bị";
+"Masked" = "Đã che";
+"Real" = "Thật";
+"Show button on login screen" = "Hiển thị nút trên màn hình đăng nhập";
+"Floating Device ID button while signed out" = "Nút ID thiết bị nổi khi chưa đăng nhập";
+"Masks the device fingerprint Instagram sends (device ID + family device ID). Changes take effect after a relaunch. The same button also appears on the login screen." = "Che dấu vân tay thiết bị mà Instagram gửi (ID thiết bị + ID thiết bị gia đình). Các thay đổi có hiệu lực sau khi khởi động lại. Nút tương tự cũng xuất hiện trên màn hình đăng nhập.";
+"Also clear Instagram's saved logins and stored device IDs? This logs you out and relaunches as a fresh device." = "Cũng xóa thông tin đăng nhập đã lưu và ID thiết bị đã lưu củan Instagram? Thao tác này sẽ đăng xuất và khởi động lại như một thiết bị mới.";
+"Forgets every saved login, cookie and the stored device identity, then relaunches so Instagram starts as a brand-new device. You'll sign in again afterwards." = "Quên mọi thông tin đăng nhập đã lưu, cookie và danh tính thiết bị đã lưu, sau đó khởi động lại để Instagram bắt đầu như một thiết bị hoàn toàn mới. Sau đó bạn sẽ phải đăng nhập lại.";
+
+//////////////////////////////////////////////////////////////////////////
+//                         FOLLOW REQUESTS TRACKER                        //
+// Settings → Follow Requests Tracker                                     //
+//////////////////////////////////////////////////////////////////////////
+"Follow Requests Tracker" = "Trình theo dõi yêu cầu theo dõi";
+"Follow Requests" = "Yêu cầu theo dõi";
+"Show follow requests" = "Hiện yêu cầu theo dõi";
+"Check now" = "Kiểm tra ngay";
+"Reset tracked data" = "Đặt lại dữ liệu đã theo dõi";
+"Enable tracker" = "Bật trình theo dõi";
+"Log requests and check outcomes" = "Ghi lại yêu cầu và kiểm tra kết quả";
+"Logs follow requests you send and receive, and catches who cancels a request before you answer. All on-device." = "Ghi lại các yêu cầu theo dõi bạn gửi và nhận, và phát hiện ai hủy yêu cầu trước khi bạn trả lời. Tất cả trên thiết bị.";
+"What to track" = "Theo dõi những gì";
+"Requests I send" = "Yêu cầu tôi gửi";
+"To private accounts" = "Đến tài khoản riêng tư";
+"Requests I receive" = "Yêu cầu tôi nhận";
+"From people who want to follow you" = "Từ những người muốn theo dõi bạn";
+"Background check" = "Kiểm tra nền";
+"Check interval" = "Khoảng thời gian kiểm tra";
+"How often to check for outcomes while the app is open. Also checks on launch and when you open the list." = "Tần suất kiểm tra kết quả khi ứng dụng đang mở. Cũng kiểm tra khi khởi động và khi bạn mở danh sách.";
+"Off (manual only)" = "Tắt (chỉ thủ công)";
+"Every 15 minutes" = "Mỗi 15 phút";
+"Every 30 minutes" = "Mỗi 30 phút";
+"Every hour" = "Mỗi giờ";
+"Every 6 hours" = "Mỗi 6 giờ";
+"My request accepted" = "Yêu cầu của tôi được chấp nhận";
+"A private account accepted you" = "Một tài khoản riêng tư đã chấp nhận bạn";
+"My request declined" = "Yêu cầu của tôi bị từ chối";
+"No longer pending" = "Không còn đang chờ";
+"New request received" = "Đã nhận yêu cầu mới";
+"Someone asked to follow you" = "Có người yêu cầu theo dõi bạn";
+"Request withdrawn" = "Yêu cầu đã bị rút lại";
+"Someone cancelled their request" = "Có người đã hủy yêu cầu";
+"Sent by me" = "Tôi đã gửi";
+"Received" = "Đã nhận";
+"Sent" = "Đã gửi";
+"Accepted" = "Đã chấp nhận";
+"Rejected" = "Đã từ chối";
+"Requested" = "Đã yêu cầu";
+"Approved" = "Đã duyệt";
+"Withdrawn" = "Đã rút lại";
+"No follow requests tracked yet" = "Chưa có yêu cầu theo dõi nào được theo dõi";
+"Cancel requests" = "Hủy yêu cầu";
+"Delete %lu record(s) from history?" = "Xóa %lu bản ghi khỏi lịch sử?";
+"Cancel %lu pending request(s)?" = "Hủy %lu yêu cầu đang chờ?";
+"Follow back %lu account(s)?" = "Theo dõi lại %lu tài khoản?";
+"Clear all tracked follow requests?" = "Xóa tất cả yêu cầu theo dõi đã theo dõi?";
+"Reset tracked follow requests for this account?" = "Đặt lại các yêu cầu theo dõi đã theo dõi cho tài khoản này?";
+"Enable the tracker first" = "Bật trình theo dõi trước";
+"Checking…" = "Đang kiểm tra…";
+"%ld request(s) updated" = "Đã cập nhật %ld yêu cầu";
+"No changes" = "Không có thay đổi";
+"Working…" = "Đang xử lý…";
+"Follow request accepted" = "Yêu cầu theo dõi đã được chấp nhận";
+"%@ accepted your request" = "%@ đã chấp nhận yêu cầu của bạn";
+"Follow request declined" = "Yêu cầu theo dõi đã bị từ chối";
+"%@ is no longer pending" = "%@ không còn đang chờ";
+"New follow request" = "Yêu cầu theo dõi mới";
+"%@ asked to follow you" = "%@ đã yêu cầu theo dõi bạn";
+"Follow request withdrawn" = "Yêu cầu theo dõi đã bị rút lại";
+"%@ withdrew their request" = "%@ đã rút lại yêu cầu";
+"Follow requests log" = "Nhật ký yêu cầu theo dõi";

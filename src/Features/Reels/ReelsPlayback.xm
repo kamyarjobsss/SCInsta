@@ -28,37 +28,53 @@
 }
 %end
 
+static BOOL sciReelRefreshBypassing = NO;
+
 %hook IGSundialFeedViewController
 - (void)_refreshReelsWithParamsForNetworkRequest:(NSInteger)arg1 userDidPullToRefresh:(BOOL)arg2 {
     if ([SCIUtils getBoolPref:@"prevent_doom_scrolling"]) {
-        IGRefreshControl *_refreshControl = MSHookIvar<IGRefreshControl *>(self, "_refreshControl");
-        [self refreshControlDidEndFinishLoadingAnimation:_refreshControl];
-
+        IGRefreshControl *rc = MSHookIvar<IGRefreshControl *>(self, "_refreshControl");
+        [self refreshControlDidEndFinishLoadingAnimation:rc];
         return;
     }
 
-    if ([SCIUtils getBoolPref:@"refresh_reel_confirm"]) {
-        NSLog(@"[SCInsta] Reel refresh triggered");
-        
-        [SCIUtils showConfirmation:^(void) { %orig(arg1, arg2); }
-                     cancelHandler:^(void) {
-                         IGRefreshControl *_refreshControl = MSHookIvar<IGRefreshControl *>(self, "_refreshControl");
-                         [self refreshControlDidEndFinishLoadingAnimation:_refreshControl];
-                     }
-                             title:@"Refresh Reels"];
-    } else {
-        return %orig(arg1, arg2);
+    if (![(UIViewController *)self isViewLoaded] || sciReelRefreshBypassing || ![SCIUtils getBoolPref:@"refresh_reel_confirm"]) {
+        %orig(arg1, arg2);
+        return;
     }
+
+    // Reset the refresh control state so pull-to-refresh can trigger again
+    IGRefreshControl *rc = MSHookIvar<IGRefreshControl *>(self, "_refreshControl");
+    Ivar stateIvar = class_getInstanceVariable([rc class], "_refreshState");
+    if (stateIvar) {
+        ptrdiff_t off = ivar_getOffset(stateIvar);
+        *(NSInteger *)((char *)(__bridge void *)rc + off) = 0;
+    }
+    if ([rc respondsToSelector:@selector(endRefreshing)])
+        ((void(*)(id,SEL))objc_msgSend)(rc, @selector(endRefreshing));
+    [self refreshControlDidEndFinishLoadingAnimation:rc];
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:SCILocalized(@"Refresh Reels?")
+                                                                   message:nil
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    __weak id weakSelf = self;
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Cancel") style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:SCILocalized(@"Refresh") style:UIAlertActionStyleDefault handler:^(UIAlertAction *_) {
+        sciReelRefreshBypassing = YES;
+        SEL rSel = @selector(_refreshReelsWithParamsForNetworkRequest:userDidPullToRefresh:);
+        ((void(*)(id,SEL,NSInteger,BOOL))objc_msgSend)(weakSelf, rSel, arg1, arg2);
+        sciReelRefreshBypassing = NO;
+    }]];
+
+    UIViewController *presenter = (UIViewController *)self;
+    [presenter presentViewController:alert animated:YES completion:nil];
 }
 %end
 
-// * Disable volume/mute button triggering unmutes
+// * Disable auto-unmuting reels
+// Blocks all paths that can unmute: hardware buttons, headphones,
+// mute switch, and the audio state announcer.
 %hook IGAudioStatusAnnouncer
-- (void)_muteSwitchStateChanged:(id)changed {
-    if (![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
-        %orig(changed);
-    }
-}
 - (void)_didPressVolumeButton:(id)button {
     if (![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
         %orig(button);
@@ -68,5 +84,20 @@
     if (![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
         %orig(headphones);
     }
+}
+- (void)_muteSwitchStateChanged:(id)changed {
+    extern BOOL sciStoryAudioBypass;
+    if (sciStoryAudioBypass || ![SCIUtils getBoolPref:@"disable_auto_unmuting_reels"]) {
+        %orig(changed);
+    }
+}
+// Block the announcer from broadcasting "audio enabled" state changes
+- (void)_announceForDeviceStateChangesIfNeededForAudioEnabled:(BOOL)enabled reason:(NSInteger)reason {
+    extern BOOL sciStoryAudioBypass;
+    BOOL pausePlayMode = [[SCIUtils getStringPref:@"reels_tap_control"] isEqualToString:@"pause"];
+    if ([SCIUtils getBoolPref:@"disable_auto_unmuting_reels"] && enabled && !pausePlayMode && !sciStoryAudioBypass) {
+        return;
+    }
+    %orig;
 }
 %end

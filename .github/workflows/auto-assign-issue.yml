@@ -13,5 +13,5 @@ jobs:
             - name: 'Auto-assign issue'
               uses: pozil/auto-assign-issue@v1
               with:
-                  assignees: socuul
+                  assignees: faroukbmiled
                   allowNoAssignees: true
