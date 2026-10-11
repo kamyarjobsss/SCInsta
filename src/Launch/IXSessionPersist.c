@@ -125,6 +125,12 @@ int IXSessionReportAccounts(int harvested, int saved, int cookie_present, int wi
     return 0;
 }
 
+int IXSessionRewriteGroup(const char *group, const char *entitled) {
+    if (!entitled || !entitled[0]) return 0;
+    if (group && group[0] && strcmp(group, entitled) == 0) return 0;
+    return 1;
+}
+
 int IXSessionSensitiveName(const char *name) {
     if (!name || !name[0]) return 0;
     if (ix_has(name, "password")) return 0;

@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.7"
+                description: "Publish a prerelease tagged instagram-x-v2.4.8"
                 default: true
                 required: false
                 type: boolean
@@ -265,15 +265,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.7 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.8 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.7
+                tag_name: instagram-x-v2.4.8
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.7
+                name: Instagram X 2.4.8
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -299,6 +299,8 @@ jobs:
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
 
+                  v2.4.8 keeps the login that 2.4.7 still dropped. Every launch Instagram ran onFirstAppInstall because getIsFirstUserEnterSession is true when the user-id string is empty. instagram.activeaccount is stored in group.com.facebook.family, and the sideload entitlement is only the team prefix, so that read misses and the user id stays empty. Add, copy, update, and delete now use the access group SecItem assigned to the base helper's probe item, the same group on every path. Documents/mobileconfig is copied aside before Instagram deletes it and put back before the next launch. The panel sends the account count after login, including when the app backgrounds. One login can be required. Not tested on a device.
+
                   v2.4.7 puts a missing app-group container on the base sideload path, Documents/<group id> or the entitled parent, and copies the old IXAppGroup files into it. Launch no longer writes Instagram defaults or fresh-install markers. SecItem queries are not rewritten. Deletes, cookie removals, preference removals, and logout calls are logged with the calling image and symbol, and the first authenticated Instagram response is logged with its status. The panel keeps the last account list while the session cookie is present or during the first 20 seconds, so a launch that has not restored yet does not replace it with zero. One login can be required if an older build already deleted the session.
 
                   v2.4.6 keeps the single IXAppGroup container and does not hook SecItem. Instagram was treating every relaunch as a fresh install because the group preference suite never reached disk, then it deleted the session and iOS offered the iCloud Keychain password. Group suites are now stored in that container, and an install that already has a cookie file gets the fresh-install markers back before launch. The panel primary is https://zovidar.duckdns.org/api/v1 with the system trust store. https://77.110.125.217:9443 stays the pinned fallback. Relative /static/fonts and /static/stickers URLs use whichever origin served the config. One login can be required if an older build already deleted the session.
@@ -316,4 +318,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.7"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.8"

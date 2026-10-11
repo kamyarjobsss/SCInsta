@@ -12,6 +12,9 @@
 #import <objc/runtime.h>
 #import <pthread.h>
 #import <string.h>
+#if __has_include(<ptrauth.h>)
+#include <ptrauth.h>
+#endif
 
 static pthread_mutex_t ix_watch_mu = PTHREAD_MUTEX_INITIALIZER;
 static CFAbsoluteTime ix_watch_clock = 0;
@@ -27,8 +30,21 @@ static NSInteger ix_http_error = 0;
 static NSString *ix_http_marker = @"none";
 static NSString *ix_http_host = @"-";
 
+typedef OSStatus (*IXSecAddFn)(CFDictionaryRef, CFTypeRef *);
+typedef OSStatus (*IXSecCopyFn)(CFDictionaryRef, CFTypeRef *);
+typedef OSStatus (*IXSecUpdateFn)(CFDictionaryRef, CFDictionaryRef);
 typedef OSStatus (*IXSecDeleteFn)(CFDictionaryRef);
+static IXSecAddFn ix_real_add;
+static IXSecCopyFn ix_real_copy;
+static IXSecUpdateFn ix_real_update;
 static IXSecDeleteFn ix_real_delete;
+static IXSecAddFn ix_raw_add;
+static IXSecCopyFn ix_raw_copy;
+static IXSecUpdateFn ix_raw_update;
+static IXSecDeleteFn ix_raw_delete;
+static NSString *ix_entitled_group;
+static int ix_chain_hooked;
+static int ix_mc_depth;
 
 typedef struct {
     Class cls;
@@ -103,7 +119,7 @@ int IXSessionWithinRestoreWindow(void) {
     start = ix_watch_clock;
     pthread_mutex_unlock(&ix_watch_mu);
     if (start == 0) return 1;
-    return (CFAbsoluteTimeGetCurrent() - start) < 20.0;
+    return (CFAbsoluteTimeGetCurrent() - start) < 90.0;
 }
 
 static NSString *IXUsersPath(void) {
@@ -216,36 +232,289 @@ static BOOL IXOwnService(NSString *service) {
     return [service isKindOfClass:[NSString class]] && [service hasPrefix:@"instagramx."];
 }
 
-static void IXNoteSecDelete(CFDictionaryRef query) {
+static void *IXStripPtr(void *pointer) {
+#if __has_feature(ptrauth_calls)
+    return ptrauth_strip(pointer, ptrauth_key_asia);
+#else
+    return pointer;
+#endif
+}
+
+static NSString *IXShort(id value, NSUInteger max) {
+    if (![value isKindOfClass:[NSString class]] || [(NSString *)value length] == 0) return @"-";
+    if ([(NSString *)value length] > max) return @"len";
+    return value;
+}
+
+static const char *IXChainName(void *prev, const char *symbol) {
+    void *raw = symbol ? dlsym(RTLD_DEFAULT, symbol) : NULL;
+    if (!prev) return "none";
+    if (raw && IXStripPtr(prev) == IXStripPtr(raw)) return "real";
+    return "hooked";
+}
+
+static CFDictionaryRef IXPreparedQuery(CFDictionaryRef query, int *rewrote) {
     NSDictionary *dict;
-    NSString *service;
-    NSString *group;
-    int room;
-    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return;
+    id service;
+    id group;
+    NSMutableDictionary *next;
+    const char *current;
+    if (rewrote) *rewrote = 0;
+    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return query;
     dict = (__bridge NSDictionary *)query;
     service = dict[(__bridge id)kSecAttrService];
-    if (IXOwnService(service)) return;
+    if (IXOwnService(service)) return query;
     group = dict[(__bridge id)kSecAttrAccessGroup];
+    current = [group isKindOfClass:[NSString class]] ? [(NSString *)group UTF8String] : NULL;
+    if (!IXSessionRewriteGroup(current, ix_entitled_group.UTF8String)) return query;
+    next = [dict mutableCopy];
+    if (!next) return query;
+    next[(__bridge id)kSecAttrAccessGroup] = ix_entitled_group;
+    if (rewrote) *rewrote = 1;
+    return (CFDictionaryRef)CFBridgingRetain(next);
+}
+
+static int IXLogThisOp(const char *op, NSString *service, int rewrote) {
+    NSString *lower;
+    if (!op) return 0;
+    if (strcmp(op, "delete") == 0) return 1;
+    if (!rewrote) return 0;
+    if (strcmp(op, "copy") != 0) return 1;
+    if (![service isKindOfClass:[NSString class]] || service.length == 0) return 0;
+    lower = service.lowercaseString;
+    return [lower containsString:@"account"] || [lower containsString:@"auth"] ||
+           [lower containsString:@"session"] || [lower containsString:@"token"] ||
+           [lower containsString:@"user"];
+}
+
+static void IXLogGroup(const char *op, CFDictionaryRef original, OSStatus status, int rewrote, const char *chain) {
+    NSDictionary *dict;
+    id service;
+    id group;
+    int room;
+    int frames;
+    if (!original || CFGetTypeID(original) != CFDictionaryGetTypeID()) return;
+    dict = (__bridge NSDictionary *)original;
+    service = dict[(__bridge id)kSecAttrService];
+    if (IXOwnService(service)) return;
+    frames = op && strcmp(op, "delete") == 0;
+    if (!IXLogThisOp(op, [service isKindOfClass:[NSString class]] ? service : nil, rewrote)) return;
     pthread_mutex_lock(&ix_watch_mu);
-    room = ix_sec_logs < 30;
+    room = ix_sec_logs < 40;
     if (room) ix_sec_logs++;
     pthread_mutex_unlock(&ix_watch_mu);
     if (!room) return;
-    IXSessionDiagLine([NSString stringWithFormat:@"secdelete class=%@ service=%@ acct_len=%lu group=%@",
-                       [dict[(__bridge id)kSecClass] isKindOfClass:[NSString class]] ? dict[(__bridge id)kSecClass] : @"-",
-                       [service isKindOfClass:[NSString class]] && service.length > 0 && service.length <= 80 ? service : (service ? @"len" : @"-"),
-                       (unsigned long)([dict[(__bridge id)kSecAttrAccount] isKindOfClass:[NSString class]] ? [(NSString *)dict[(__bridge id)kSecAttrAccount] length] : 0),
-                       [group isKindOfClass:[NSString class]] && group.length > 0 && group.length <= 80 ? group : (group ? @"len" : @"-")]);
-    IXFrames(@"secdelete");
+    group = dict[(__bridge id)kSecAttrAccessGroup];
+    IXSessionDiagLine([NSString stringWithFormat:@"kc_group op=%s service=%@ from=%@ to=%@ status=%d chain=%s",
+                       op,
+                       IXShort(service, 80),
+                       IXShort(group, 80),
+                       rewrote ? (ix_entitled_group ?: @"-") : IXShort(group, 80),
+                       (int)status,
+                       chain ?: "none"]);
+    if (frames) IXFrames(@"secdelete");
 }
 
-static OSStatus ix_log_sec_delete(CFDictionaryRef query) {
-    IXSecDeleteFn next;
-    IXNoteSecDelete(query);
-    next = ix_real_delete;
-    if (!next) next = (IXSecDeleteFn)dlsym(RTLD_DEFAULT, "SecItemDelete");
-    if (!next) return errSecUnimplemented;
-    return next(query);
+static OSStatus ix_sec_add(CFDictionaryRef attributes, CFTypeRef *result) {
+    int rewrote = 0;
+    CFDictionaryRef query = IXPreparedQuery(attributes, &rewrote);
+    IXSecAddFn next = ix_real_add ? ix_real_add : ix_raw_add;
+    OSStatus status = next ? next(query, result) : errSecUnimplemented;
+    IXLogGroup("add", attributes, status, rewrote, IXChainName(next, "SecItemAdd"));
+    if (rewrote && query) CFRelease(query);
+    return status;
+}
+
+static OSStatus ix_sec_copy(CFDictionaryRef queryIn, CFTypeRef *result) {
+    int rewrote = 0;
+    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
+    IXSecCopyFn next = ix_real_copy ? ix_real_copy : ix_raw_copy;
+    OSStatus status = next ? next(query, result) : errSecUnimplemented;
+    IXLogGroup("copy", queryIn, status, rewrote, IXChainName(next, "SecItemCopyMatching"));
+    if (rewrote && query) CFRelease(query);
+    return status;
+}
+
+static OSStatus ix_sec_update(CFDictionaryRef queryIn, CFDictionaryRef attributesToUpdate) {
+    int rewrote = 0;
+    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
+    IXSecUpdateFn next = ix_real_update ? ix_real_update : ix_raw_update;
+    OSStatus status = next ? next(query, attributesToUpdate) : errSecUnimplemented;
+    IXLogGroup("update", queryIn, status, rewrote, IXChainName(next, "SecItemUpdate"));
+    if (rewrote && query) CFRelease(query);
+    return status;
+}
+
+static OSStatus ix_sec_delete(CFDictionaryRef queryIn) {
+    int rewrote = 0;
+    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
+    IXSecDeleteFn next = ix_real_delete ? ix_real_delete : ix_raw_delete;
+    OSStatus status = next ? next(query) : errSecUnimplemented;
+    IXLogGroup("delete", queryIn, status, rewrote, IXChainName(next, "SecItemDelete"));
+    if (rewrote && query) CFRelease(query);
+    return status;
+}
+
+static void IXCaptureRaw(void) {
+    void *add = dlsym(RTLD_DEFAULT, "SecItemAdd");
+    void *copy = dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
+    void *update = dlsym(RTLD_DEFAULT, "SecItemUpdate");
+    void *del = dlsym(RTLD_DEFAULT, "SecItemDelete");
+    if (add && add != (void *)ix_sec_add) ix_raw_add = (IXSecAddFn)add;
+    if (copy && copy != (void *)ix_sec_copy) ix_raw_copy = (IXSecCopyFn)copy;
+    if (update && update != (void *)ix_sec_update) ix_raw_update = (IXSecUpdateFn)update;
+    if (del && del != (void *)ix_sec_delete) ix_raw_delete = (IXSecDeleteFn)del;
+}
+
+static void IXResolvePrev(void) {
+    void *add = IXSymbolPrevious("SecItemAdd");
+    void *copy = IXSymbolPrevious("SecItemCopyMatching");
+    void *update = IXSymbolPrevious("SecItemUpdate");
+    void *del = IXSymbolPrevious("SecItemDelete");
+    if (!add || add == (void *)ix_sec_add) add = (void *)ix_raw_add;
+    if (!copy || copy == (void *)ix_sec_copy) copy = (void *)ix_raw_copy;
+    if (!update || update == (void *)ix_sec_update) update = (void *)ix_raw_update;
+    if (!del || del == (void *)ix_sec_delete) del = (void *)ix_raw_delete;
+    if (add && add != (void *)ix_sec_add) ix_real_add = (IXSecAddFn)add;
+    if (copy && copy != (void *)ix_sec_copy) ix_real_copy = (IXSecCopyFn)copy;
+    if (update && update != (void *)ix_sec_update) ix_real_update = (IXSecUpdateFn)update;
+    if (del && del != (void *)ix_sec_delete) ix_real_delete = (IXSecDeleteFn)del;
+    ix_chain_hooked = IXChainName((void *)ix_real_copy, "SecItemCopyMatching")[0] == 'h';
+}
+
+static void IXProbeEntitledGroup(void) {
+    NSDictionary *query;
+    CFTypeRef result = NULL;
+    OSStatus status = errSecUnimplemented;
+    id group;
+    if (ix_entitled_group.length) return;
+    query = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrAccount: @"zxPluginsInjectGenericEntry",
+        (__bridge id)kSecAttrService: @"",
+        (__bridge id)kSecReturnAttributes: @YES
+    };
+    if (ix_raw_copy) status = ix_raw_copy((__bridge CFDictionaryRef)query, &result);
+    if (status == errSecItemNotFound && ix_raw_add) {
+        if (result) {
+            CFRelease(result);
+            result = NULL;
+        }
+        status = ix_raw_add((__bridge CFDictionaryRef)query, &result);
+    }
+    group = nil;
+    if (status == errSecSuccess && result && CFGetTypeID(result) == CFDictionaryGetTypeID()) {
+        group = ((__bridge NSDictionary *)result)[(__bridge id)kSecAttrAccessGroup];
+    }
+    if ([group isKindOfClass:[NSString class]] && [(NSString *)group length] > 0 && [(NSString *)group length] <= 128) {
+        ix_entitled_group = [group copy];
+    }
+    if (result) CFRelease(result);
+}
+
+static void IXProofQuery(NSString *phase, NSString *service, NSString *group, NSString *label) {
+    NSMutableDictionary *query;
+    CFTypeRef result = NULL;
+    OSStatus status = errSecUnimplemented;
+    int count = 0;
+    IXSecCopyFn copy = ix_raw_copy;
+    if (!copy || !service.length || !group.length) {
+        IXSessionDiagLine([NSString stringWithFormat:@"kc_proof phase=%@ service=%@ status=%d count=0 group=%@",
+                           phase ?: @"?", IXShort(service, 80), copy ? 0 : -1, label ?: @"-"]);
+        return;
+    }
+    query = [@{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: service,
+        (__bridge id)kSecAttrAccessGroup: group,
+        (__bridge id)kSecReturnAttributes: @YES,
+        (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitAll
+    } mutableCopy];
+    status = copy((__bridge CFDictionaryRef)query, &result);
+    if (status == errSecSuccess && result) {
+        if (CFGetTypeID(result) == CFArrayGetTypeID()) count = (int)CFArrayGetCount(result);
+        else count = 1;
+    }
+    if (result) CFRelease(result);
+    IXSessionDiagLine([NSString stringWithFormat:@"kc_proof phase=%@ service=%@ status=%d count=%d group=%@",
+                       phase ?: @"?", IXShort(service, 80), (int)status, count, label ?: @"-"]);
+}
+
+static void IXKeychainProof(NSString *phase) {
+    if (ix_entitled_group.length == 0) {
+        IXSessionDiagLine([NSString stringWithFormat:@"kc_proof phase=%@ service=- status=0 count=0 group=missing", phase ?: @"?"]);
+    } else {
+        IXProofQuery(phase, @"instagram.activeaccount", ix_entitled_group, @"entitled");
+        IXProofQuery(phase, @"instagram.inactiveloggedinaccounts", ix_entitled_group, @"entitled");
+        IXProofQuery(phase, @"com.instagram.users.authheaders.service", ix_entitled_group, @"entitled");
+    }
+    IXProofQuery(phase, @"instagram.activeaccount", @"group.com.facebook.family", @"family");
+}
+
+static NSString *IXDocsDir(void) {
+    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+    if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    return docs;
+}
+
+static NSString *IXMobileconfigLive(void) {
+    return [IXDocsDir() stringByAppendingPathComponent:@"mobileconfig"];
+}
+
+static NSString *IXMobileconfigKeep(void) {
+    return [[IXDocsDir() stringByAppendingPathComponent:@"InstagramX"] stringByAppendingPathComponent:@"mobileconfig-keep"];
+}
+
+static int IXDirExists(NSString *path) {
+    BOOL dir = NO;
+    if (path.length == 0) return 0;
+    return [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&dir] && dir;
+}
+
+static int IXMcEnter(void) {
+    int entered = 0;
+    pthread_mutex_lock(&ix_watch_mu);
+    if (ix_mc_depth == 0) {
+        ix_mc_depth = 1;
+        entered = 1;
+    }
+    pthread_mutex_unlock(&ix_watch_mu);
+    return entered;
+}
+
+static void IXMcLeave(void) {
+    pthread_mutex_lock(&ix_watch_mu);
+    ix_mc_depth = 0;
+    pthread_mutex_unlock(&ix_watch_mu);
+}
+
+static int IXCopyTree(NSString *from, NSString *to) {
+    NSFileManager *fm;
+    if (!IXDirExists(from) || to.length == 0) return 0;
+    fm = [NSFileManager defaultManager];
+    [fm createDirectoryAtPath:[to stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
+    if ([fm fileExistsAtPath:to]) [fm removeItemAtPath:to error:nil];
+    if (![fm copyItemAtPath:from toPath:to error:nil]) return 0;
+    return IXDirExists(to);
+}
+
+static void IXMobileconfigSync(NSString *phase) {
+    int existed;
+    int restored = 0;
+    if (!IXMcEnter()) return;
+    existed = IXDirExists(IXMobileconfigLive());
+    if (existed) IXCopyTree(IXMobileconfigLive(), IXMobileconfigKeep());
+    else if (IXDirExists(IXMobileconfigKeep())) restored = IXCopyTree(IXMobileconfigKeep(), IXMobileconfigLive());
+    IXMcLeave();
+    IXSessionDiagLine([NSString stringWithFormat:@"mobileconfig_restore phase=%@ existed=%d restored=%d",
+                       phase ?: @"?", existed, restored]);
+}
+
+static int IXLiveMobileconfig(NSString *path) {
+    if (path.length == 0) return 0;
+    if ([path rangeOfString:@"mobileconfig-keep"].location != NSNotFound) return 0;
+    return [path rangeOfString:@"/mobileconfig"].location != NSNotFound ||
+           [path.lastPathComponent isEqualToString:@"mobileconfig"];
 }
 
 static void IXNoteLogout(id object, SEL sel) {
@@ -480,16 +749,17 @@ void IXSessionWatchSnapshot(NSString *phase) {
                        tzSpoof ? 1 : 0,
                        NSTimeZone.localTimeZone.name ?: @"-",
                        [NSLocale.currentLocale objectForKey:NSLocaleCountryCode] ?: @"-"]);
+    IXMobileconfigSync(phase);
+    IXKeychainProof(phase);
 }
 
-static void IXArmDelete(void) {
-    const char *names[1] = { "SecItemDelete" };
-    void *repl[1] = { (void *)ix_log_sec_delete };
-    void *prev;
-    IXSymbolRebindPermanent(names, repl, 1);
-    prev = IXSymbolPrevious("SecItemDelete");
-    if (!prev || prev == (void *)ix_log_sec_delete) prev = dlsym(RTLD_DEFAULT, "SecItemDelete");
-    if (prev && prev != (void *)ix_log_sec_delete) ix_real_delete = (IXSecDeleteFn)prev;
+static void IXArmSec(void) {
+    const char *names[4] = { "SecItemAdd", "SecItemCopyMatching", "SecItemUpdate", "SecItemDelete" };
+    void *repl[4] = { (void *)ix_sec_add, (void *)ix_sec_copy, (void *)ix_sec_update, (void *)ix_sec_delete };
+    IXCaptureRaw();
+    IXProbeEntitledGroup();
+    IXSymbolRebindPermanent(names, repl, 4);
+    IXResolvePrev();
 }
 
 void IXSessionWatchArm(void) {
@@ -497,11 +767,14 @@ void IXSessionWatchArm(void) {
     pthread_mutex_lock(&ix_watch_mu);
     if (ix_watch_clock == 0) ix_watch_clock = CFAbsoluteTimeGetCurrent();
     pthread_mutex_unlock(&ix_watch_mu);
-    IXArmDelete();
+    IXMobileconfigSync(@"arm");
+    IXArmSec();
     IXInstallLogoutHooks();
     if (!announced) {
         announced = 1;
-        IXSessionDiagLine(@"watch secitem_delete_log=on rewrite=0");
+        IXSessionDiagLine([NSString stringWithFormat:@"kc_chain hooked=%d group=%@",
+                           ix_chain_hooked, ix_entitled_group.length ? ix_entitled_group : @"-"]);
+        IXSessionDiagLine(@"watch secitem_rewrite=on rewrite=1");
     }
 }
 
@@ -587,12 +860,41 @@ static void IXNoteFile(NSString *path) {
 
 %hook NSFileManager
 - (BOOL)removeItemAtPath:(NSString *)path error:(NSError **)error {
+    int existed = 0;
+    int restored = 0;
+    int keep = IXLiveMobileconfig(path) && IXMcEnter();
+    BOOL ok;
     IXNoteFile(path);
-    return %orig;
+    if (keep) {
+        existed = IXDirExists(IXMobileconfigLive());
+        if (existed) IXCopyTree(IXMobileconfigLive(), IXMobileconfigKeep());
+    }
+    ok = %orig;
+    if (keep) {
+        if (IXDirExists(IXMobileconfigKeep())) restored = IXCopyTree(IXMobileconfigKeep(), IXMobileconfigLive());
+        IXMcLeave();
+        IXSessionDiagLine([NSString stringWithFormat:@"mobileconfig_restore phase=remove existed=%d restored=%d", existed, restored]);
+    }
+    return ok;
 }
 - (BOOL)removeItemAtURL:(NSURL *)url error:(NSError **)error {
-    IXNoteFile(url.path);
-    return %orig;
+    NSString *path = url.path;
+    int existed = 0;
+    int restored = 0;
+    int keep = IXLiveMobileconfig(path) && IXMcEnter();
+    BOOL ok;
+    IXNoteFile(path);
+    if (keep) {
+        existed = IXDirExists(IXMobileconfigLive());
+        if (existed) IXCopyTree(IXMobileconfigLive(), IXMobileconfigKeep());
+    }
+    ok = %orig;
+    if (keep) {
+        if (IXDirExists(IXMobileconfigKeep())) restored = IXCopyTree(IXMobileconfigKeep(), IXMobileconfigLive());
+        IXMcLeave();
+        IXSessionDiagLine([NSString stringWithFormat:@"mobileconfig_restore phase=remove existed=%d restored=%d", existed, restored]);
+    }
+    return ok;
 }
 %end
 

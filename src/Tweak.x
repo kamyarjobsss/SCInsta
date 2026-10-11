@@ -26,7 +26,7 @@ extern void IXSessionWatchSnapshot(NSString *phase);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.7";
+NSString *SCIVersionString = @"v2.4.8";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;

@@ -219,6 +219,7 @@ void IXSessionDiagAccounts(NSString *phase) {
         int auth = IXAuthReady();
         int cookie = IXHasSessionCookie();
         IXSessionWatchSnapshot(when);
+        if (count > 0) IXBackendHeartbeat(when);
         NSString *line = [NSString stringWithFormat:@"accounts phase=%@ count=%d auth=%d cookie=%d container=%@ hooks=off",
                           when,
                           count,
@@ -406,7 +407,7 @@ static void IXEntitlementSummary(void) {
     }
     ix_signed_groups = [signedGroups copy];
     ix_entitled = keychainCount > 0 ? (unsigned long)keychainCount : 0;
-    IXSessionDiagLine([NSString stringWithFormat:@"entitlements keychain_groups=%d [%@] app_groups=%d [%@] secitem_hooks=off",
+    IXSessionDiagLine([NSString stringWithFormat:@"entitlements keychain_groups=%d [%@] app_groups=%d [%@] secitem_rewrite=on",
                        keychainCount, keychainList, appGroupCount, appList]);
 }
 
@@ -595,7 +596,7 @@ void IXSessionDiagBoot(void) {
     static int once = 0;
     if (once) return;
     once = 1;
-    IXSessionDiagLine(@"boot secitem_hooks=off");
+    IXSessionDiagLine(@"boot secitem_rewrite=on");
     IXEntitlementSummary();
     IXFreshMarker();
     IXSelfTest();
@@ -613,7 +614,7 @@ void IXSessionDiagBoot(void) {
 NSString *IXSessionDiagReport(void) {
     NSMutableString *text = [NSMutableString string];
     [text appendString:@"Instagram X session diagnostics\n"];
-    [text appendString:@"secitem_hooks=off\n"];
+    [text appendString:@"secitem_rewrite=on\n"];
     NSDictionary *state = [NSDictionary dictionaryWithContentsOfFile:IXStatePath()];
     if ([state isKindOfClass:[NSDictionary class]]) {
         for (NSString *key in @[@"ix_seen_launch", @"fresh_names", @"path_changed", @"container_source", @"container", @"safe_mode", @"ig_prefs", @"cookie_file", @"group_prefs", @"probe_read", @"probe_write", @"probe_bytes", @"probe_group", @"probe_group_changed"]) {

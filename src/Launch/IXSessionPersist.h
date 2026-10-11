@@ -97,6 +97,12 @@ int IXSessionHoldCount(int harvested, int saved, int cookie_present, int within_
    saved list yet, must not replace the account the panel already stored. */
 int IXSessionReportAccounts(int harvested, int saved, int cookie_present, int within_restore_window);
 
+/* 1 when a SecItem access group must be replaced with the entitled group.
+   The base sideload helper does this on add, copy, update, and delete.
+   A missing group is replaced too. The entitled group itself is kept.
+   A missing entitled group returns 0. */
+int IXSessionRewriteGroup(const char *group, const char *entitled);
+
 /* 1 when a defaults key or a filesystem path is an auth/session store.
    Used to decide which deletions to record. Password values are never logged. */
 int IXSessionSensitiveName(const char *name);

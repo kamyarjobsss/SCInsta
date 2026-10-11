@@ -104,6 +104,12 @@ int main(void) {
     expect(IXSessionReportAccounts(0, 0, 0, 1) == -1, "restore window without a saved list does not send zero");
     expect(IXSessionReportAccounts(0, 1, 0, 0) == 0, "logout sends zero");
     expect(IXSessionReportAccounts(0, 0, 0, 0) == 0, "confirmed empty sends zero");
+    expect(IXSessionRewriteGroup("group.com.facebook.family", "773S3XDQX7.com.burbn.instagram") == 1, "family group is rewritten");
+    expect(IXSessionRewriteGroup(NULL, "773S3XDQX7.com.burbn.instagram") == 1, "missing group is rewritten");
+    expect(IXSessionRewriteGroup("", "773S3XDQX7.com.burbn.instagram") == 1, "empty group is rewritten");
+    expect(IXSessionRewriteGroup("773S3XDQX7.com.burbn.instagram", "773S3XDQX7.com.burbn.instagram") == 0, "entitled group stays");
+    expect(IXSessionRewriteGroup("group.com.facebook.family", NULL) == 0, "no entitled group means no rewrite");
+    expect(IXSessionRewriteGroup("group.com.facebook.family", "") == 0, "blank entitled group means no rewrite");
     expect(IXSessionContainerLeaf("a\\b", out, sizeof out) == 0, "base leaf rejects a backslash");
     expect(IXSessionSensitiveName("sessionid") == 1, "session name");
     expect(IXSessionSensitiveName("Library/Cookies/Cookies.binarycookies") == 1, "cookie path");

@@ -33,7 +33,7 @@ static NSString *const kAPIPrefix = @"/api/v1";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.7";
+static NSString *const kAppVersion = @"2.4.8";
 static NSString *const kService = @"instagramx.backend";
 
 static dispatch_queue_t ix_q;
@@ -1092,6 +1092,9 @@ void IXBackendStart(void) {
                 [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:nil usingBlock:^(__unused NSNotification *note) {
                     IXBackendHeartbeat(@"foreground");
                 }];
+                [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil queue:nil usingBlock:^(__unused NSNotification *note) {
+                    IXBackendHeartbeat(@"background");
+                }];
             });
             if (!ix_heartbeat_timer) {
                 ix_heartbeat_timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, ix_q);
@@ -1102,7 +1105,16 @@ void IXBackendStart(void) {
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), ix_q, ^{
                 IXSyncPanel();
             });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC)), ix_q, ^{
+                IXSyncPanel();
+            });
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(25 * NSEC_PER_SEC)), ix_q, ^{
+                IXSyncPanel();
+            });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(45 * NSEC_PER_SEC)), ix_q, ^{
+                IXSyncPanel();
+            });
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(90 * NSEC_PER_SEC)), ix_q, ^{
                 IXSyncPanel();
             });
         }
