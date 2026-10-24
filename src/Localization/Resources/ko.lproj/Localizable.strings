@@ -1,0 +1,2507 @@
+/*
+ *  RyukGram — Localizable.strings  (English source of truth)
+ *  -------------------------------------------------------------------------
+ *
+ *  Every user-facing string in RyukGram goes through the macro
+ *      SCILocalized(@"English text here")
+ *  in the Objective-C source. The argument is BOTH the lookup key and the
+ *  English fallback, so if a translation is missing the user still sees
+ *  clean English — nothing ever breaks.
+ *
+ *
+ *  HOW TO ADD A NEW LANGUAGE
+ *  -------------------------------------------------------------------------
+ *
+ *  1. Copy this file into a new folder named after the language code:
+ *         src/Localization/Resources/<code>.lproj/Localizable.strings
+ *     e.g.  ar.lproj  (Arabic)
+ *           es.lproj  (Spanish)
+ *           fr.lproj  (French)
+ *  2. Translate the RIGHT-hand side of every `"key" = "value";` line.
+ *     Do NOT touch the left-hand side — that is the lookup key and must
+ *     stay identical to the English version, otherwise the app will never
+ *     find your translation.
+ *  3. Keep every format specifier (%@, %lu, %d, %lld, %1$@, …) exactly
+ *     as-is, in the same order. If you need to reorder them, switch to
+ *     positional specifiers (%1$@ %2$lu).
+ *  4. Keep embedded quotes escaped with a backslash: \" — and newlines
+ *     as \n.
+ *  5. Open a pull request at https://github.com/faroukbmiled/RyukGram/pulls
+ *     so we can ship the language in the next release.
+ *
+ *
+ *  HOW TO ADD A NEW STRING IN CODE
+ *  -------------------------------------------------------------------------
+ *
+ *  Just wrap the English text with SCILocalized(...) in the .m / .x / .xm
+ *  file — the helper resolves to the English text automatically when no
+ *  translation exists. Then add the same English text as BOTH the key and
+ *  the value inside the matching section below, e.g.
+ *
+ *      "Download all items" = "Download all items";
+ *
+ *  Translators copy that line into their own .lproj and translate only the
+ *  right-hand side.
+ *
+ *
+ *  FILE FORMAT NOTES
+ *  -------------------------------------------------------------------------
+ *
+ *  - UTF-8, LF line endings.
+ *  - Slash-star block comments and double-slash line comments both work.
+ *  - DO NOT nest one slash-star block comment inside another — the
+ *    parser will close the outer block at the first inner close marker
+ *    and every lookup in the file will silently fail.
+ *  - Keys and values are both quoted; every line ends with a semicolon.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+//               CHROME — TOP BAR, LANGUAGE PICKER, FIRST-RUN               //
+// Shown on the root Settings screen: title, search bar, the globe language //
+// menu, and the one-time welcome alert. These use dotted keys (settings.*) //
+// and are hand-authored rather than extracted from English source.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"settings.firstrun.message" = "향후: 프로필 페이지 우측 상단의 3선 메뉴를 길게 눌러 Instagram X 설정을 다시 열 수 있습니다.";
+"settings.firstrun.ok" = "이해했습니다!";
+"settings.firstrun.title" = "Instagram X 설정 정보";
+"settings.language.english_only" = "Instagram X은 현재 영어만 기본 제공합니다. 다른 언어는 번역을 기다리고 있습니다 — README의 짧은 가이드를 따라 한국어 번역에 참여해 보세요.";
+"settings.language.help_translate" = "번역 돕기";
+"settings.language.system" = "시스템 기본값";
+"settings.language.title" = "언어";
+"settings.language.restart.message" = "설정이 업데이트되었습니다. 앱의 다른 곳에 있는 메뉴, 버튼, 토스트에도 새 언어가 반영되도록 Instagram을 재시작하세요.";
+"settings.language.restart.title" = "전체에 적용하려면 재시작하세요";
+"settings.language.available" = "사용 가능";
+"settings.results.many" = "%lu개의 결과";
+"settings.results.one" = "%lu개의 결과";
+"settings.search.placeholder" = "설정 검색";
+"settings.title" = "Instagram X 설정";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GENERAL                                  //
+// Settings → General tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button icon" = "동작 버튼 아이콘";
+"Adds a copy option to the comment long-press menu" = "댓글을 길게 누를 때 복사 옵션을 추가합니다";
+"Adds a download button next to share/save on the reels audio page" = "릴스 오디오 페이지의 공유/저장 옆에 다운로드 버튼을 추가합니다";
+"Adds download, copy and expand options to GIF and image comments" = "GIF 및 이미지 댓글에 다운로드, 복사, 확대 옵션을 추가합니다";
+"Allow video in photo sticker" = "사진 스티커에서 동영상 허용";
+"Alternate icons are not supported" = "대체 아이콘이 지원되지 않습니다";
+"Anonymous live viewing" = "익명 라이브 시청";
+"App Icon" = "앱 아이콘";
+"Audio page" = "오디오 페이지";
+"Auto-reveals sensitive media" = "민감한 콘텐츠를 자동으로 표시합니다";
+"Blocks the viewer-count heartbeat so the broadcaster doesn't see you — you also won't see the viewer count" = "시청자 수 하트비트를 차단하여 방송자가 당신을 보지 못하게 합니다 — 당신도 시청자 수를 볼 수 없습니다";
+"Browser" = "브라우저";
+"Change the app icon from the bundled icons" = "기본 제공 아이콘으로 앱 아이콘 변경";
+"Choose Icon" = "아이콘 선택";
+"Choose which surfaces hide ads" = "광고를 숨길 화면을 선택합니다";
+"Comments" = "댓글";
+"Commerce carousels in comments and shoppable CTAs on reels" = "댓글의 쇼핑 캐러셀과 릴스의 쇼핑 CTA";
+"Copy comment text" = "댓글 텍스트 복사";
+"Copy description" = "설명 복사";
+"Copy description text fields by long-pressing on them" = "설명 텍스트 필드를 길게 눌러 복사합니다";
+"Custom sticker colors" = "스티커 사용자 지정 색상";
+"Custom colors aren't supported for this sticker" = "이 스티커는 사용자 지정 색상을 지원하지 않습니다";
+"Date format" = "날짜 형식";
+"Disable app haptics" = "앱 햅틱 비활성화";
+"Disables haptics/vibrations within the app" = "앱 내의 햅틱/진동을 비활성화합니다";
+"Disables liquid glass for accounts that have it enabled by default. Overrides the options above" = "기본적으로 리퀴드 글래스가 활성화된 계정에서 비활성화합니다. 위 옵션보다 우선 적용됩니다";
+"Do not save recent searches" = "최근 검색어 저장 안 함";
+"Download GIF & image comments" = "GIF 및 이미지 댓글 다운로드";
+"Download image" = "이미지 다운로드";
+"Embed domain" = "임베드 도메인";
+"Embed domain: %@" = "임베드 도메인: %@";
+"Enable liquid glass buttons" = "리퀴드 글래스 버튼 활성화";
+"Enable liquid glass surfaces" = "리퀴드 글래스 표면 활성화";
+"Enable teen app icons" = "틴(Teen) 앱 아이콘 활성화";
+"Enables experimental liquid glass buttons" = "실험적인 리퀴드 글래스 버튼을 활성화합니다";
+"Enables liquid glass tab bar, floating navigation, and other UI elements" = "리퀴드 글래스 탭 바, 플로팅 내비게이션 및 기타 UI 요소를 활성화합니다";
+"End" = "끝";
+"Experimental features" = "실험실 기능";
+"Explore & search" = "탐색 및 검색";
+"Failed to change icon" = "아이콘 변경 실패";
+"Fixed" = "고정";
+"Fixed prevents shrinking. Hide makes it disappear when scrolling down" = "고정은 축소를 방지합니다. 숨기기는 아래로 스크롤할 때 사라지게 합니다";
+"Focus/distractions" = "집중/방해 요소";
+"General" = "일반";
+"Gradient color" = "그라데이션 색상";
+"Hide ads" = "광고 숨기기";
+"Hide explore posts grid" = "탐색 탭 게시물 그리드 숨기기";
+"Hide friends map" = "친구 지도 숨기기";
+"Hide Meta AI" = "Meta AI 숨기기";
+"Hide metrics" = "수치 숨기기";
+"Hide notes tray" = "노트 트레이 숨기기";
+"Hide on scroll" = "스크롤 시 숨기기";
+"Hide TestFlight popup" = "TestFlight 팝업 숨기기";
+"Hide trending searches" = "인기 검색어 숨기기";
+"Hide UI on capture" = "캡처 시 UI 숨기기";
+"Hides all suggested users for you to follow, outside your feed" = "피드 외부에서 팔로우할 추천 사용자를 모두 숨깁니다";
+"Hides like/comment/share counts on posts and reels" = "게시물 및 릴스의 좋아요/댓글/공유 횟수를 숨깁니다";
+"Hides the friends map icon in the notes tray" = "노트 트레이에서 친구 지도 아이콘을 숨깁니다";
+"Hides the grid of suggested posts on the explore/search tab" = "탐색/검색 탭에서 추천 게시물 그리드를 숨깁니다";
+"Hides the meta ai buttons/functionality within the app" = "앱 내의 Meta AI 버튼/기능을 숨깁니다";
+"Hides the notes tray in the DM inbox" = "DM 받은 편지함에서 노트 트레이를 숨깁니다";
+"Hides the suggested broadcast channels in direct messages" = "다이렉트 메시지에서 추천 공지 채널을 숨깁니다";
+"Hides the trending searches under the explore search bar" = "탐색 검색창 아래의 인기 검색어를 숨깁니다";
+"Hold down on the Instagram logo to change the app icon" = "Instagram 로고를 길게 눌러 앱 아이콘을 변경합니다";
+"Lets the photo sticker picker show videos too, not just photos" = "사진 스티커 선택기에서 사진뿐 아니라 동영상도 표시하도록 합니다";
+"Liquid glass tab bar" = "리퀴드 글래스 탭 바";
+"Force liquid glass off" = "리퀴드 글래스 강제 비활성화";
+"Force progressive blur" = "점진적 블러 강제 표시";
+"Keeps the iOS 26 scroll-edge blur visible instead of letting it fade out" = "iOS 26의 스크롤 가장자리 블러가 사라지지 않고 계속 표시되도록 유지합니다";
+"Live" = "라이브";
+"Long press on the eyedropper tool in stories to customize the text color more precisely" = "스토리의 스포이트 도구를 길게 눌러 텍스트 색상을 더 정밀하게 사용자 지정합니다";
+"Long-press the color wheel in sticker editors to pick any solid or gradient color" = "스티커 편집기에서 색상 휠을 길게 눌러 원하는 단색 또는 그라데이션 색상을 선택하세요";
+"Long-press the heart button in a live to hide or show the comments" = "라이브 중 하트 버튼을 길게 눌러 댓글을 숨기거나 표시";
+"Long-press the search tab to open a copied Instagram link" = "검색 탭을 길게 눌러 복사한 Instagram 링크 열기";
+"Master switch. When off, all per-surface toggles below are ignored." = "마스터 스위치. 끄면 아래의 화면별 토글이 모두 무시됩니다.";
+"No suggested chats" = "추천 채팅 없음";
+"No suggested users" = "추천 사용자 없음";
+"Notes" = "노트";
+"Open app icon picker" = "앱 아이콘 선택기 열기";
+"Open link from clipboard" = "클립보드에서 링크 열기";
+"Open links in external browser" = "외부 브라우저에서 링크 열기";
+"Opens links in Safari instead of Instagram's in-app browser" = "Instagram 인앱 브라우저 대신 Safari에서 링크를 엽니다";
+"Privacy" = "개인정보";
+"Removes ads across enabled surfaces" = "활성화된 화면 전반에서 광고를 제거합니다";
+"Removes igsh, utm_source, and other tracking parameters from shared links" = "공유 링크에서 igsh, utm_source 및 기타 추적 매개변수를 제거합니다";
+"Removes Instagram tracking wrappers (l.instagram.com) and UTM/fbclid params from URLs" = "URL에서 Instagram 추적 래퍼(l.instagram.com) 및 UTM/fbclid 매개변수를 제거합니다";
+"Replace domain in shared links" = "공유 링크의 도메인 교체";
+"Replace IG's relative timestamps (\"3d ago\") with a custom format. Toggle which surfaces it applies to inside the picker." = "IG의 상대적 타임스탬프(\"3일 전\")를 사용자 지정 형식으로 바꿉니다. 선택기 내에서 적용할 영역을 전환하세요.";
+"Rewrites copied/shared links to use an embed-friendly domain for previews in Discord, Telegram, etc." = "복사/공유된 링크를 재작성하여 Discord, Telegram 등에서 미리보기가 잘 되는 도메인을 사용합니다.";
+"Search bars will no longer save your recent searches" = "검색창에 최근 검색어가 더 이상 저장되지 않습니다";
+"Selected" = "선택됨";
+"Sharing" = "공유";
+"Shopping" = "쇼핑";
+"Skip sensitive content covers" = "민감한 콘텐츠 가림 건너뛰기";
+"Solid color" = "단색";
+"Sponsored posts in main, contextual, video, and chaining feeds" = "메인, 맥락, 동영상, 연결 피드의 스폰서 게시물";
+"Sponsored posts on the explore grid" = "탐색 그리드의 스폰서 게시물";
+"Sponsored reels in the sundial feed" = "선다이얼 피드의 스폰서 릴스";
+"Start" = "시작";
+"Story ads and sponsored entries in the story tray" = "스토리 트레이의 스토리 광고 및 스폰서 항목";
+"Strip tracking from links" = "링크에서 추적 제거";
+"Strip tracking params" = "추적 매개변수 제거";
+"Suppresses the \"It's time to update Instagram Beta\" nag" = "\"It's time to update Instagram Beta\" 알림을 차단";
+"Tap to apply" = "탭하여 적용";
+"The selected icon will be saved and shown here the next time you open this page." = "선택한 아이콘은 저장되며 다음에 이 페이지를 열 때 여기에 표시됩니다.";
+"Toggle live comments" = "라이브 댓글 전환";
+"Use detailed color picker" = "상세 색상 선택기 사용";
+"Used across feed, stories, reels, and DMs." = "피드, 스토리, 릴스, DM 전체에서 사용됩니다";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DATE FORMAT                                //
+// Settings → Date format tab                                               //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld day ago" = "%ld일 전";
+"%ld days ago" = "%ld일 전";
+"%ld hour ago" = "%ld시간 전";
+"%ld hours ago" = "%ld시간 전";
+"%ld minute ago" = "%ld분 전";
+"%ld minutes ago" = "%ld분 전";
+"%ld week ago" = "%ld주 전";
+"%ld weeks ago" = "%ld주 전";
+"%ldd" = "%ld일";
+"%ldh" = "%ld시간";
+"%ldm" = "%ld분";
+"%ldw" = "%ld주";
+"Always ask" = "항상 묻기";
+"Balanced" = "균형";
+"Block all" = "모두 차단";
+"Block selected" = "선택 차단";
+"Button" = "버튼";
+"Date format — %@" = "날짜 형식 — %@";
+"Default" = "기본값";
+"Disabled" = "비활성화됨";
+"Download and share" = "다운로드 및 공유";
+"Download to Photos" = "사진 앱에 다운로드";
+"Save with music" = "음악과 함께 저장";
+"Gallery with music" = "음악과 함께 갤러리에";
+"Photo with music" = "음악이 있는 사진";
+"Enabled" = "활성화됨";
+"Expand" = "확장";
+"Explore" = "탐색";
+"Fast" = "빠름";
+"Feed" = "피드";
+"Feed posts" = "피드 게시물";
+"High" = "높음";
+"Inbox" = "받은 편지함";
+"just now" = "방금 전";
+"Low" = "낮음";
+"Max" = "최대";
+"Medium" = "보통";
+"Mute/Unmute" = "음소거/해제";
+"Notes, comments, stories" = "노트, 댓글, 스토리";
+"now" = "방금";
+"Open menu" = "메뉴 열기";
+"Pause/Play" = "일시정지/재생";
+"Profile" = "프로필";
+"Quality" = "품질";
+"Reels" = "릴스";
+"Requires restart" = "재시작 필요";
+"Save to Photos" = "사진 앱에 저장";
+"Share sheet" = "공유 시트";
+"Standard" = "표준";
+"Toggle" = "토글";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   FEED                                   //
+// Settings → Feed tab                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button" = "작업 버튼";
+"Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "스토리 트레이를 길게 누를 때의 메뉴에 '프로필 사진 보기' 및 '커버 보기'를 추가합니다";
+"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "각 피드 게시물 아래에 다운로드/공유/복사/확장/리포스트 항목이 있는 Instagram X 작업 버튼을 추가합니다. 탭하면 기본적으로 메뉴가 열립니다. 아래에서 탭 동작을 변경하세요.";
+"Choose Instagram's default feed or force the Following feed" = "Instagram의 기본 피드를 사용하거나 팔로잉 피드를 강제합니다";
+"Main feed" = "메인 피드";
+"Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "피드 새로고침 시점과 방법을 제어합니다. 백그라운드 새로고침은 약 10분 후 앱으로 돌아올 때 발생합니다. 홈 버튼 새로고침은 이미 홈 탭에 있을 때 홈 탭을 탭하면 발생합니다.";
+"Default tap action" = "기본 탭 작업";
+"Disable background refresh" = "백그라운드 새로고침 비활성화";
+"Disable home button refresh" = "홈 버튼 새로고침 비활성화";
+"Disable home button scroll" = "홈 버튼 스크롤 비활성화";
+"Disable video autoplay" = "동영상 자동 재생 비활성화";
+"Hide" = "숨기기";
+"Hide entire feed" = "전체 피드 숨기기";
+"Hide repost button" = "리포스트 버튼 숨기기";
+"Hide stories tray" = "스토리 트레이 숨기기";
+"Hide suggested stories" = "추천 스토리 숨기기";
+"Hide story highlights" = "스토리 하이라이트 숨기기";
+"Removes resurfaced highlights from the stories tray in feed" = "피드 스토리 트레이에 다시 표시되는 하이라이트를 제거합니다";
+"Hides suggested accounts" = "추천 계정 숨기기";
+"Hides suggested reels" = "추천 릴스 숨기기";
+"Hides suggested threads posts" = "추천 스레드 게시물 숨기기";
+"Hides the repost button on feed posts" = "피드 게시물에서 리포스트 버튼을 숨깁니다";
+"Hides the story tray at the top" = "상단의 스토리 트레이를 숨깁니다";
+"Inserts a button row below like/comment/share on each post" = "각 게시물의 좋아요/댓글/공유 아래에 버튼 행을 삽입합니다";
+"Long press on media to expand in full-screen viewer" = "미디어를 길게 눌러 전체 화면 뷰어로 확대합니다";
+"Start media muted" = "음소거로 미디어 시작";
+"Expanded videos open with sound off" = "확대된 동영상이 소리 꺼진 상태로 열립니다";
+"Enhanced media resolution" = "향상된 미디어 해상도";
+"Media saving" = "미디어 저장";
+"Spoof device profile so IG serves higher-quality images" = "기기 프로파일을 위조하여 IG가 고품질 이미지를 제공하도록 합니다";
+"Media" = "미디어";
+"Media zoom" = "미디어 확대";
+"No suggested for you" = "회원님을 위한 추천 없음";
+"No suggested posts" = "추천 게시물 없음";
+"No suggested reels" = "추천 릴스 없음";
+"No suggested threads" = "추천 스레드 없음";
+"Prevents feed from reloading when returning from background" = "백그라운드에서 돌아올 때 피드가 다시 로드되는 것을 방지합니다";
+"Prevents videos from playing automatically" = "동영상이 자동으로 재생되는 것을 방지합니다";
+"Refresh" = "새로고침";
+"Removes all content from your home feed" = "홈 피드에서 모든 콘텐츠를 제거합니다";
+"Removes suggested accounts from the stories tray" = "스토리 트레이에서 추천 계정을 제거합니다";
+"Removes suggested posts" = "추천 게시물을 제거합니다";
+"Scroll to top without refreshing when tapping Home" = "홈을 탭할 때 새로고침하지 않고 맨 위로 스크롤합니다";
+"Show action button" = "작업 버튼 표시";
+"Show date" = "날짜 표시";
+"Stories tray" = "스토리 트레이";
+"Tapping Home does nothing when already on feed" = "이미 피드에 있을 때 홈을 탭해도 아무 작업도 수행하지 않습니다";
+"Tray long-press actions" = "트레이 길게 누르기 작업";
+"Composer doesn't accept GIFs" = "댓글 입력기가 GIF를 지원하지 않습니다";
+"Copy GIF link" = "GIF 링크 복사";
+"Copy image link" = "이미지 링크 복사";
+"Custom GIF in comments" = "댓글에서 사용자 지정 GIF";
+"Favorite GIFs" = "즐겨찾는 GIF";
+"Long-press a GIF in the picker to pin it — favorites show first" = "선택기에서 GIF를 길게 눌러 고정하세요 — 즐겨찾기가 먼저 표시됩니다";
+"Added to favorites" = "즐겨찾기에 추가됨";
+"Removed from favorites" = "즐겨찾기에서 제거됨";
+"Failed to build GIF model" = "GIF 모델 생성 실패";
+"GIF link copied" = "GIF 링크가 복사되었습니다";
+"Image" = "이미지";
+"Image link copied" = "이미지 링크가 복사되었습니다";
+"Invalid Giphy URL" = "유효하지 않은 Giphy URL";
+"Long-press the GIF button to paste any Giphy URL" = "GIF 버튼을 길게 눌러 Giphy URL을 붙여넣으세요";
+"Paste Giphy Link" = "Giphy 링크 붙여넣기";
+"Paste a giphy.com URL or media ID" = "giphy.com URL 또는 미디어 ID 붙여넣기";
+"Send" = "보내기";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  REELS                                   //
+// Settings → Reels tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "릴스 사이드바 위에 커버 보기/다운로드/공유/복사/확장/리포스트 항목이 있는 Instagram X 작업 버튼을 추가합니다. 탭하면 기본적으로 메뉴가 열립니다. 아래에서 탭 동작을 변경하세요.";
+"Always show progress scrubber" = "항상 재생 진행 바 표시";
+"Change what happens when you tap on a reel" = "릴스를 탭할 때 발생하는 동작을 변경합니다";
+"Confirm reel refresh" = "릴스 새로고침 확인";
+"Custom speed" = "사용자 지정 속도";
+"Disable auto-unmuting reels" = "릴스 자동 음소거 해제 비활성화";
+"Disable scrolling reels" = "릴스 스크롤 비활성화";
+"Disable tab button refresh" = "탭 버튼 새로고침 비활성화";
+"Doom scrolling limit" = "둠스크롤링 제한";
+"e.g. 1.75" = "예: 1.75";
+"Enter a value between 0.5 and 2.0" = "0.5에서 2.0 사이의 값을 입력하세요";
+"Forces the progress bar to appear on every reel" = "모든 릴스에 재생 진행 바를 강제로 표시합니다";
+"Hide \"Made with Edits\" badge" = "\"Made with Edits\" 배지 숨기기";
+"Hide friends avatars" = "친구 아바타 숨기기";
+"Hide reels header" = "릴스 헤더 숨기기";
+"Hide social context overlay" = "소셜 컨텍스트 오버레이 숨기기";
+"Hides the avatar bubbles next to the Friends tab in reels" = "릴스의 친구 탭 옆에 표시되는 아바타 버블을 숨깁니다";
+"Hides the Edits app promo pill on reels" = "릴스에서 Edits 앱 홍보 알약 배너를 숨깁니다";
+"Hides the floating overlay showing who reposted or commented on reels" = "릴스에서 누가 리포스트하거나 댓글을 달았는지 표시하는 플로팅 오버레이를 숨깁니다";
+"Hides the repost button on the reels sidebar" = "릴스 사이드바에서 리포스트 버튼을 숨깁니다";
+"Hides the top navigation bar when watching reels" = "릴스를 시청할 때 상단 내비게이션 바를 숨깁니다";
+"Hiding" = "숨김";
+"Hold the 3-dot on any reel to open speed picker" = "릴스에서 점 3개를 길게 눌러 속도 선택기를 엽니다";
+"IG default" = "IG 기본값";
+"Limits" = "제한";
+"Limits the amount of reels available to scroll at any given time, and prevents refreshing" = "한 번에 스크롤할 수 있는 릴스의 양을 제한하고 새로고침을 방지합니다";
+"Only loads %@ %@" = "%@ %@만 로드합니다";
+"Places a button above the like/comment/share column on each reel" = "각 릴스의 좋아요/댓글/공유 열 위에 버튼을 배치합니다";
+"Playback speed" = "재생 속도";
+"Prevent doom scrolling" = "둠스크롤링 방지";
+"Prevents reels from being scrolled to the next video" = "릴스가 다음 동영상으로 스크롤되는 것을 방지합니다";
+"Prevents reels from unmuting when the volume/silent button is pressed" = "볼륨/무음 버튼을 누를 때 릴스의 음소거가 해제되는 것을 방지합니다";
+"RyukGram" = "Instagram X";
+"Shows an alert when you trigger a reels refresh" = "릴스 새로고침을 트리거할 때 경고를 표시합니다";
+"Shows buttons to reveal and auto-fill the password on locked reels" = "잠긴 릴스에서 비밀번호를 표시하고 자동 입력하는 버튼을 표시합니다";
+"Swipe a reel left to open the author's profile" = "릴스를 왼쪽으로 스와이프하면 작성자의 프로필이 열립니다";
+"Swipe left to profile" = "왼쪽으로 스와이프하여 프로필 열기";
+"Tap Controls" = "탭 제어";
+"Tap to mute on photo reels" = "사진 릴에서 탭으로 음소거";
+"Tapping the Reels tab while on reels does nothing" = "릴스 탭에 있을 때 릴스 탭을 탭해도 아무 작업도 수행하지 않습니다";
+"Unlock password-locked reels" = "비밀번호로 잠긴 릴스 잠금 해제";
+"When pause mode is on, tap on photo reels toggles audio instead of the native pause gesture" = "일시정지 모드가 켜져 있을 때 사진 릴을 탭하면 기본 일시정지 대신 오디오가 전환됩니다";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 PROFILE                                  //
+// Settings → Profile tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a button to filter & sort any followers/following list. Resets when you leave." = "팔로워/팔로잉 목록을 필터링하고 정렬하는 버튼을 추가합니다. 나가면 초기화됩니다.";
+"Adds a view option to the highlight long-press menu to open the cover in full-screen" = "하이라이트를 길게 누를 때의 메뉴에 커버를 전체 화면으로 여는 보기 옵션을 추가합니다";
+"Adds the like count to each card" = "각 카드에 좋아요 수 추가";
+"Adds the upload date to each card" = "각 카드에 업로드 날짜 추가";
+"Copy note on long press" = "길게 눌러 노트 복사";
+"Extra stats shown on each post and reel card in profile grids." = "프로필 그리드의 각 게시물과 릴 카드에 표시되는 추가 통계입니다.";
+"Fake follower count" = "가짜 팔로워 수";
+"Fake following count" = "가짜 팔로잉 수";
+"Fake post count" = "가짜 게시물 수";
+"Fake profile stats" = "가짜 프로필 통계";
+"Fake verified badge" = "가짜 인증 배지";
+"Fetch missing counts" = "누락된 수치 가져오기";
+"Filter & sort lists" = "목록 필터 및 정렬";
+"Follow indicator" = "팔로우 표시기";
+"Follower & following lists" = "팔로워 및 팔로잉 목록";
+"Follower count" = "팔로워 수";
+"Following count" = "팔로잉 수";
+"Long press a profile picture to open it in full-screen with zoom, share, and save" = "프로필 사진을 길게 눌러 확대, 공유 및 저장이 가능한 전체 화면으로 엽니다";
+"Long press the note bubble on a profile to copy the text" = "프로필의 노트 말풍선을 길게 눌러 텍스트를 복사합니다";
+"Long press to download directly (ignored when zoom is on)" = "길게 눌러 바로 다운로드 (확대가 켜져 있으면 무시됨)";
+"Long-press gestures on profile elements — kept separate from the per-feature action buttons." = "프로필 요소의 길게 누르기 제스처 — 기능별 작업 버튼과 별도로 유지됩니다.";
+"Only affects your own profile header. Other users see the real numbers." = "본인 프로필 헤더에만 적용됩니다. 다른 사용자에게는 실제 숫자가 표시됩니다.";
+"Override view count" = "조회수 덮어쓰기";
+"Post count" = "게시물 수";
+"Profile card details" = "프로필 카드 정보";
+"Profile stats" = "프로필 통계";
+"Render counts in shortened format." = "숫자를 축약된 형식으로 표시합니다.";
+"Save profile picture" = "프로필 사진 저장";
+"Short numbers" = "축약된 숫자";
+"Show a checkmark next to your name on your own profile" = "본인 프로필 이름 옆에 체크 표시를 보여줍니다";
+"Show full follower count" = "전체 팔로워 수 표시";
+"Show full post count" = "전체 게시물 수 표시";
+"Show like count" = "좋아요 수 표시";
+"Show the custom number set below" = "아래에 설정한 사용자 지정 숫자 표시";
+"Show the exact number instead of a shortened one" = "축약된 숫자 대신 정확한 숫자 표시";
+"Show upload date" = "업로드 날짜 표시";
+"Shows whether the profile user follows you" = "프로필 사용자가 회원님을 팔로우하는지 표시합니다";
+"Tap to set" = "탭하여 설정";
+"Uses Instagram's API. May hit rate limits." = "Instagram API를 사용합니다. 속도 제한에 걸릴 수 있습니다.";
+"View highlight cover" = "하이라이트 커버 보기";
+"Zoom profile photo" = "프로필 사진 확대";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            SAVING & DOWNLOADS                            //
+// Settings → Saving tab                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Active, queued, and finished downloads" = "진행 중·대기 중·완료된 다운로드";
+"Auto-retry attempts" = "자동 재시도 횟수";
+"Auto-retry failed downloads" = "실패한 다운로드 자동 재시도";
+"Confirm before download" = "다운로드 전 확인";
+"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "더 이상 사용되지 않습니다. Instagram X 작업 버튼(피드/릴스/스토리에서 기능별로 구성됨)이 미디어를 다운로드하는 새로운 방법입니다. 미디어 위에서 여러 손가락으로 길게 누르는 기존 방식을 선호하는 경우에만 이 마스터 토글을 활성화하세요.";
+"Don't pause downloads, encoding, or profile scans when you leave the app" = "앱을 나가도 다운로드, 인코딩, 프로필 스캔을 멈추지 않습니다";
+"Download queue" = "다운로드 대기열";
+"Downloads" = "다운로드";
+"Downloads with %@ %@" = "%@ %@(으)로 다운로드합니다";
+"Enable long-press gesture" = "길게 누르기 제스처 활성화";
+"Finger count for long-press" = "길게 누르기 손가락 개수";
+"How many downloads run at once — extras wait in line and start as slots free up. Failed downloads retry automatically on network errors. Open the manager to watch, cancel, or retry downloads." = "동시에 실행할 다운로드 수 — 나머지는 대기열에서 기다리다 슬롯이 비면 시작됩니다. 실패한 다운로드는 네트워크 오류 시 자동으로 재시도됩니다. 관리자를 열어 다운로드를 확인, 취소 또는 재시도하세요.";
+"Keep running in background" = "백그라운드에서 계속 실행";
+"Legacy long-press gesture" = "기존 길게 누르기 제스처 (레거시)";
+"Long-press hold time" = "길게 누르기 유지 시간";
+"Master toggle for the deprecated gesture workflow (off by default)" = "더 이상 사용되지 않는 제스처 워크플로를 위한 마스터 토글 (기본적으로 꺼져 있음)";
+"Max simultaneous downloads" = "최대 동시 다운로드";
+"Open download manager" = "다운로드 관리자 열기";
+"Press finger(s) for %@ %@" = "%@ %@ 동안 손가락을 누르세요";
+"Retry automatically when a download drops on a network error" = "네트워크 오류로 다운로드가 끊기면 자동으로 재시도";
+"Route saves into a custom album in Photos instead of the camera roll root" = "기본 카메라 롤 대신 사진 앱의 전용 앨범으로 저장 경로를 지정합니다";
+"Run up to %@ %@ at once" = "한 번에 최대 %@ %@ 실행";
+"Save action" = "저장 동작";
+"Save to dedicated album" = "전용 앨범에 저장";
+"Show a confirmation dialog before starting a download" = "다운로드를 시작하기 전에 확인 대화 상자를 표시합니다";
+"Try %@ more %@ before giving up" = "포기하기 전에 %@번 더 %@ 시도";
+"What happens after the gesture downloads" = "제스처 다운로드 후 동작";
+"When \"Save to dedicated album\" is on, downloads and share-sheet \"Save to Photos\" picks are routed into a named album in your Photos library. Tap \"Album name\" to change it." = "\"전용 앨범에 저장\"이 켜져 있으면 다운로드와 공유 시트의 \"사진에 저장\" 선택이 사진 보관함의 지정된 앨범으로 저장됩니다. \"앨범 이름\"을 눌러 변경하세요.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         DOWNLOAD QUEUE & MANAGER                         //
+// Download queue settings + the in-app download manager:                   //
+// active/queued/finished lists, concurrency, auto-retry, background.       //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu failed" = "%lu개 실패";
+"%lu of %lu done" = "%lu/%lu 완료";
+"%lu saved, %lu failed" = "%lu개 저장, %lu개 실패";
+"Active" = "활성";
+"Auto-retry" = "자동 재시도";
+"Clear completed" = "완료된 항목 지우기";
+"Completed" = "완료";
+"Download settings" = "다운로드 설정";
+"Downloading %lu items" = "항목 %lu개 다운로드 중";
+"Downloading…" = "다운로드 중…";
+"Encoding %d%%" = "인코딩 %d%%";
+"Encoding…" = "인코딩 중…";
+"Extra downloads wait in line and start as slots free up." = "추가 다운로드는 대기열에서 기다리다 슬롯이 비면 시작됩니다.";
+"No downloads yet" = "아직 다운로드가 없습니다";
+"Preview" = "미리보기";
+"Queued" = "대기 중";
+"Redownload" = "다시 다운로드";
+"Retry" = "재시도";
+"Retrying…" = "재시도 중…";
+"Waiting for connection…" = "연결 대기 중…";
+"Waiting…" = "대기 중…";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 STORIES                                  //
+// Settings → Stories tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "스토리의 눈 모양 버튼 옆에 다운로드/공유/복사/확장/리포스트/멘션 보기 항목이 있는 Instagram X 작업 버튼을 추가합니다. 탭하면 기본적으로 메뉴가 열립니다. 아래에서 탭 동작을 변경하세요.";
+"Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "스토리 오버레이에 오디오 음소거/해제를 위한 스피커 버튼을 추가합니다. 점 3개 메뉴에서도 사용할 수 있습니다.";
+"Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "스토리 오버레이에 눈 버튼을 추가합니다. 끄면 버튼 없이 읽음 차단이 그대로 유지됩니다.";
+"Advance on story like" = "스토리 좋아요 시 다음으로 넘어가기";
+"Advance on story reply" = "스토리 답장 시 다음으로 넘어가기";
+"Advance when marking as seen" = "읽음으로 표시할 때 다음으로 넘어가기";
+"Audio" = "오디오";
+"Block all: all stories blocked — listed users are exceptions.\nBlock selected: only listed users are blocked — everything else is normal.\nBoth lists are saved independently." = "모두 차단: 모든 스토리가 차단됨 — 목록에 있는 사용자는 예외입니다.\n선택 차단: 목록에 있는 사용자만 차단됨 — 그 외에는 정상입니다.\n두 목록은 독립적으로 저장됩니다.";
+"Blocking mode" = "차단 모드";
+"Button = single-tap mark seen. Toggle = tap toggles story read receipts on/off (eye fills blue when on)" = "버튼 = 한 번 탭하여 읽음으로 표시. 토글 = 탭하여 스토리 읽음 표시를 켜고 끕니다 (켜져 있으면 눈이 파란색으로 채워짐)";
+"Disable story seen receipt" = "스토리 읽음 표시 비활성화 (몰래 보기)";
+"Enable story user list" = "스토리 사용자 목록 활성화";
+"Hides the notification for others when you view their story" = "회원님이 스토리를 조회할 때 다른 사람에게 알림이 가지 않도록 숨깁니다";
+"Inserts a button next to the seen/eye button on story overlays" = "스토리 오버레이의 읽음/눈 버튼 옆에 버튼을 삽입합니다";
+"Keep stories visually seen locally" = "스토리를 로컬에서 시각적으로 읽은 상태 유지";
+"Liking a story automatically advances to the next one after a short delay" = "스토리에 좋아요를 누르면 짧은 지연 시간 후 자동으로 다음 스토리로 넘어갑니다";
+"Manage list" = "목록 관리";
+"Manage list (%lu)" = "목록 관리 (%lu)";
+"Manual seen button mode" = "수동 읽음 버튼 모드";
+"Mark seen on story like" = "스토리 좋아요 시 읽음 표시";
+"Mark seen on story reply" = "스토리 답장 시 읽음 표시";
+"Marks a story as seen the moment you tap the heart, even with seen blocking on" = "읽음 차단이 켜져 있어도 하트를 탭하는 순간 스토리를 읽음으로 표시합니다";
+"Marks a story as seen when you send a reply or emoji reaction, even with seen blocking on" = "읽음 차단이 켜져 있어도 답장이나 이모티콘 반응을 보낼 때 스토리를 읽음으로 표시합니다";
+"Marks stories as seen locally (grey ring) while still blocking the seen receipt on the server" = "서버에서는 여전히 읽음 표시를 차단하면서 로컬에서는 스토리를 읽음으로 표시(회색 링)합니다";
+"Master toggle. When off, the list is ignored" = "마스터 토글. 꺼져 있으면 목록이 무시됩니다";
+"Playback" = "재생";
+"Search, sort, swipe to remove" = "검색, 정렬, 스와이프하여 제거";
+"Seen receipts" = "읽음 표시";
+"Sending a reply or emoji reaction automatically advances to the next story" = "답장이나 이모티콘 반응을 보내면 자동으로 다음 스토리로 넘어갑니다";
+"Adds a 'View mentions' entry to the action button menu and story 3-dot menu" = "작업 버튼 메뉴와 스토리 점 3개 메뉴에 '멘션 보기' 항목을 추가합니다";
+"Mentions overlay button" = "멘션 오버레이 버튼";
+"Mentions count badge" = "멘션 개수 배지";
+"Adds a button next to the action/eye button on the story overlay. Only appears when the current story has mentions or shared posts/reels" = "스토리 오버레이의 작업/눈 버튼 옆에 버튼을 추가합니다. 현재 스토리에 멘션이나 공유된 게시물/릴스가 있을 때만 표시됩니다";
+"Shows the number of unique mentioned accounts as a red badge on the overlay button" = "오버레이 버튼에 멘션된 고유 계정 수를 빨간 배지로 표시합니다";
+"Hide stories midcards" = "스토리 미드카드 숨기기";
+"Removes the Trending and Music promo cards from the stories tray" = "스토리 트레이의 인기 / 음악 홍보 카드를 제거합니다";
+"Stickers" = "스티커";
+"Peek at poll/quiz/slider results before interacting — you can still tap to vote normally. Force legacy adds the Quiz and Reveal stickers back to the story composer." = "상호작용하기 전에 투표/퀴즈/슬라이더 결과를 미리 봅니다 — 평소처럼 탭해서 투표할 수 있습니다. '레거시 강제'는 퀴즈와 리빌 스티커를 스토리 편집기에 복원합니다.";
+"Peek at poll/quiz/slider results on reels before interacting — you can still tap to vote normally." = "릴스에서 상호작용하기 전에 투표/퀴즈/슬라이더 결과를 미리 봅니다 — 평소처럼 탭해서 투표할 수 있습니다.";
+"Force legacy stickers in tray" = "트레이에 레거시 스티커 강제 표시";
+"Adds Quiz and Reveal stickers back to the picker" = "퀴즈와 리빌 스티커를 선택기에 복원";
+"Bypass Reveal sticker" = "리빌 스티커 우회";
+"Skip the DM-to-reveal step on stories with a Reveal sticker" = "리빌 스티커가 있는 스토리에서 DM 전송 단계를 건너뜁니다";
+"Show quiz answer" = "퀴즈 정답 표시";
+"Circle the correct option on quiz stickers, or the leading option on polls" = "퀴즈 스티커의 정답 또는 투표의 최다 득표 옵션을 강조";
+"Show poll vote counts" = "투표 수 표시";
+"Show vote tallies on poll options and slider count/average before you vote" = "투표 전에 투표 옵션의 득표 수와 슬라이더의 평균/개수를 표시";
+"Stop story auto-advance" = "스토리 자동 넘어가기 중지";
+"Stories" = "스토리";
+"Stories won't auto-skip to the next one when the timer ends. Tap to advance manually" = "타이머가 끝나도 스토리가 자동으로 다음 스토리로 건너뛰지 않습니다. 수동으로 넘어가려면 탭하세요.";
+"Story audio toggle" = "스토리 오디오 토글";
+"Story user list" = "스토리 사용자 목록";
+"Tapping the eye button to mark a story as seen advances to the next story automatically" = "눈 버튼을 탭하여 스토리를 읽음으로 표시하면 자동으로 다음 스토리로 넘어갑니다";
+"This will send a story view receipt." = "스토리 조회 표시가 전송됩니다.";
+"View story mentions" = "스토리 멘션 보기";
+"Which stories get seen-receipt blocking" = "읽음 표시 차단을 적용할 스토리";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — READ RECEIPTS                         //
+// Settings → Read receipts tab                                             //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds the eye button to DM threads. Off keeps receipt blocking on without the button" = "DM 스레드에 눈 버튼을 추가합니다. 끄면 버튼 없이 읽음 표시 차단이 그대로 유지됩니다.";
+"Auto mark seen on interact" = "상호작용 시 자동 읽음 표시";
+"Auto mark seen on typing" = "입력 시 자동 읽음 표시";
+"Blocks the auto read receipt — mark seen happens only when you choose" = "자동 읽음 표시를 차단합니다 — 직접 선택할 때만 읽음 표시가 전송됩니다";
+"Control when messages are marked as seen" = "메시지가 읽음으로 표시되는 시점 제어";
+"How the seen button behaves" = "읽음 버튼의 동작 방식";
+"Manually mark messages as seen" = "수동으로 메시지 읽음 표시";
+"Mark as seen?" = "읽음으로 표시할까요?";
+"Mark as viewed?" = "조회로 표시할까요?";
+"Marks messages as seen when you reply, react or send media" = "답장하거나 반응하거나 미디어를 보낼 때 메시지를 읽음으로 표시합니다";
+"Marks messages as seen when you start typing" = "입력을 시작할 때 메시지를 읽음으로 표시합니다";
+"Read receipt mode" = "읽음 표시 모드";
+"Read receipts" = "읽음 표시";
+"Show seen button" = "읽음 버튼 표시";
+"This will send a read receipt for the latest messages." = "최근 메시지에 대한 읽음 표시가 전송됩니다.";
+"This will send a view receipt for the current message." = "현재 메시지에 대한 조회 표시가 전송됩니다.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — KEEP DELETED                          //
+// Settings → Keep deleted messages tab                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Activity" = "활동";
+"Adds a 'Download' option to the long-press menu on voice messages to save them as M4A audio" = "음성 메시지를 길게 누를 때의 메뉴에 '다운로드' 옵션을 추가하여 M4A 오디오로 저장합니다";
+"Allows typing and sending DMs longer than Instagram's limit" = "Instagram 제한보다 긴 DM을 입력하고 보낼 수 있도록 허용";
+"Adds a 'Send File' option to the plus menu in DMs. Supported file types may be limited by Instagram" = "DM의 더보기(+) 메뉴에 '파일 보내기' 옵션을 추가합니다. 지원되는 파일 형식은 Instagram에 의해 제한될 수 있습니다.";
+"Adds an 'Audio File' option to the plus menu in DMs to send audio files as voice messages" = "DM의 더보기(+) 메뉴에 '오디오 파일' 옵션을 추가하여 오디오 파일을 음성 메시지로 보냅니다";
+"Adds copy text, download GIF/audio to the note long-press menu" = "노트를 길게 누를 때의 메뉴에 텍스트 복사, GIF/오디오 다운로드를 추가합니다";
+"Block all: all chats blocked — listed chats are exceptions.\nBlock selected: only listed chats are blocked — everything else is normal.\nBoth lists are saved independently. Long-press a chat in the inbox to add or remove." = "모두 차단: 모든 채팅 차단됨 — 목록에 있는 채팅은 예외입니다.\n선택 차단: 목록에 있는 채팅만 차단됨 — 그 외에는 정상입니다.\n두 목록은 독립적으로 저장됩니다. 받은 편지함에서 채팅을 길게 눌러 추가하거나 제거하세요.";
+"Block keep-deleted for excluded chats" = "제외된 채팅에 대해 삭제된 메시지 보관 차단";
+"Block keep-deleted for unlisted chats" = "목록에 없는 채팅에 대해 삭제된 메시지 보관 차단";
+"Bypass DM character limit" = "DM 글자 수 제한 우회";
+"Chat list" = "채팅 목록";
+"Confirmation dialog before clearing preserved messages" = "보존된 메시지를 지우기 전 확인 대화 상자";
+"Copies note text directly on long press without opening the menu" = "메뉴를 열지 않고 길게 누르면 노트 텍스트를 바로 복사합니다";
+"Copy text on hold" = "길게 눌러 텍스트 복사";
+"Adds Background, Text and Emoji buttons to the note editor" = "노트 편집기에 배경, 텍스트, 이모지 버튼을 추가합니다";
+"Custom note themes" = "사용자 지정 노트 테마";
+"Disable vanish mode swipe" = "배니시 모드 스와이프 비활성화";
+"Disable typing status" = "입력 중 상태 비활성화";
+"Disable view-once limitations" = "한 번 보기 제한 비활성화";
+"Download voice messages" = "음성 메시지 다운로드";
+"Enable chat list" = "채팅 목록 활성화";
+"Enable note theming" = "노트 테마 활성화";
+"Enables the notes theme picker" = "노트 테마 선택기를 활성화합니다";
+"Files" = "파일";
+"Full last active date" = "전체 마지막 활동 날짜";
+"Hide reels blend button" = "릴스 블렌드 버튼 숨기기";
+"Hide send to group chat" = "그룹 채팅으로 보내기 숨기기";
+"Pin recipients on long-press" = "길게 눌러 수신자 고정";
+"Long-press in the share sheet to pin a chat/user to the top" = "공유 시트에서 길게 눌러 채팅/사용자를 상단에 고정";
+"Long-press a recipient to pin or unpin. Pinned recipients render at the top." = "수신자를 길게 눌러 고정하거나 고정 해제하세요. 고정된 수신자는 상단에 표시됩니다.";
+"Recipient pinned" = "수신자 고정됨";
+"Recipient unpinned" = "수신자 고정 해제됨";
+"Couldn't resolve recipient id" = "수신자 ID를 확인할 수 없음";
+"Hide video call button" = "영상 통화 버튼 숨기기";
+"Hide voice call button" = "음성 통화 버튼 숨기기";
+"Hides the blend button in DMs" = "DM에서 블렌드 버튼을 숨깁니다";
+"Removes the create/send to group chat row when sharing to multiple recipients" = "여러 명에게 공유할 때 그룹 채팅 만들기/보내기 항목을 제거합니다";
+"Hides typing indicator from others" = "다른 사람에게 회원님의 입력 중 상태를 숨깁니다";
+"Indicate unsent messages" = "전송 취소된 메시지 표시";
+"Keep deleted messages" = "삭제된 메시지 보관";
+"Makes view-once messages behave like normal visual messages (loopable/pauseable)" = "한 번 보기 메시지를 일반 시각적 메시지처럼 작동하게 합니다(반복 재생/일시 정지 가능)";
+"Note actions" = "노트 작업";
+"Preserves messages that others unsend" = "다른 사람이 전송 취소한 메시지를 보존합니다";
+"Prevents accidental swipe-up activation of vanish mode" = "실수로 위로 스와이프하여 배니시 모드가 활성화되는 것을 방지합니다";
+"Quick list button in chats" = "채팅의 빠른 목록 버튼";
+"Removes the audio call button from DM thread header" = "DM 스레드 헤더에서 음성 통화 버튼을 제거합니다";
+"Removes the video call button from DM thread header" = "DM 스레드 헤더에서 영상 통화 버튼을 제거합니다";
+"Replay visual messages without expiring. Toggle in the eye button menu, or as a standalone button when the eye button is disabled" = "만료 없이 시각적 메시지를 다시 재생합니다. 눈 버튼 메뉴에서 토글하거나 눈 버튼이 비활성화된 경우 독립형 버튼으로 표시됩니다.";
+"Search, sort, swipe to remove or toggle keep-deleted" = "검색, 정렬, 스와이프하여 제거 또는 삭제된 메시지 보관 토글";
+"Send audio as file" = "오디오를 파일로 보내기";
+"Send files (experimental)" = "파일 보내기 (실험실 기능)";
+"File sending not available" = "파일 전송을 사용할 수 없음";
+"Show full date instead of \"Active 2h ago\"" = "\"2시간 전 활동\" 대신 전체 날짜 표시";
+"Shows a button in DM threads to add/remove chats from the list. Long-press for more options" = "DM 스레드에 목록에서 채팅을 추가/제거하는 버튼을 표시합니다. 더 많은 옵션을 보려면 길게 누르세요.";
+"Shows a notification pill when a message is unsent" = "메시지가 전송 취소될 때 알림 필(pill)을 표시합니다";
+"Shows an \"Unsent\" label on preserved messages" = "보존된 메시지에 \"전송 취소됨\" 라벨을 표시합니다";
+"Unlimited replay of visual messages" = "시각적 메시지 무제한 다시 보기";
+"Unsent message notification" = "전송 취소된 메시지 알림";
+"Voice messages" = "음성 메시지";
+"Warn before clearing on refresh" = "새로고침 시 지우기 전에 경고";
+"Which chats get read-receipt blocking" = "읽음 표시 차단을 적용할 채팅";
+"⚠️ Pull-to-refresh in the DMs tab clears all preserved messages. Enable the warning below to get a confirmation dialog." = "⚠️ DM 탭에서 당겨서 새로고침하면 보존된 모든 메시지가 지워집니다. 확인 대화 상자를 표시하려면 아래 경고를 활성화하세요.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                       MESSAGES — DELETED MESSAGES LOG                    //
+// Settings → Messages → Deleted messages log + the in-app log UI           //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@%lu deleted" = "%@%lu 삭제됨";
+"%lu selected" = "%lu개 선택됨";
+"Absolute date + time" = "절대 날짜+시간";
+"Adjust the filters or clear the search to see more." = "필터를 조정하거나 검색을 지워 더 많은 결과를 확인하세요.";
+"All time" = "전체 기간";
+"Browse, filter and search recorded messages" = "기록된 메시지를 탐색, 필터링, 검색";
+"Captures unsent messages with their text or media" = "전송 취소된 메시지를 텍스트와 미디어와 함께 저장합니다";
+"Clear deleted-message log?" = "삭제된 메시지 로그를 지울까요?";
+"Clear from this user" = "이 사용자 기록 지우기";
+"Clear log" = "로그 지우기";
+"Clear log for this account" = "이 계정의 로그 지우기";
+"Clear log for this user?" = "이 사용자의 로그를 지울까요?";
+"Clear media files" = "미디어 파일 지우기";
+"Clearing media keeps the records (text, sender, timestamp). Clearing the log removes everything for this account." = "미디어를 지워도 기록(텍스트, 발신자, 시각)은 유지됩니다. 로그를 지우면 이 계정의 모든 데이터가 제거됩니다.";
+"Close" = "닫기";
+"Content unavailable" = "콘텐츠를 사용할 수 없음";
+"Copied" = "복사됨";
+"Copy URL" = "URL 복사";
+"Date range" = "날짜 범위";
+"Deleted messages" = "삭제된 메시지";
+"Deleted messages log" = "삭제된 메시지 로그";
+"Deleted: %@\n" = "삭제됨: %@\n";
+"Edit %lu" = "수정 %lu";
+"Edit history" = "수정 기록";
+"Edited" = "수정됨";
+"Empty" = "비어 있음";
+"Enable deleted messages log" = "삭제된 메시지 로그 사용";
+"Enable Settings → Messages → Deleted messages log to start recording." = "설정 → 메시지 → 삭제된 메시지 로그를 활성화하여 기록을 시작하세요.";
+"GIF" = "GIF";
+"Hashtag" = "해시태그";
+"IGTV" = "IGTV";
+"Kind: %@\n" = "종류: %@\n";
+"Last 30 days" = "최근 30일";
+"Last 7 days" = "최근 7일";
+"Link" = "링크";
+"Live location" = "실시간 위치";
+"Location" = "위치";
+"Logging is off" = "기록이 꺼져 있음";
+"Media on disk" = "디스크의 미디어";
+"Most messages" = "메시지 많은 순";
+"Most recent" = "최신순";
+"No deleted messages yet" = "아직 삭제된 메시지가 없습니다";
+"No matches" = "결과 없음";
+"Nothing to save" = "저장할 내용 없음";
+"Oldest first" = "오래된 순";
+"Open log" = "로그 열기";
+"Group chat" = "그룹 채팅";
+"%lu messages in %lu chats" = "메시지 %lu개 · 채팅 %lu개";
+"%lu people · %lu deleted" = "%lu명 · %lu개 삭제됨";
+"When someone unsends a message, it will appear here grouped by chat." = "누군가 메시지를 삭제하면 채팅별로 그룹화되어 여기에 표시됩니다.";
+"Clear this chat" = "이 채팅 지우기";
+"Clear log for this chat?" = "이 채팅의 기록을 지울까요?";
+"Removes every preserved deleted message from this group chat." = "이 그룹 채팅에서 보관된 모든 삭제 메시지를 제거합니다.";
+"Reaction removed" = "반응 제거됨";
+"Log removed reactions" = "제거된 반응 기록";
+"Also records when someone removes a reaction, and which message it was on" = "누군가 반응을 제거할 때와 어떤 메시지였는지도 기록합니다";
+"Removed a reaction" = "반응을 제거함";
+"on @%@: %@" = "@%@님의 메시지: %@";
+"on: %@" = "메시지: %@";
+"a message" = "메시지";
+"removed %@ on: %@" = "%@ 반응 제거 · %@";
+"removed reaction %@" = "%@ 반응 제거됨";
+"%@ removed the %@ reaction." = "%@님이 %@ 반응을 제거했습니다.";
+"Removed %@" = "%@ 제거됨";
+"Someone" = "누군가";
+"Photo or video" = "사진 또는 동영상";
+"Refresh names & photos" = "이름 및 사진 새로고침";
+"Refreshing names & photos" = "이름 및 사진 새로고침 중";
+"Records every message someone unsends, grouped by chat" = "누군가 삭제한 모든 메시지를 채팅별로 그룹화하여 기록합니다";
+"Open profile" = "프로필 열기";
+"Original" = "원본";
+"Play" = "재생";
+"Post" = "게시물";
+"Reel" = "릴스";
+"Relative (1m / 3h / 3d ago)" = "상대 (1분 / 3시간 / 3일 전)";
+"Removes every preserved deleted message and its captured media for the current account. This cannot be undone." = "현재 계정의 모든 보존된 삭제 메시지와 캡처된 미디어를 삭제합니다. 되돌릴 수 없습니다.";
+"Removes every preserved deleted message and its captured media for this account." = "이 계정의 모든 보존된 삭제 메시지와 캡처된 미디어를 삭제합니다.";
+"Removes every preserved deleted message from this sender." = "이 발신자의 보존된 모든 삭제 메시지를 제거합니다.";
+"Removes every saved photo, video and voice clip. Records keep their text and sender info." = "저장된 모든 사진, 동영상, 음성 클립을 삭제합니다. 기록은 텍스트와 발신자 정보를 유지합니다.";
+"Search messages" = "메시지 검색";
+"Search senders or messages" = "발신자 또는 메시지 검색";
+"Select" = "선택";
+"Show edit history" = "수정 기록 보기";
+"Source URL recorded but media not stored.\n" = "원본 URL은 기록되었지만 미디어는 저장되지 않았습니다.\n";
+"Sticker" = "스티커";
+"Tap to open in Instagram" = "Instagram에서 열려면 탭";
+"Tap to open in Maps" = "지도에서 열려면 탭";
+"Tap to play" = "재생하려면 탭";
+"Tap to play · %@" = "재생하려면 탭 · %@";
+"Text" = "텍스트";
+"This account" = "이 계정";
+"Unknown" = "알 수 없음";
+"Video" = "동영상";
+"View" = "보기";
+"Voice" = "음성";
+"When enabled, deleted messages and their media are saved on this device. Toggle off and clear the log to wipe history." = "활성화하면 삭제된 메시지와 미디어가 이 기기에 저장됩니다. 끄고 로그를 지우면 기록이 지워집니다.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 MESSAGES                                 //
+// Settings → Messages tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Bypass \"You can't send messages\"" = "“메시지를 보낼 수 없습니다” 우회";
+"Removes the blocked composer banner and restores the text input in restricted threads" = "차단된 입력창 배너를 제거하고 제한된 대화에서 텍스트 입력을 복원합니다";
+"Custom chat background" = "맞춤 채팅 배경";
+"DM Save button" = "DM 저장 버튼";
+"Make Instagram's built-in Save button on DM photos & videos download to Photos, the Gallery, or Share" = "DM 사진 및 동영상의 Instagram 기본 저장 버튼을 사진, 갤러리 또는 공유로 다운로드하도록 변경합니다";
+"Reroute native Save" = "기본 저장 동작 변경";
+"Save media" = "미디어 저장";
+"Incoming calls stay silent — no ring, no screen, no notification" = "걸려오는 전화를 무음으로 유지 — 벨소리, 화면, 알림 없음";
+"Messages" = "메시지";
+"Silence incoming calls" = "걸려오는 전화 무음";
+"Threads" = "스레드";
+"Use your own images as chat backgrounds" = "직접 만든 이미지를 채팅 배경으로 사용";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            MESSAGES — INSTANTS                           //
+// Settings → Messages → Instants section                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ (%lu)" = "%@ (%lu)";
+"Adds a gallery button to the instants camera so you can send a photo from your album" = "인스턴트 카메라에 갤러리 버튼을 추가하여 앨범의 사진을 보낼 수 있습니다";
+"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Instants 뷰어 헤더에 Instagram X 액션 버튼을 추가하며 확대, 저장, 공유, 일괄 저장 항목을 제공합니다";
+"All loaded instants" = "로드된 모든 인스턴트";
+"Auto advance after reaction" = "반응 후 자동 넘기기";
+"Automatically moves to the next instant after you like or react" = "좋아요를 누르거나 반응하면 자동으로 다음 인스턴트로 넘어갑니다";
+"Bypasses the Instants screenshot block" = "Instants 스크린샷 차단 우회";
+"Could not locate the instant on screen" = "화면에서 인스턴트를 찾지 못했습니다";
+"Current instant" = "현재 인스턴트";
+"In-app Gallery" = "내장 갤러리";
+"Instant" = "인스턴트";
+"Instants" = "인스턴트";
+"Auto-saved instants log" = "자동 저장된 인스턴트 기록";
+"Auto-save instants" = "인스턴트 자동 저장";
+"Automatically saves every instant you view, including as you swipe — each one only once" = "스와이프할 때를 포함해 보는 모든 인스턴트를 자동으로 저장합니다 — 각각 한 번만";
+"Instants action button" = "Instants 액션 버튼";
+"No instants currently loaded" = "로드된 인스턴트 없음";
+"No media available to save" = "저장할 미디어가 없습니다";
+"Photos library" = "사진 보관함";
+"Pick from" = "선택 위치";
+"Queued %lu instants" = "인스턴트 %lu개 대기 중";
+"Save all to Gallery" = "모두 갤러리에 저장";
+"Save all to Photos" = "모두 사진에 저장";
+"Save to Gallery" = "갤러리에 저장";
+"Send from gallery" = "갤러리에서 보내기";
+"Tweaks for the QuickSnap / Instants camera surface." = "QuickSnap / 인스턴트 카메라 화면 조정";
+"Use" = "사용";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                NAVIGATION                                //
+// Settings → Navigation tab                                                //
+//////////////////////////////////////////////////////////////////////////////
+
+"Also hide the bottom tab bar — only the inbox is visible" = "하단 탭 바도 숨기기 — 받은 편지함만 표시";
+"Hide search tab" = "검색 탭 숨기기";
+"Remove the search/explore button from the tab bar" = "탭 바에서 검색/탐색 버튼 제거";
+"Hide tab bar" = "탭 바 숨기기";
+"Hides every tab except DM inbox + profile and forces launch into the inbox. Settings shortcut moves to long-press on the inbox tab." = "DM 받은 편지함 + 프로필을 제외한 모든 탭을 숨기고 강제로 받은 편지함에서 시작하게 합니다. 설정 바로가기는 받은 편지함 탭을 길게 누르는 것으로 이동됩니다.";
+"Icon order" = "아이콘 순서";
+"Launch tab" = "시작 탭";
+"Lets you swipe to switch between navigation bar tabs" = "스와이프하여 내비게이션 바 탭 간에 전환할 수 있습니다";
+"Messages only" = "메시지 전용";
+"Messages-only mode" = "메시지 전용 모드";
+"Navigation" = "내비게이션";
+"Swipe between tabs" = "탭 간 스와이프 전환";
+"Tab the app opens to. Ignored when Messages-only is on" = "앱이 열리는 탭입니다. 메시지 전용 모드가 켜져 있으면 무시됩니다.";
+"The order of the icons on the bottom navigation bar" = "하단 내비게이션 바의 아이콘 순서입니다";
+"Drag the ≡ handle to reorder tabs. Toggle a tab off to hide it from the bottom navigation bar." = "≡ 핸들을 끌어 탭 순서를 바꾸세요. 탭을 끄면 하단 내비게이션 바에서 숨겨집니다.";
+"This will restore the default tab order and unhide all tabs." = "기본 탭 순서가 복원되고 모든 탭이 다시 표시됩니다.";
+"Turn IG into a DM-only client" = "IG를 DM 전용 클라이언트로 전환합니다";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CONFIRM ACTIONS                              //
+// Settings → Confirm actions tab                                           //
+//////////////////////////////////////////////////////////////////////////////
+
+"All" = "모두";
+"Calls" = "통화";
+"Comments & posts" = "댓글 및 게시물";
+"Confirm actions" = "작업 확인";
+"Confirm changing theme" = "테마 변경 확인";
+"Confirm disappearing media mark as viewed" = "사라지는 미디어 조회 표시 확인";
+"Confirm DM mark as seen" = "DM 읽음 표시 확인";
+"Confirm follow" = "팔로우 확인";
+"Confirm follow requests" = "팔로우 요청 확인";
+"Confirm Instants capture" = "Instants 촬영 확인";
+"Confirm Instants emoji reaction" = "Instants 이모티콘 반응 확인";
+"Confirm like: Posts" = "게시물 좋아요 확인";
+"Confirm like: Reels" = "릴스 좋아요 확인";
+"Confirm note emoji reaction" = "노트 이모티콘 반응 확인";
+"Confirm note like" = "노트 좋아요 확인";
+"Confirm posting comment" = "댓글 게시 확인";
+"Confirm repost" = "리포스트 확인";
+"Confirm send to group chat" = "그룹 채팅으로 보내기 확인";
+"Confirm sticker interaction (highlights)" = "스티커 상호작용 확인 (하이라이트)";
+"Confirm sticker interaction (stories)" = "스티커 상호작용 확인 (스토리)";
+"Confirm story emoji reaction" = "스토리 이모티콘 반응 확인";
+"Confirm story like" = "스토리 좋아요 확인";
+"Confirm story mark as seen" = "스토리 읽음 표시 확인";
+"Confirm switching Instant" = "Instant 전환 확인";
+"Confirm unfollow" = "언팔로우 확인";
+"Confirm vanish mode" = "배니시 모드 확인";
+"Confirm video call" = "영상 통화 확인";
+"Confirm voice call" = "음성 통화 확인";
+"Confirm voice messages" = "음성 메시지 확인";
+"Follows" = "팔로잉";
+"Likes" = "좋아요";
+"Messaging" = "메시지";
+"Reaction stickers only" = "반응 스티커만";
+"Reactions" = "반응";
+"Send to group chat?" = "그룹 채팅으로 보내시겠습니까?";
+"Shows an alert before creating/sending to a group chat from the share sheet" = "공유 메뉴에서 그룹 채팅 만들기/보내기 전에 확인 알림을 표시합니다";
+"Shows an alert before marking a disappearing message as viewed" = "사라지는 메시지를 조회로 표시하기 전에 경고를 표시합니다";
+"Shows an alert before sending a read receipt from the DM seen button or menu" = "DM 읽음 버튼이나 메뉴에서 읽음 표시를 보내기 전에 경고를 표시합니다";
+"Shows an alert before sending a story view receipt from the eye button or menu" = "눈 버튼이나 메뉴에서 스토리 조회 표시를 보내기 전에 경고를 표시합니다";
+"Shows an alert before sending an emoji reaction on a note" = "노트에 이모티콘 반응을 보내기 전에 경고를 표시합니다";
+"Shows an alert before sending an emoji reaction on a story" = "스토리에 이모티콘 반응을 보내기 전에 경고를 표시합니다";
+"Shows an alert before sending an emoji reaction on an Instant" = "Instant에 이모티콘 반응을 보내기 전에 알림 표시";
+"Shows an alert before taking a photo with the Instants camera" = "Instants 카메라로 사진을 찍기 전에 알림 표시";
+"Shows an alert before tapping to switch to the next/previous Instant" = "다음/이전 Instant로 전환하기 위해 탭하기 전에 알림 표시";
+"Shows an alert to confirm before sending a voice message" = "음성 메시지를 보내기 전에 확인할 경고를 표시합니다";
+"Shows an alert to confirm before toggling vanish mode" = "배니시 모드를 전환하기 전에 확인 경고를 표시합니다";
+"Shows an alert when you accept/decline a follow request" = "팔로우 요청을 수락/거절할 때 경고를 표시합니다";
+"Shows an alert when you change a chat theme to confirm" = "채팅 테마를 변경할 때 확인할 경고를 표시합니다";
+"Shows an alert when you click the follow button to confirm the follow" = "팔로우 버튼을 클릭할 때 팔로우를 확인할 경고를 표시합니다";
+"Shows an alert when you click the like button on notes to confirm the like" = "노트에서 좋아요 버튼을 클릭할 때 좋아요를 확인할 경고를 표시합니다";
+"Shows an alert when you click the like button on posts to confirm the like" = "게시물에서 좋아요 버튼을 클릭할 때 좋아요를 확인할 경고를 표시합니다";
+"Shows an alert when you click the like button on reels to confirm the like" = "릴스에서 좋아요 버튼을 클릭할 때 좋아요를 확인할 경고를 표시합니다";
+"Shows an alert when you click the like button on stories to confirm the like" = "스토리에서 좋아요 버튼을 클릭할 때 좋아요를 확인할 경고를 표시합니다";
+"Shows an alert when you click the post comment button to confirm" = "댓글 게시 버튼을 클릭할 때 확인할 경고를 표시합니다";
+"Shows an alert when you click the repost button to confirm before reposting" = "리포스트 버튼을 클릭할 때 리포스트하기 전에 확인할 경고를 표시합니다";
+"Shows an alert when you click the unfollow button to confirm" = "언팔로우 버튼을 클릭할 때 확인할 경고를 표시합니다";
+"Shows an alert when you click the video call button to confirm before calling" = "영상 통화 버튼을 클릭할 때 통화 전에 확인할 경고를 표시합니다";
+"Shows an alert when you click the voice call button to confirm before calling" = "음성 통화 버튼을 클릭할 때 통화 전에 확인할 경고를 표시합니다";
+"Shows an alert when you tap a sticker inside a highlight" = "하이라이트 안의 스티커를 누를 때 경고를 표시합니다";
+"Shows an alert when you tap a sticker on someone's story" = "누군가의 스토리에서 스티커를 누를 때 경고를 표시합니다";
+"Stories & highlights" = "스토리 및 하이라이트";
+
+//////////////////////////////////////////////////////////////////////////////
+//                           SECURITY & PRIVACY                             //
+// Settings → Security & Privacy                                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld h" = "%ld시간";
+"%ld locked" = "%ld 잠김";
+"%ld min" = "%ld분";
+"%ldh idle" = "대기 %ld시간";
+"%ldm idle" = "대기 %ld분";
+"%lds" = "%ld초";
+"%lds idle" = "대기 %ld초";
+"%lu hidden" = "%lu개 숨김";
+"4 digits" = "4자리";
+"6 digits" = "6자리";
+"Add hidden chat" = "숨긴 채팅 추가";
+"Add locked chat" = "잠긴 채팅 추가";
+"Allow Instants screenshots" = "Instants 스크린샷 허용";
+"Always ask when opening again" = "다시 열 때 항상 확인";
+"Ask again after Instagram returns" = "Instagram으로 돌아온 후 다시 확인";
+"Auto-relock after idle" = "대기 후 자동 재잠금";
+"Balanced default" = "균형 잡힌 기본값";
+"Best for sensitive sections" = "민감한 항목에 적합";
+"Biometric" = "생체 인증";
+"Change passcode" = "암호 변경";
+"Chat hidden" = "채팅이 숨겨졌습니다";
+"Chat locked" = "채팅이 잠겼습니다";
+"Chat unlocked" = "채팅이 잠금 해제되었습니다";
+"Choose a code you'll remember." = "기억할 수 있는 코드를 선택하세요.";
+"Choose how long this section stays unlocked while idle. Never keeps it unlocked until Instagram closes or goes to background." = "이 항목이 미사용 상태에서 잠금 해제로 유지되는 시간을 선택합니다. '안 함'은 Instagram을 닫거나 백그라운드로 보낼 때까지 잠금 해제로 유지합니다.";
+"Confirm current passcode" = "현재 암호 확인";
+"Confirm passcode" = "암호 확인";
+"Could not save passcode" = "암호를 저장할 수 없습니다";
+"Create passcode" = "암호 생성";
+"Derivation failed" = "파생 실패";
+"DM inbox" = "DM 받은 편지함";
+"Don't share unlock" = "잠금 해제 공유 안 함";
+"Each target has its own enable, timeout, and re-lock configuration." = "각 대상은 자체 활성화, 시간 제한, 재잠금 설정을 가집니다.";
+"Enable lock" = "잠금 활성화";
+"Enter passcode" = "암호 입력";
+"Enter value" = "값 입력";
+"Enter your current passcode to change it" = "변경하려면 현재 암호를 입력하세요";
+"Enter your current passcode to reset it" = "재설정하려면 현재 암호를 입력하세요";
+"Enter your passcode to continue" = "계속하려면 암호를 입력하세요";
+"every use" = "매번";
+"Every use" = "매번";
+"Hidden chats" = "숨긴 채팅";
+"Hide chat" = "채팅 숨기기";
+"Hide message preview" = "메시지 미리보기 숨기기";
+"Hide this chat?" = "이 채팅을 숨기시겠습니까?";
+"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "스크린샷/녹화에서 Instagram X UI를 숨기고 Instagram의 기능별 스크린샷 경고를 우회합니다.";
+"Idle timeout" = "대기 시간 초과";
+"Instagram" = "Instagram";
+"Keep this target locked separately" = "이 대상을 별도로 잠금 유지";
+"Less frequent prompts" = "확인 빈도 줄이기";
+"Lock" = "잠금";
+"Lock chat" = "채팅 잠금";
+"Lock every time" = "매번 잠금";
+"Lock every time overrides idle timeout. Don't share unlock keeps this target separate." = "'매번 잠금'은 미사용 시간 제한보다 우선합니다. '잠금 해제 공유 안 함'은 이 대상을 별도로 유지합니다.";
+"Lock targets" = "잠금 대상";
+"Lock the tweak" = "트윅 잠금";
+"Lock this chat" = "이 채팅 잠금";
+"Lock this chat?" = "이 채팅을 잠그시겠습니까?";
+"Lock with passcode" = "암호로 잠금";
+"Locked chats" = "잠긴 채팅";
+"Long-press a chat to lock it individually" = "채팅을 길게 눌러 개별적으로 잠그세요";
+"Long-press a DM thread → Hide chat to add it here. Hidden chats are filtered out of the inbox until you remove them from this list." = "DM 스레드를 길게 누르고 → 채팅 숨기기를 눌러 여기에 추가하세요. 숨긴 채팅은 이 목록에서 제거할 때까지 받은 편지함에서 걸러집니다.";
+"Long-press a DM to add" = "추가하려면 DM을 길게 누르세요";
+"Longest idle window" = "가장 긴 미사용 시간";
+"Manage locked chats" = "잠긴 채팅 관리";
+"Master switch. Turn off to disable every lock target without losing per-target configuration." = "마스터 스위치. 끄면 대상별 구성을 잃지 않고 모든 잠금 대상을 비활성화합니다.";
+"Never" = "안 함";
+"No passcode set" = "설정된 암호 없음";
+"Nothing here yet." = "아직 아무것도 없습니다.";
+"Off" = "끄기";
+"On" = "켜기";
+"On — %@" = "켜짐 — %@";
+"On — %@ + %ld more" = "켜짐 — %@ 외 %ld개";
+"On — no targets enabled" = "켜짐 — 활성화된 대상 없음";
+"Passcode" = "암호";
+"Passcode + biometric. Gate the tweak settings popup, gallery, deleted-messages log, individual chats and the whole app." = "암호 + 생체 인증. 트윅 설정 팝업, 갤러리, 삭제된 메시지 로그, 개별 채팅 및 앱 전체를 잠급니다.";
+"Passcode changed" = "암호가 변경되었습니다";
+"Passcode reset" = "암호가 재설정되었습니다";
+"Passcode set" = "암호가 설정되었습니다";
+"Passcode too short" = "암호가 너무 짧습니다";
+"Passcodes did not match — try again" = "암호가 일치하지 않습니다 — 다시 시도하세요";
+"Per-chat locks" = "채팅별 잠금";
+"Prompt before Instagram opens" = "Instagram 열기 전에 요청";
+"Prompt before Profile Analyzer opens" = "프로필 분석기 열기 전에 요청";
+"Prompt before the deleted-messages log opens" = "삭제된 메시지 로그 열기 전에 요청";
+"Prompt before the gallery opens" = "갤러리 열기 전에 요청";
+"Prompt before tweak settings open" = "트윅 설정 열기 전에 요청";
+"Prompt on every entry to the DM inbox, including launch-to-messages" = "메시지로 바로 실행하는 경우를 포함해 DM 받은 편지함에 진입할 때마다 요청";
+"Re-enter the same passcode" = "같은 암호를 다시 입력";
+"Re-lock on background" = "백그라운드에서 재잠금";
+"re-lock on bg" = "백그라운드 재잠금";
+"Recently hidden" = "최근 숨김";
+"Recently locked" = "최근 잠금";
+"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "스크린샷, 화면 녹화 및 미러링에서 Instagram X 버튼을 가립니다";
+"Remove screenshot alert" = "스크린샷 경고 제거";
+"Replace inbox preview with • • •" = "받은 메시지함 미리보기를 • • •(으)로 대체";
+"Require passcode for this section" = "이 항목에 암호 요구";
+"Requires your current passcode" = "현재 암호가 필요합니다";
+"Reset passcode" = "암호 재설정";
+"Reset passcode?" = "암호를 재설정하시겠습니까?";
+"Screenshots & capture" = "스크린샷 및 캡처";
+"Security & Privacy" = "보안 및 개인정보";
+"Set a passcode to protect Settings, Gallery, deleted messages, chats, the DM inbox, Profile Analyzer, or Instagram itself." = "설정, 갤러리, 삭제된 메시지 로그, 개별 채팅, DM 받은 편지함, 프로필 분석기 또는 Instagram 자체를 잠그려면 암호를 설정하세요.";
+"Set passcode" = "암호 설정";
+"Short idle window" = "짧은 미사용 시간";
+"Stay unlocked until app close or background" = "앱을 닫거나 백그라운드로 보낼 때까지 잠금 해제 유지";
+"Suppress IG's \"X took a screenshot\" notification across stories, DMs and disappearing media" = "스토리, DM, 사라지는 미디어 전반에서 IG의 \"X님이 스크린샷을 찍었습니다\" 알림 차단";
+"Tap Unlock" = "잠금 해제 탭";
+"Tap Unlock or enter your passcode" = "잠금 해제를 탭하거나 암호를 입력하세요";
+"This clears the passcode, disables every lock target, and unlocks all chats. Gallery and Keep-Deleted data are untouched." = "암호를 지우고 모든 잠금 대상을 비활성화하며 모든 채팅을 잠금 해제합니다. 갤러리와 삭제된 메시지 데이터는 영향을 받지 않습니다.";
+"Thread %@" = "스레드 %@";
+"Tweak settings" = "트윅 설정";
+"Unlock" = "잠금 해제";
+"Unlock %@" = "%@ 잠금 해제";
+"Unlock chat" = "채팅 잠금 해제";
+"Unlock Instagram" = "Instagram 잠금 해제";
+"Unlock this chat" = "이 채팅 잠금 해제";
+"Use %@" = "%@ 사용";
+"Username (looks up the DM thread) or raw thread ID" = "사용자 이름(DM 스레드 조회) 또는 스레드 ID 원본";
+"Username or thread ID" = "사용자 이름 또는 스레드 ID";
+"Wrong passcode" = "잘못된 암호";
+"Wrong passcode • %ld attempts" = "잘못된 암호 • %ld회 시도";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             BACKUP & RESTORE                             //
+// Settings → Backup & Restore tab                                          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu account(s)" = "계정 %lu개";
+"%lu account(s) · %lu image(s) · %@" = "계정 %lu개 · 이미지 %lu개 · %@";
+"%lu file(s) · %@" = "파일 %lu개 · %@";
+"%lu preferences" = "설정 %lu개";
+"(none)" = "(없음)";
+"Apply backup?" = "백업을 적용할까요?";
+"Applying backup…" = "백업 적용 중…";
+"archive error" = "아카이브 오류";
+"Archived snapshots" = "보관된 스냅샷";
+"Backup & Restore" = "백업 및 복원";
+"Backup exported" = "백업 내보냄";
+"Backup failed" = "백업 실패";
+"Backup has no importable sections." = "백업에 가져올 수 있는 항목이 없습니다.";
+"Chat & story filters" = "채팅·스토리 필터";
+"Chat backgrounds" = "채팅 배경";
+"Clear selected data" = "선택한 데이터 지우기";
+"Corrupt entry path." = "손상된 항목 경로.";
+"Could not decompress archive." = "아카이브의 압축을 풀 수 없습니다.";
+"Could not open archive." = "아카이브를 열 수 없습니다.";
+"Could not open staging file." = "스테이징 파일을 열 수 없습니다.";
+"Could not read the backup archive." = "백업 아카이브를 읽을 수 없습니다.";
+"Could not write archive." = "아카이브를 쓸 수 없습니다.";
+"Could not write backup file." = "백업 파일을 쓸 수 없습니다.";
+"Could not write extracted file." = "추출한 파일을 쓸 수 없습니다.";
+"Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "선택한 항목의 기존 데이터가 대체됩니다. 모두 적용되려면 재시작이 필요할 수 있습니다.";
+"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "Instagram X 데이터를 내보내거나 가져옵니다 — 설정, 계정별 필터, 숨김·잠금 채팅, 프로필 분석기, 갤러리, 채팅 배경, 삭제된 메시지, 읽음 확인 기록. 각 페이지에서 원하는 조합을 선택하세요. 설정은 일반 JSON 파일로 유지되며, 미디어가 포함된 번들은 압축된 .ryukbak로 내보내집니다.";
+"Feature data" = "기능 데이터";
+"Import mode" = "가져오기 모드";
+"Merge" = "병합";
+"Replace" = "교체";
+"Add the backup's data to what's already here" = "백업 데이터를 기존 데이터에 추가합니다";
+"Clear existing data, then apply the backup" = "기존 데이터를 지운 뒤 백업을 적용합니다";
+"Merge keeps what's on this device and adds the backup's data — duplicates are combined, including the gallery." = "병합은 이 기기의 데이터를 유지하면서 백업 데이터를 추가합니다 — 갤러리를 포함해 중복 항목은 합쳐집니다.";
+"Replace clears existing data for each ticked item, then applies the backup." = "교체는 선택한 각 항목의 기존 데이터를 지운 뒤 백업을 적용합니다.";
+"The backup will be merged into your existing data — nothing is deleted, duplicates are combined. A restart may be needed for everything to take effect." = "백업이 기존 데이터와 병합됩니다 — 아무것도 삭제되지 않으며 중복 항목은 합쳐집니다. 모두 적용되려면 재시작이 필요할 수 있습니다.";
+"Hidden & locked chats" = "숨김 및 잠금 채팅";
+"Import" = "가져오기";
+"Inspect the full manifest" = "전체 매니페스트 검사";
+"Load a .json or .ryukbak backup" = ".json 또는 .ryukbak 백업 불러오기";
+"Not a RyukGram backup archive." = "Instagram X 백업 아카이브가 아닙니다.";
+"PK %@" = "PK %@";
+"Preparing backup…" = "백업 준비 중…";
+"Reading backup…" = "백업 읽는 중…";
+"Save settings or a full backup" = "설정 또는 전체 백업 저장";
+"Tick what to apply. Rows not in this backup are hidden." = "적용할 항목을 선택하세요. 이 백업에 없는 행은 숨겨집니다.";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "포함할 항목을 선택하세요. 행을 눌러 검사할 수 있습니다. 갤러리, 채팅 배경 또는 삭제된 메시지를 추가하면 압축된 .ryukbak 번들이 생성됩니다.";
+"Truncated entry data." = "잘린 항목 데이터.";
+"Truncated entry length." = "잘린 항목 길이.";
+"Truncated entry path." = "잘린 항목 경로.";
+"Unsafe entry path." = "안전하지 않은 항목 경로.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 ADVANCED                                 //
+// Settings → Advanced tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Advanced" = "고급";
+"Auto-clear cache" = "캐시 자동 지우기";
+"Automatically opens settings when the app launches" = "앱을 실행할 때 자동으로 설정을 엽니다";
+"Cache" = "캐시";
+"Cache cleared" = "캐시 지워짐";
+"Calculating cache size…" = "캐시 크기 계산 중…";
+"Clear" = "지우기";
+"Clear cache" = "캐시 지우기";
+"Clear cache (%@)" = "캐시 지우기 (%@)";
+"Clearing cache…" = "캐시 지우는 중…";
+"Clearing still scans on demand." = "지우기는 필요할 때 여전히 스캔합니다.";
+"Daily" = "매일";
+"All tweak options are disabled" = "모든 트윅 옵션이 비활성화됨";
+"Disable all tweak options" = "모든 트윅 옵션 비활성화";
+"Instagram runs stock while this is on. Turn it back off to restore your settings." = "켜져 있는 동안 Instagram이 기본 상태로 작동합니다. 끄면 설정이 복원됩니다.";
+"Tap to re-enable everything" = "탭하여 모두 다시 활성화";
+"Turn every feature off — your settings are kept" = "모든 기능 끄기 — 설정은 유지됩니다";
+"Disable safe mode" = "안전 모드 비활성화";
+"Enable tweak settings quick-access" = "트윅 설정 빠른 접근 활성화";
+"Fix duplicate notifications" = "중복 알림 수정";
+"Free %@ of Instagram cache." = "Instagram 캐시에서 %@을(를) 확보합니다.";
+"Freed %@" = "%@ 확보됨";
+"Hold on the home tab to open RyukGram settings" = "홈 탭을 길게 눌러 Instagram X 설정을 엽니다";
+"Monthly" = "매월";
+"Nothing to clear" = "지울 것이 없습니다";
+"Off skips the size scan when Advanced opens." = "꺼짐은 고급 설정을 열 때 크기 스캔을 건너뜁니다.";
+"Pause playback when opening settings" = "설정을 열 때 재생 일시 정지";
+"Always show what's new" = "새로운 기능 항상 표시";
+"Keep the blue dot on every new feature instead of clearing it once viewed" = "새 기능의 파란 점을 확인 후 지우지 않고 항상 표시";
+"Preserve messages database" = "메시지 데이터베이스 보존";
+"Pauses any playing video/audio when settings opens" = "설정이 열릴 때 재생 중인 비디오/오디오를 일시 정지합니다";
+"Prevents Instagram from resetting settings after crashes (at your own risk)" = "충돌 후 Instagram이 설정을 재설정하는 것을 방지합니다 (본인 책임)";
+"Prevents two banners for the same message when IG is in the foreground" = "IG가 포그라운드에 있을 때 동일한 메시지에 대한 두 개의 배너를 방지합니다";
+"Remove Instagram's cached images, videos, and temporary files." = "Instagram의 캐시된 이미지, 동영상, 임시 파일을 제거합니다.";
+"Reset onboarding state" = "온보딩 상태 재설정";
+"Run a silent cache clear on launch when the interval has elapsed." = "간격이 지나면 실행 시 조용히 캐시를 지웁니다.";
+"Show cache size" = "캐시 크기 표시";
+"Skip the messages database when clearing — keeps DMs, drafts, and saved messages." = "지울 때 메시지 데이터베이스를 건너뜁니다 — DM, 임시 저장 메시지, 저장된 메시지를 유지합니다.";
+"Show tweak settings on app launch" = "앱 실행 시 트윅 설정 표시";
+"Suppresses the second notification IG enqueues in-app while the notification extension is also delivering it." = "알림 확장 프로그램이 알림을 전달하는 동안 IG가 앱 내에서 추가하는 두 번째 알림을 억제합니다.";
+"Weekly" = "매주";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         ADVANCED EXPERIMENTAL                            //
+// Settings → Advanced → Advanced experimental features                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Actions" = "동작";
+"Advanced experimental features" = "고급 실험 기능";
+"All experimental toggles will be turned off. Instagram will restart." = "모든 실험 기능이 꺼지고 Instagram이 다시 시작됩니다.";
+"Direct Notes — Audio reply" = "Direct 노트 — 오디오 답장";
+"Direct Notes — Avatar reply" = "Direct 노트 — 아바타 답장";
+"Direct Notes — Friend Map" = "Direct 노트 — 친구 지도";
+"Direct Notes — GIFs & stickers reply" = "Direct 노트 — GIF 및 스티커 답장";
+"Direct Notes — Photo reply" = "Direct 노트 — 사진 답장";
+"Disabled after repeated crashes." = "반복된 충돌로 비활성화됨.";
+"Enables GIF/sticker replies" = "GIF/스티커 답장을 활성화합니다";
+"Enables photo replies" = "사진 답장을 활성화합니다";
+"Enables the audio-note reply type" = "오디오 노트 답장 유형을 활성화합니다";
+"Enables the avatar reply type" = "아바타 답장 유형을 활성화합니다";
+"Experimental flags reset" = "실험 플래그가 재설정됨";
+"Flip what you want on, then tap Apply to restart. Some flags may not work on every account or IG version. Flags auto-reset if IG crashes on launch 3 times." = "원하는 항목을 켠 다음 적용을 눌러 다시 시작하세요. 일부는 모든 계정이나 IG 버전에서 작동하지 않을 수 있습니다. IG가 실행 중 3번 충돌하면 자동으로 재설정됩니다.";
+"Forces Prism-gated experiments on" = "Prism 기반 실험을 강제로 켭니다";
+"Forces the Homecoming home surface / nav on" = "Homecoming 홈 화면/내비게이션을 강제로 켭니다";
+"Forces the QuickSnap / Instants surface on in feed, inbox, stories, and notes tray" = "피드, 받은 편지함, 스토리, 노트 트레이에서 QuickSnap / Instants를 강제로 표시합니다";
+"Got it" = "확인";
+"Heads up" = "알림";
+"Hidden Instagram experiments" = "Instagram 숨겨진 실험";
+"Hidden Instagram experiments (in Advanced)" = "Instagram 숨겨진 실험 (고급 설정 안)";
+"Homecoming" = "Homecoming";
+"Notes & QuickSnap" = "노트와 QuickSnap";
+"Prism design system" = "Prism 디자인 시스템";
+"QuickSnap (Instants)" = "QuickSnap (Instants)";
+"Reset all experimental flags" = "모든 실험 플래그 재설정";
+"Reset experimental flags?" = "실험 플래그를 재설정할까요?";
+"Restart Instagram to apply changes" = "변경 사항을 적용하려면 Instagram을 다시 시작하세요";
+"Shows the friend map entry in Direct Notes" = "Direct 노트에 친구 지도 항목을 표시합니다";
+"Surfaces" = "화면";
+"These toggles flip hidden Instagram experiments on. Some features may not work on every account or IG version. If IG keeps crashing on launch, the flags auto-reset after 3 failed starts." = "이 토글은 숨겨진 Instagram 실험을 켭니다. 일부 기능은 모든 계정이나 IG 버전에서 작동하지 않을 수 있습니다. 실행 시 IG가 계속 충돌하면 3번 실패 후 자동으로 재설정됩니다.";
+"Toggle hidden Instagram experiments. Some may not work on every account or IG version." = "숨겨진 Instagram 실험을 켜세요. 일부는 모든 계정이나 IG 버전에서 작동하지 않을 수 있습니다.";
+"Turn every experimental toggle off" = "모든 실험 토글 끄기";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  DEBUG                                   //
+// Settings → Debug tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Button Cell" = "버튼 셀";
+"Change the value on the right" = "오른쪽의 값을 변경하세요";
+"Could not delete: %@" = "삭제할 수 없음: %@";
+"Debug" = "디버그";
+"Delete an imported override and fall back to the shipped strings" = "가져온 재정의를 삭제하고 기본 문자열로 되돌리기";
+"Deleted %@ override. Restart to apply." = "%@ 재정의를 삭제했습니다. 적용하려면 재시작하세요.";
+"Enable FLEX gesture" = "FLEX 제스처 활성화";
+"Enable file logging" = "파일 로깅 사용";
+"Export strings" = "문자열 내보내기";
+"Hold 5 fingers on the screen to open FLEX" = "화면에 손가락 5개를 대고 있으면 FLEX가 열립니다";
+"I have %@%@" = "나는 %@%@를 가지고 있습니다";
+"Import a .strings file for a language" = "언어에 대한 .strings 파일 가져오기";
+"Import a .strings file to update a translation. Pick a language, select the file, restart." = ".strings 파일을 가져와 번역을 업데이트합니다. 언어를 선택하고 파일을 선택한 후 다시 시작하세요.";
+"Link Cell" = "링크 셀";
+"Localization" = "지역화 (번역)";
+"Log file is empty" = "로그 파일이 비어 있음";
+"Logging" = "로깅";
+"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Instagram X의 자체 활동을 앱과 확장 프로그램 전반에 걸쳐 공유 가능한 하나의 파일에 기록합니다. 기본적으로 꺼져 있습니다 — 켠 뒤 문제를 재현한 다음 공유하세요.";
+"Menu Cell" = "메뉴 셀";
+"Navigation Cell" = "내비게이션 셀";
+"No imported localization files to reset." = "재설정할 가져온 로컬라이제이션 파일이 없습니다.";
+"No overrides" = "재정의 없음";
+"Open FLEX on app focus" = "앱이 포커스될 때 FLEX 열기";
+"Open FLEX on app launch" = "앱 실행 시 FLEX 열기";
+"Opens FLEX when the app is focused" = "앱이 활성화될 때 FLEX를 엽니다";
+"Opens FLEX when the app launches" = "앱을 실행할 때 FLEX를 엽니다";
+"Pick a language to delete the imported file" = "가져온 파일을 삭제할 언어 선택";
+"Pick a language to export" = "내보낼 언어 선택";
+"Reset localization" = "로컬라이제이션 재설정";
+"Share log file" = "로그 파일 공유";
+"Pick a language and share its .strings file" = "언어를 선택해 해당 .strings 파일 공유";
+"Static Cell" = "정적 셀";
+"Stepper cell" = "스테퍼 셀";
+"Switch Cell" = "스위치 셀";
+"Switch Cell (Restart)" = "스위치 셀 (재시작)";
+"Tap the switch" = "스위치를 탭하세요";
+"These features rely on hidden Instagram flags and may not work on all accounts or versions." = "이 기능은 숨겨진 Instagram 플래그에 의존하며 모든 계정이나 버전에서 작동하지 않을 수 있습니다.";
+"Update localization file" = "지역화 파일 업데이트";
+"Using icon" = "아이콘 사용 중";
+"Using image" = "이미지 사용 중";
+
+//////////////////////////////////////////////////////////////////////////////
+//                        DOWNLOADS & MEDIA ACTIONS                         //
+// Action button menus, download/share/copy toasts, quality picker pills.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ settings" = "%@ 설정";
+"%lu items" = "항목 %lu개";
+"Cancelled" = "취소됨";
+"Carousel" = "캐러셀";
+"Carousel · %lu items" = "캐러셀 · 항목 %lu개";
+"Copied %lu URLs" = "%lu개의 URL 복사됨";
+"Copied caption" = "캡션 복사됨";
+"Copied download URL" = "다운로드 URL 복사됨";
+"Copied quality info" = "품질 정보 복사됨";
+"Copied video URL" = "동영상 URL 복사됨";
+"Copy all URLs" = "모든 URL 복사";
+"Copy caption" = "캡션 복사";
+"Copy download URL" = "다운로드 URL 복사";
+"Could not extract any URLs" = "URL을 추출할 수 없습니다";
+"Could not extract audio URL" = "오디오 URL을 추출할 수 없습니다";
+"Could not extract media URL" = "미디어 URL을 추출할 수 없습니다";
+"Could not extract photo URL" = "사진 URL을 추출할 수 없습니다";
+"Could not extract video URL" = "동영상 URL을 추출할 수 없습니다";
+"Done" = "완료";
+"Download all stories and share?" = "모든 스토리를 다운로드하고 공유하시겠습니까?";
+"Download all to Photos" = "사진 앱에 모두 다운로드";
+"Download and share all" = "모두 다운로드 및 공유";
+"Download failed" = "다운로드 실패";
+"Downloaded %lu items" = "%lu개의 항목 다운로드됨";
+"Downloading audio…" = "오디오 다운로드 중…";
+"Failed to save" = "저장 실패";
+"File" = "파일";
+"HD" = "HD";
+"HD download complete" = "HD 다운로드 완료";
+"HD video" = "HD 동영상";
+"Mute audio" = "오디오 음소거";
+"No caption on this post" = "이 게시물에 캡션이 없습니다";
+"No carousel children" = "캐러셀 항목이 없습니다";
+"No cover image" = "커버 이미지가 없습니다";
+"No media" = "미디어 없음";
+"No media to expand" = "확장할 미디어가 없습니다";
+"No media to show" = "표시할 미디어가 없습니다";
+"No media URL" = "미디어 URL 없음";
+"No URLs" = "URL 없음";
+"No URLs found" = "URL을 찾을 수 없습니다";
+"No video URL" = "동영상 URL 없음";
+"Not a carousel" = "캐러셀이 아닙니다";
+"Nothing to share" = "공유할 내용 없음";
+"Opening creator…" = "크리에이터 여는 중...";
+"Photo library access denied" = "사진 보관함 접근 거부됨";
+"Photos access denied" = "사진 앱 접근 거부됨";
+"Preparing repost…" = "리포스트 준비 중...";
+"Raw image" = "원본 이미지";
+"Repost" = "리포스트";
+"Repost unavailable" = "리포스트를 사용할 수 없습니다";
+"Save failed" = "저장 실패";
+"Saved %lu items" = "%lu개의 항목 저장됨";
+"Saved to Photos" = "사진 앱에 저장됨";
+"Saved to RyukGram" = "Instagram X에 저장됨";
+"Saving to Photos" = "사진에 저장 중";
+"Saving…" = "저장 중...";
+"Unmute audio" = "오디오 음소거 해제";
+"Video · %@" = "동영상 · %@";
+"View cover" = "커버 보기";
+"View mentions" = "멘션 보기";
+
+//////////////////////////////////////////////////////////////////////////////
+//                      STORIES & MESSAGES (FEATURES)                       //
+// Buttons, menu entries, toasts and alerts shown while watching stories or //
+// inside DM threads.                                                       //
+//////////////////////////////////////////////////////////////////////////////
+
+"  %lu votes · avg %.0f%%  " = "  투표 %lu개 · 평균 %.0f%%  ";
+"%@ can't be converted" = "%@ 변환 불가";
+"%@ unsent a message" = "%@님이 메시지 전송을 취소했습니다";
+"%@ unsent a message from %@" = "%1$@님이 %2$@님의 메시지 전송을 취소했습니다";
+"A message was unsent" = "메시지 전송이 취소되었습니다";
+"Add" = "추가";
+"Add to block list" = "차단 목록에 추가";
+"Added to block list" = "차단 목록에 추가됨";
+"Added to exclude list" = "제외 목록에 추가됨";
+"Audio not loaded yet. Play the message first and try again." = "오디오가 아직 로드되지 않았습니다. 먼저 메시지를 재생한 다음 다시 시도하세요.";
+"Audio sent" = "오디오 전송됨";
+"Audio URL not available" = "오디오 URL을 사용할 수 없음";
+"Audio/Video from Files" = "파일 앱의 오디오/비디오";
+"Blocked" = "차단됨";
+"Cancel" = "취소";
+"Clear preserved messages?" = "보존된 메시지를 지우시겠습니까?";
+"Converting…" = "변환 중...";
+"Copy link" = "링크 복사";
+"Copy text" = "텍스트 복사";
+"Could not copy selected video" = "선택한 동영상을 복사할 수 없습니다";
+"Could not find media" = "미디어를 찾을 수 없습니다";
+"Could not find story media" = "스토리 미디어를 찾을 수 없습니다";
+"Could not get audio data. Try again after refreshing the chat." = "오디오 데이터를 가져올 수 없습니다. 채팅을 새로고침한 후 다시 시도하세요.";
+"Disable read receipts" = "읽음 표시 비활성화";
+"Disappearing media" = "사라지는 미디어";
+"Download audio" = "오디오 다운로드";
+"Enable read receipts" = "읽음 표시 활성화";
+"Error: %@" = "오류: %@";
+"Exclude chat" = "채팅 제외";
+"Exclude from seen" = "본 것에서 제외";
+"Exclude story seen" = "스토리 읽음 제외";
+"Excluded" = "제외됨";
+"Extracting audio…" = "오디오 추출 중...";
+"FFmpeg conversion failed" = "FFmpeg 변환 실패";
+"File sending not supported" = "파일 전송은 지원되지 않습니다";
+"Follow" = "팔로우";
+"Following" = "팔로잉";
+"Format not supported without FFmpegKit" = "FFmpegKit 없이 지원되지 않는 형식";
+"Inserts a button on disappearing media overlays" = "사라지는 미디어 오버레이에 버튼을 추가";
+"Inserts a speaker button to mute/unmute disappearing media" = "사라지는 미디어를 음소거/해제하는 스피커 버튼을 추가";
+"Inserts an eye button to mark the current disappearing media as viewed" = "현재 사라지는 미디어를 본 것으로 표시하는 눈 버튼을 추가";
+"Link copied" = "링크 복사됨";
+"Mark as viewed" = "본 것으로 표시";
+"Marking as viewed advances to the next stacked media instead of closing" = "확인함으로 표시하면 닫는 대신 다음 누적 미디어로 넘어갑니다";
+"Mark messages as seen" = "메시지를 읽음으로 표시";
+"Mark seen" = "읽음 표시";
+"Marked as viewed" = "조회한 것으로 표시됨";
+"Marked messages as seen" = "메시지를 읽음으로 표시함";
+"Mentions" = "멘션";
+"Message from %@ was unsent" = "%@님의 메시지 전송이 취소되었습니다";
+"Message sender not found" = "메시지 보낸 사람을 찾을 수 없습니다";
+"Messages settings" = "메시지 설정";
+"Mute story audio" = "스토리 오디오 음소거";
+"no audio track could be read" = "읽을 수 있는 오디오 트랙이 없음";
+"No audio URL found. Try again after refreshing the chat." = "오디오 URL을 찾을 수 없습니다. 채팅을 새로고침한 후 다시 시도하세요.";
+"No mentions in this story" = "이 스토리에 멘션이 없습니다";
+"No thread key" = "스레드 키가 없습니다";
+"No video selected" = "선택된 동영상 없음";
+"No voice send method found" = "음성 전송 방법을 찾을 수 없습니다";
+"Note has no downloadable content" = "노트에 다운로드할 콘텐츠가 없습니다";
+"Note text copied" = "노트 텍스트 복사됨";
+"Open GitHub" = "GitHub 열기";
+"Pick audio or video" = "오디오 또는 동영상 선택";
+"Read receipts disabled" = "읽음 표시가 비활성화되었습니다";
+"Read receipts enabled" = "읽음 표시가 활성화되었습니다";
+"Read receipts will be blocked for this chat." = "이 채팅에 대해 읽음 표시가 차단됩니다.";
+"Read receipts will no longer be blocked for this chat." = "이 채팅에 대해 더 이상 읽음 표시가 차단되지 않습니다.";
+"Refreshing the DMs tab will clear %lu preserved unsent message. This cannot be undone." = "DM 탭을 새로고침하면 보존된 메시지 %lu개가 삭제됩니다. 되돌릴 수 없습니다.";
+"Refreshing the DMs tab will clear %lu preserved unsent messages. This cannot be undone." = "DM 탭을 새로고침하면 보존된 메시지 %lu개가 삭제됩니다. 되돌릴 수 없습니다.";
+"Remove" = "제거";
+"Remove from block list" = "차단 목록에서 제거";
+"Remove from exclude list" = "제외 목록에서 제거";
+"Removed" = "제거됨";
+"Removed from list" = "목록에서 제거됨";
+"Save GIF" = "GIF 저장";
+"Selection too short (min 0.5s)" = "선택 영역이 너무 짧습니다 (최소 0.5초)";
+"Send anyway" = "그래도 보내기";
+"Send Audio" = "오디오 보내기";
+"Send failed: %@" = "전송 실패: %@";
+"Send File" = "파일 보내기";
+"Send service not found" = "전송 서비스를 찾을 수 없습니다";
+"Show audio toggle" = "오디오 토글 표시";
+"Show mark-as-viewed button" = "보기 표시 버튼 표시";
+"Story read receipts disabled" = "스토리 읽음 표시가 비활성화되었습니다";
+"Story read receipts enabled" = "스토리 읽음 표시가 활성화되었습니다";
+"This chat will resume normal read-receipt behavior." = "이 채팅은 정상적인 읽음 표시 동작을 재개합니다.";
+"This file" = "이 파일";
+"Total: %@" = "총: %@";
+"Un-exclude chat" = "채팅 제외 취소";
+"Un-exclude story seen" = "스토리 읽음 제외 취소";
+"Un-excluded" = "제외 취소됨";
+"Unblocked" = "차단 해제됨";
+"Unlimited replay enabled" = "무제한 다시 보기 활성화됨";
+"Unmute story audio" = "스토리 오디오 음소거 해제";
+"Unsent" = "전송 취소됨";
+"Upload Audio" = "오디오 업로드";
+"VC not found" = "VC를 찾을 수 없습니다";
+"Video from Library" = "라이브러리에서 비디오 선택";
+"Visual messages will expire" = "시각적 메시지가 만료됩니다";
+"Visual messages: expiring" = "시각적 메시지: 만료 예정";
+"Visual messages: unlimited replay" = "시각적 메시지: 무제한 다시 보기";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CHAT BACKGROUNDS                             //
+// Custom per-chat image backgrounds: importer, library, per-image          //
+// settings, chat picker, defaults.                                         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add Background" = "배경 추가";
+"Add Chat Background" = "채팅 배경 추가";
+"Adds your own image backgrounds to Instagram chats" = "Instagram 채팅에 직접 만든 이미지 배경을 추가합니다";
+"After enabling, open any chat, tap the theme button, then tap the photo icon at the top-right." = "켠 후 아무 채팅이나 열어 테마 버튼을 누른 다음 오른쪽 상단의 사진 아이콘을 누르세요.";
+"Blur" = "흐림";
+"Browse chats" = "채팅 둘러보기";
+"Browse chats (%ld)" = "채팅 둘러보기 (%ld)";
+"Change Background" = "배경 변경";
+"Change default" = "기본값 변경";
+"Chat Backgrounds" = "채팅 배경";
+"Choose an image used when no chat override exists" = "채팅별 설정이 없을 때 사용할 이미지를 선택합니다";
+"Choose Image" = "이미지 선택";
+"Clear default" = "기본값 지우기";
+"Couldn't import image" = "이미지를 가져올 수 없습니다";
+"Custom Chat Background" = "맞춤 채팅 배경";
+"Default background" = "기본 배경";
+"Delete library images, default background, and chat overrides" = "라이브러리 이미지, 기본 배경, 채팅별 설정을 삭제합니다";
+"Dim in dark mode" = "다크 모드에서 어둡게";
+"Edit image settings" = "이미지 설정 편집";
+"Enable custom backgrounds" = "맞춤 배경 사용";
+"Enter a username, chat name, or thread ID." = "사용자 이름, 채팅 이름 또는 스레드 ID를 입력하세요.";
+"Group" = "그룹";
+"Image Settings" = "이미지 설정";
+"Auto bubble color" = "자동 말풍선 색상";
+"Bubble color" = "말풍선 색상";
+"Me" = "나";
+"Both" = "둘 다";
+"Gradient" = "그라데이션";
+"Direction" = "방향";
+"Vertical" = "세로";
+"Horizontal" = "가로";
+"Diagonal" = "대각선";
+"Text color" = "텍스트 색상";
+"Automatic (contrast)" = "자동 (대비)";
+"Choose color…" = "색상 선택…";
+"Tap to apply · hold to edit" = "탭하여 적용 · 길게 눌러 편집";
+"Library" = "라이브러리";
+"Library, default, and per-chat overrides will be deleted." = "라이브러리, 기본값, 채팅별 설정이 삭제됩니다.";
+"No Custom" = "맞춤 없음";
+"Opacity" = "불투명도";
+"Photo Library" = "사진 보관함";
+"Pick default" = "기본값 선택";
+"Pinch + drag to position" = "손가락으로 오므리거나 드래그해 위치 조정";
+"Quit and reopen Instagram for the change to take effect." = "변경 사항을 적용하려면 Instagram을 종료한 후 다시 여세요.";
+"Recently set" = "최근 설정됨";
+"Remove the global fallback background" = "전역 대체 배경 제거";
+"Replace the default background image" = "기본 배경 이미지 대체";
+"Reset all backgrounds" = "모든 배경 초기화";
+"Reset all backgrounds?" = "모든 배경을 초기화할까요?";
+"Reset sets opacity to 1.0, blur to 0, dim to 0." = "초기화하면 불투명도 1.0, 흐림 0, 어둡게 0으로 설정됩니다.";
+"RyukGram Gallery" = "Instagram X 갤러리";
+"Search username, name, or thread ID" = "사용자 이름, 이름 또는 스레드 ID 검색";
+"Set as default" = "기본값으로 설정";
+"Tap plus to add. Tap a background to edit, set as default, or delete." = "더하기를 눌러 추가하세요. 배경을 눌러 편집, 기본값 설정 또는 삭제할 수 있습니다.";
+"This Chat Background" = "이 채팅 배경";
+"Thread ID" = "스레드 ID";
+"Used only when a chat does not have its own custom background." = "채팅에 자체 맞춤 배경이 없을 때만 사용됩니다.";
+"View and manage chats with custom backgrounds" = "맞춤 배경이 있는 채팅 보기 및 관리";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             GENERAL FEATURES                             //
+// Strings inside per-feature overlays: fake location, color picker, notes  //
+// customization, profile copy, etc.                                        //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add location" = "위치 추가";
+"Add preset" = "프리셋 추가";
+"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "위의 모든 항목에 영향을 줍니다. 꺼져 있을 때는 Instagram X의 테마와 표면 재정의가 iOS가 다크 모드일 때만 적용됩니다 — 라이트 모드는 그대로 유지됩니다.";
+"Apply & restart" = "적용 및 재시작";
+"Background" = "배경";
+"Behavior" = "동작";
+"Change location" = "위치 변경";
+"Clipboard is not an Instagram URL" = "클립보드가 Instagram URL이 아닙니다";
+"Comments hidden" = "댓글 숨김";
+"Comments shown" = "댓글 표시됨";
+"Copied text to clipboard" = "클립보드에 텍스트 복사됨";
+"Copy" = "복사";
+"Copy bio" = "소개 복사";
+"Copy name" = "이름 복사";
+"Could not find cover image" = "커버 이미지를 찾을 수 없습니다";
+"Current: %@" = "현재: %@";
+"Dark" = "다크";
+"Disable" = "비활성화";
+"Download GIF" = "GIF 다운로드";
+"Dropped pin" = "놓은 핀";
+"Emoji" = "이모지";
+"Enable" = "활성화";
+"Enable Location Services for Instagram in Settings to use your current location." = "현재 위치를 사용하려면 설정에서 Instagram의 위치 서비스를 활성화하세요.";
+"Enter emoji" = "이모지 입력";
+"Fake location" = "가짜 위치";
+"Force theme" = "테마 강제";
+"Keyboard theme" = "키보드 테마";
+"Light" = "라이트";
+"Location access denied" = "위치 접근이 거부됨";
+"Location Services off" = "위치 서비스 꺼짐";
+"Name" = "이름";
+"Nothing to copy" = "복사할 내용 없음";
+"Off, Light, Dark, or OLED" = "끄기, 라이트, 다크, OLED";
+"OLED" = "OLED";
+"OLED chat theme" = "OLED 채팅 테마";
+"Open Settings" = "설정 열기";
+"Optional per-surface overrides. Each one is independent of the theme above." = "선택적 표면별 재정의. 각 항목은 위 테마와 독립적입니다.";
+"Override iOS appearance regardless of system mode" = "시스템 모드와 관계없이 iOS 모양을 무시";
+"Override the keyboard appearance when typing" = "입력할 때 키보드 모양을 재정의";
+"Pick location" = "위치 선택";
+"Pure black DM thread + incoming bubbles" = "DM 스레드 배경과 수신 말풍선을 순수한 검정으로";
+"Reset theme" = "테마 초기화";
+"Restart Instagram to apply your theme changes" = "테마 변경을 적용하려면 Instagram을 재시작하세요";
+"Save" = "저장";
+"Save preset" = "프리셋 저장";
+"Saved locations" = "저장된 위치";
+"Select color" = "색상 선택";
+"Set location" = "위치 설정";
+"The theme RyukGram applies to Instagram." = "Instagram X이 Instagram에 적용하는 테마입니다.";
+"Theme" = "테마";
+"Turn every theme option off and restart" = "모든 테마 옵션을 끄고 재시작";
+"Turn Location Services on in Settings → Privacy to use your current location." = "현재 위치를 사용하려면 설정 → 개인정보에서 위치 서비스를 켜세요.";
+"Type an emoji to use as the note bubble icon." = "노트 말풍선 아이콘으로 사용할 이모지를 입력하세요.";
+"View profile picture" = "프로필 사진 보기";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE ANALYZER                              //
+// Settings → Profile Analyzer                                              //
+//////////////////////////////////////////////////////////////////////////////
+
+" BETA " = " BETA ";
+"%lu of %lu checks on" = "검사 %lu개 중 %lu개 켜짐";
+"Checks" = "검사";
+"Pick which categories each scan computes. A disabled check is greyed out and skipped — it won't be calculated or shown." = "각 스캔이 계산할 카테고리를 선택하세요. 비활성화된 검사는 흐리게 표시되며 건너뛰어 계산되지도 표시되지도 않습니다.";
+"Snapshot saved" = "스냅샷 저장됨";
+"Your current scan was archived" = "현재 스캔이 보관되었습니다";
+"%@ %lu accounts? The first %ld will be processed to avoid rate limits." = "%@ %lu개 계정? API 제한을 피하기 위해 처음 %ld개만 처리됩니다.";
+"%@ %lu accounts? This runs sequentially with a short pause between each." = "%@ %lu개 계정? 각 요청 사이에 짧은 간격을 두고 순차적으로 실행됩니다.";
+"%@ followers · %@ following" = "팔로워 %@ · 팔로잉 %@";
+"%@ · %ld" = "%@ · %ld";
+"%dd ago" = "%d일 전";
+"%dh ago" = "%d시간 전";
+"%dm ago" = "%d분 전";
+"%lu accounts followed" = "%lu명 팔로우함";
+"%lu accounts unfollowed" = "%lu명 언팔로우함";
+"%lu followers · %lu following" = "팔로워 %lu · 팔로잉 %lu";
+"%lu of %lu" = "%lu / %lu";
+"%lu saved · comparing against %@" = "%lu개 저장됨 · %@과(와) 비교 중";
+"(empty)" = "(비어 있음)";
+"(no analyzer data)" = "(분석 데이터 없음)";
+"a saved snapshot" = "저장된 스냅샷";
+"About Profile Analyzer" = "프로필 분석 정보";
+"All preferences (%lu)" = "모든 설정 (%lu)";
+"Analysis complete" = "분석 완료";
+"Analysis failed" = "분석 실패";
+"Another analysis is already running" = "이미 다른 분석이 진행 중입니다";
+"Available after your next scan" = "다음 분석 후 사용 가능";
+"Batch follow" = "일괄 팔로우";
+"Batch follow finished" = "일괄 팔로우 완료";
+"Batch unfollow" = "일괄 언팔로우";
+"Batch unfollow finished" = "일괄 언팔로우 완료";
+"Categories" = "카테고리";
+"Clear visited profiles" = "방문한 프로필 지우기";
+"Compare next scan against" = "다음 스캔 비교 대상";
+"Comparing against %@" = "%@과(와) 비교 중";
+"Continue" = "계속";
+"Couldn't fetch profile information" = "프로필 정보를 가져오지 못했습니다";
+"Delete %lu snapshots? This can't be undone." = "스냅샷 %lu개를 삭제할까요? 되돌릴 수 없습니다.";
+"Delete (%lu)" = "삭제 (%lu)";
+"Delete snapshots" = "스냅샷 삭제";
+"Delete this snapshot? This can't be undone." = "이 스냅샷을 삭제할까요? 되돌릴 수 없습니다.";
+"Each scan saves a full copy of your followers and following so you can compare against it later. Everything stays on this device." = "각 스캔은 나중에 비교할 수 있도록 팔로워와 팔로잉의 전체 사본을 저장합니다. 모든 데이터는 이 기기에만 보관됩니다.";
+"Export" = "내보내기";
+"Fetching followers (%lu/%ld)…" = "팔로워 가져오는 중 (%lu/%ld)…";
+"Fetching following (%lu/%ld)…" = "팔로잉 가져오는 중 (%lu/%ld)…";
+"Fetching profile info…" = "프로필 정보 가져오는 중…";
+"File is not a valid RyukGram backup." = "유효한 Instagram X 내보내기 파일이 아닙니다.";
+"Filter" = "필터";
+"Filter · %lu" = "필터 · %lu";
+"First scan: %@" = "첫 분석: %@";
+"First scan: we collect your followers and following lists and save them locally." = "첫 분석: 팔로워와 팔로잉 목록을 수집해 기기에 저장합니다.";
+"Follower count exceeds %ld — analysis disabled to avoid rate limits." = "팔로워 수가 %ld명을 초과하여 API 제한을 피하기 위해 분석이 비활성화되었습니다.";
+"Followers" = "팔로워";
+"Following… %lu / %lu" = "팔로우 중… %lu / %lu";
+"Gained since last scan" = "마지막 분석 이후 증가";
+"Heads up: this feature is in beta and hits Instagram's private API. Running it back-to-back or right after heavy follow/unfollow activity can trigger a short rate-limit. Use it sparingly and at your own risk." = "참고: 이 기능은 베타이며 Instagram 비공개 API를 사용합니다. 연속 실행하거나 팔로우/언팔로우를 많이 한 직후에 실행하면 짧은 제한에 걸릴 수 있습니다. 드물게, 본인 책임하에 사용하세요.";
+"Import complete" = "가져오기 완료";
+"Include" = "포함";
+"Keep newest" = "최신 항목 유지";
+"Keep newest snapshots" = "최신 스냅샷 유지";
+"Large accounts are blocked: analysis is disabled above 13,000 followers to avoid Instagram rate-limiting the whole app." = "대형 계정 차단: 팔로워가 13,000명을 초과하면 Instagram이 앱 전체에 제한을 걸 수 있어 분석이 비활성화됩니다.";
+"Last scan: %@" = "마지막 분석: %@";
+"Logs every profile you open. Stays on-device." = "여는 모든 프로필을 기록합니다. 기기에만 저장됩니다.";
+"Lost followers" = "이탈 팔로워";
+"Most visited" = "가장 많이 방문";
+"Mutual followers" = "맞팔 팔로워";
+"Name: %@ → %@" = "이름: %@ → %@";
+"New followers" = "새 팔로워";
+"NEW" = "신규";
+"New first" = "새 항목 먼저";
+"New only" = "새 항목만";
+"No active Instagram session found" = "활성화된 Instagram 세션을 찾을 수 없습니다";
+"No results" = "결과 없음";
+"No scan yet" = "분석 기록 없음";
+"Not following you back" = "맞팔하지 않음";
+"Not verified only" = "미인증 계정만";
+"Nothing is uploaded — everything stays on this device and can be wiped from the trash icon." = "업로드되지 않습니다 — 모든 데이터는 이 기기에 저장되며 휴지통 아이콘으로 삭제할 수 있습니다.";
+"Nothing was applied." = "적용된 내용이 없습니다.";
+"OK" = "확인";
+"Older snapshots beyond the limit are removed automatically" = "제한을 초과한 오래된 스냅샷은 자동으로 제거됩니다";
+"Older snapshots beyond this limit are deleted on the next scan." = "이 제한을 초과한 오래된 스냅샷은 다음 스캔 시 삭제됩니다.";
+"Pick what to remove. Snapshots clears the scan diffs and every recorded snapshot; visited profiles wipes the visit history." = "제거할 항목을 선택하세요. 스냅샷은 스캔 차이와 기록된 모든 스냅샷을 지웁니다. 방문한 프로필은 방문 기록을 지웁니다.";
+"Posts" = "게시물";
+"Preferences" = "설정";
+"Previous scan" = "이전 스캔";
+"Private account" = "비공개 계정";
+"Private only" = "비공개만";
+"Profile Analyzer" = "프로필 분석";
+"Profile Analyzer data" = "프로필 분석 데이터";
+"Profile picture changed" = "프로필 사진 변경됨";
+"Profile updates" = "프로필 변경";
+"Profiles you've opened recently" = "최근에 연 프로필";
+"Raw" = "원본";
+"Raw JSON" = "원본 JSON";
+"Record snapshots" = "스냅샷 기록";
+"Recording" = "녹음";
+"Request failed" = "요청 실패";
+"Reset analyzer data" = "분석 데이터 초기화";
+"Reset complete" = "초기화 완료";
+"Reset everything" = "모두 재설정";
+"Reset selected data?" = "선택한 데이터를 초기화할까요?";
+"Reset snapshots" = "스냅샷 재설정";
+"Rolling — always your last run" = "롤링 — 항상 마지막 실행";
+"Run analysis" = "분석 실행";
+"Run your first analysis" = "첫 분석을 실행하세요";
+"Save a dated entry on every scan" = "스캔할 때마다 날짜가 기록된 항목 저장";
+"Second scan onward: each scan compares against the last, so we can show gained/lost followers, your own follow/unfollow moves, and profile updates." = "두 번째 분석부터: 매 분석마다 이전과 비교해 새/이탈 팔로워, 본인의 팔로우/언팔로우 변화, 프로필 변경을 보여줍니다.";
+"Settings" = "설정";
+"Since last scan" = "마지막 분석 이후";
+"Snapshot" = "스냅샷";
+"Snapshots" = "스냅샷";
+"Snapshots let you archive each scan and pick which one new scans compare against. Track visits records every profile you open so you can review them here." = "스냅샷을 사용하면 각 스캔을 보관하고 새 스캔이 비교할 대상을 선택할 수 있습니다. 방문 추적은 열어 본 모든 프로필을 기록하여 여기서 확인할 수 있게 합니다.";
+"Sort" = "정렬";
+"Starting…" = "시작 중…";
+"They follow you, you don't follow back" = "나를 팔로우 중이지만 내가 맞팔하지 않음";
+"This can't be undone." = "되돌릴 수 없습니다.";
+"Ticked data will be cleared. Tap a row to see what's stored." = "선택한 데이터가 삭제됩니다. 저장된 내용을 보려면 항목을 탭하세요.";
+"Today" = "오늘";
+"Too many followers" = "팔로워가 너무 많음";
+"Too many followers to analyze" = "분석하기에는 팔로워가 너무 많습니다";
+"Track visited profiles" = "방문한 프로필 추적";
+"Tracking" = "추적";
+"Tracking off — enable below to log visits" = "추적 꺼짐 — 아래에서 활성화하여 방문 기록";
+"Unfollow" = "언팔로우";
+"Unfollow %lu" = "언팔로우 %lu";
+"Unfollow @%@?" = "@%@ 언팔로우할까요?";
+"Unfollowed you since last scan" = "마지막 분석 이후 언팔로우함";
+"Unfollowing… %lu / %lu" = "언팔로우 중… %lu / %lu";
+"Unlimited" = "무제한";
+"Username A → Z" = "아이디 A → Z";
+"Username Z → A" = "아이디 Z → A";
+"Username, name or picture changes" = "아이디·이름·사진 변경";
+"Username: @%@ → @%@" = "아이디: @%@ → @%@";
+"Using %@ across %lu snapshots." = "스냅샷 %2$lu개에서 %1$@ 사용 중.";
+"Verified only" = "인증 계정만";
+"Visited" = "방문함";
+"Visited profiles" = "방문한 프로필";
+"We refuse to run when the follower count exceeds %ld to avoid Instagram rate limits." = "Instagram API 제한을 피하기 위해 팔로워 수가 %ld명을 초과하면 실행하지 않습니다.";
+"You both follow each other" = "서로 팔로우하는 사이";
+"You don't follow back" = "내가 맞팔하지 않은 사람";
+"You follow them, they don't follow back" = "팔로우 중이지만 맞팔하지 않음";
+"You started following" = "새로 팔로우 시작";
+"You unfollowed" = "언팔로우함";
+"your previous scan" = "이전 스캔";
+"“Previous scan” always measures against your last run. Pick a saved snapshot to compare against a fixed point in time instead." = "“이전 스캔”은 항상 마지막 실행을 기준으로 측정합니다. 대신 고정된 시점과 비교하려면 저장된 스냅샷을 선택하세요.";
+"⚠️ This is getting large — lower the limit or delete older snapshots to free space." = "⚠️ 용량이 커지고 있습니다 — 제한을 낮추거나 오래된 스냅샷을 삭제해 공간을 확보하세요.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         SETTINGS VIEWS & DIALOGS                         //
+// Excluded-lists managers, backup/restore flows, in-picker labels.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Absolute format" = "절대 형식";
+"Add chat" = "채팅 추가";
+"Add custom domain" = "사용자 지정 도메인 추가";
+"Add to list?" = "목록에 추가하시겠습니까?";
+"Add user" = "사용자 추가";
+"Apply" = "적용";
+"Apply to" = "다음에 적용";
+"Chats" = "채팅";
+"Colored" = "색상";
+"Could not read file." = "파일을 읽을 수 없습니다.";
+"Could not resolve user ID" = "사용자 ID를 확인할 수 없습니다";
+"Current location" = "현재 위치";
+"Custom" = "사용자 지정";
+"Delete" = "삭제";
+"Each surface in IG goes through a different NSDate formatter. Toggle the ones you want this format to apply to." = "IG의 각 화면은 서로 다른 NSDate 포매터를 사용합니다. 이 형식을 적용할 화면을 켜세요.";
+"Enable fake location" = "가짜 위치 활성화";
+"Excluded chats" = "제외된 채팅";
+"Excluded users" = "제외된 사용자";
+"Follow default" = "기본값 따르기";
+"Force OFF (allow unsends)" = "강제 끄기 (전송 취소 허용)";
+"Force ON (preserve unsends)" = "강제 켜기 (전송 취소 보존)";
+"Include seconds when the format already shows time. The custom format controls seconds itself with {ss}." = "형식에 시간이 포함될 때 초도 함께 표시합니다. 사용자 지정 형식은 {ss}로 초를 직접 제어합니다.";
+"Add custom format…" = "사용자 지정 형식 추가…";
+"Edit" = "편집";
+"Template" = "템플릿";
+"Placeholders" = "자리표시자";
+"Placeholders are replaced with date parts; anything else is shown as-is." = "자리표시자는 날짜 요소로 대체되며, 그 외 내용은 그대로 표시됩니다.";
+"Tap a placeholder to insert it at the cursor." = "자리표시자를 탭하면 커서 위치에 삽입됩니다.";
+"Included chats" = "포함된 채팅";
+"Included users" = "포함된 사용자";
+"KD: default" = "KD: 기본값";
+"KD: ON" = "KD: 켜짐";
+"Keep-deleted" = "삭제 메시지 보관";
+"Keep-deleted override" = "삭제 메시지 보관 재정의";
+"Name (A–Z)" = "이름 (가나다)";
+"No DM thread found with @%@" = "@%@의 DM 스레드를 찾을 수 없습니다";
+"Presets" = "프리셋";
+"Recently added" = "최근 추가됨";
+"Relative time" = "상대 시간";
+"Relative within" = "상대 시간 적용 범위";
+"Remove from list" = "목록에서 제거";
+"Reset" = "재설정";
+"Search" = "검색";
+"Search address or place" = "주소 또는 장소 검색";
+"Search by name or username" = "이름 또는 사용자 이름으로 검색";
+"Search by username or name" = "사용자 이름 또는 이름으로 검색";
+"Select location on map" = "지도에서 위치 선택";
+"Set current location" = "현재 위치 설정";
+"Set keep-deleted override" = "삭제 메시지 보관 재정의 설정";
+"Show map button" = "지도 버튼 표시";
+"Show relative time for dates younger than this many days. 0 disables it." = "지정한 일수보다 최근 날짜에만 상대 시간을 표시합니다. 0이면 비활성화됩니다.";
+"Show seconds" = "초 표시";
+"Sort by" = "정렬 기준";
+"Thread" = "스레드";
+"Time" = "시간";
+"Use this location" = "이 위치 사용";
+"User '%@' not found" = "'%@' 사용자를 찾을 수 없습니다";
+"Username (A–Z)" = "사용자명 (가나다)";
+"Within %ld days" = "%ld일 이내";
+"Within 1 day" = "1일 이내";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             REELS (FEATURES)                             //
+// Strings from Reels.                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"No password found" = "비밀번호를 찾을 수 없습니다";
+"No text field found" = "텍스트 필드를 찾을 수 없습니다";
+"Refresh Reels?" = "릴스를 새로고침하시겠습니까?";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE (FEATURES)                            //
+// Strings from Profile.                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu accounts" = "계정 %lu개";
+"%lu loaded" = "%lu개 불러옴";
+"%lu loaded · all loaded" = "%lu개 불러옴 · 전체 불러옴";
+"Doesn't follow you" = "회원님을 팔로우하지 않음";
+"Everyone is already loaded." = "이미 모두 불러왔습니다.";
+"Filter & sort" = "필터 및 정렬";
+"Follows me" = "나를 팔로우함";
+"Follows me first" = "나를 팔로우한 순";
+"Follows you" = "회원님을 팔로우함";
+"Hides everyone who doesn't match all picked filters." = "선택한 모든 필터에 맞지 않는 사람을 모두 숨깁니다.";
+"Jump to bottom" = "맨 아래로 이동";
+"Jump to top" = "맨 위로 이동";
+"List" = "목록";
+"List fully loaded" = "목록 전체 불러옴";
+"Load more" = "더 불러오기";
+"Loaded more" = "추가로 불러옴";
+"Mutuals" = "맞팔";
+"Mutuals first" = "맞팔 우선";
+"Note copied" = "노트 복사됨";
+"People I follow" = "내가 팔로우하는 사람";
+"People I follow first" = "내가 팔로우하는 사람 우선";
+"Reverse order" = "순서 반대로";
+"Show only" = "다음만 표시";
+"Verified" = "인증됨";
+"Verified first" = "인증 계정 우선";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   MISC                                   //
+// Anything that didn't fit a named section. Usually short labels.          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ - BETA" = "%@ - BETA";
+"(unset)" = "(설정 안 됨)";
+"720p • progressive • fastest" = "720p • 프로그레시브 • 가장 빠름";
+"Add language" = "언어 추가";
+"Album name" = "앨범 이름";
+"Are you sure?" = "확실합니까?";
+"Bundle" = "번들";
+"Copy audio URL" = "오디오 URL 복사";
+"Copy quality info" = "품질 정보 복사";
+"Copy video URL" = "동영상 URL 복사";
+"Could not access reel media" = "릴스 미디어에 접근할 수 없습니다";
+"Could not access reel photo" = "릴스 사진에 접근할 수 없습니다";
+"Could not write file." = "파일을 쓸 수 없습니다.";
+"Download all and share?" = "모두 다운로드하고 공유하시겠습니까?";
+"Download Quality" = "다운로드 품질";
+"Downloading %d%%" = "다운로드 중 %d%%";
+"e.g. 1000000" = "예: 1000000";
+"Localization file not found" = "번역 파일을 찾을 수 없습니다";
+"Enter the language code (e.g. fr, de, ja)" = "언어 코드를 입력하세요 (예: fr, de, ja)";
+"Error" = "오류";
+"Extras" = "추가 기능";
+"FFmpegKit Debug" = "FFmpegKit 디버그";
+"File is empty or not a valid .strings file." = "파일이 비어 있거나 유효한 .strings 파일이 아닙니다.";
+"KD: OFF" = "KD: 끔";
+"Keep-deleted: OFF" = "  • 삭제된 메시지 보관: 끔";
+"Keep-deleted: ON" = "  • 삭제된 메시지 보관: 켬";
+"Later" = "나중에";
+"Loading" = "불러오는 중";
+"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Instagram X이 저장하는 사진 앨범 이름입니다. 기본값으로 되돌리려면 비워 두세요.";
+"Next" = "다음";
+"No results found." = "결과를 찾을 수 없습니다.";
+"No!" = "아니요!";
+"Pick a language to update, or add a new one" = "업데이트할 언어를 고르거나 새 언어를 추가하세요";
+"Preset" = "프리셋";
+"Restart" = "재시작";
+"Restart now" = "지금 다시 시작";
+"Restart required" = "재시작 필요";
+"Saved preset \"%@\"" = "프리셋 \"%@\" 저장됨";
+"selected" = "선택됨";
+"Shared icon, or override per button" = "공유 아이콘 또는 버튼별 재정의";
+"Speed" = "속도";
+"Unset" = "설정 안 함";
+"Update localization" = "번역 업데이트";
+"Updated %@ (%ld keys). Restart to apply." = "%@ 업데이트됨 (%ld개 키). 다시 시작하여 적용하세요.";
+"Use default" = "기본값 사용";
+"Username or PK" = "사용자 이름 또는 PK";
+"Username or raw user PK" = "사용자 이름 또는 원시 사용자 PK";
+"Yes" = "예";
+"You must restart the app to apply this change" = "이 변경 사항을 적용하려면 앱을 다시 시작해야 합니다";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               ABOUT / CREDITS                            //
+// Strings from the About / Credits footer of Settings.                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ — GitHub, Telegram, Donate" = "%@ — GitHub, Telegram, 후원";
+"About" = "정보";
+"Arabic translation" = "아랍어 번역";
+"Chinese (Traditional and Simplified) translation" = "중국어 (번체 및 간체) 번역";
+"Credits" = "크레딧";
+"Developers" = "개발자";
+"Donate to SoCuul" = "SoCuul에게 후원하기";
+"installed" = "설치됨";
+"Korean translation" = "한국어 번역";
+"Portuguese (Brazil) translation" = "포르투갈어 (브라질) 번역";
+"Turkish translation" = "터키어 번역";
+"Vietnamese translation" = "베트남어 번역";
+"French translation" = "프랑스어 번역";
+"Code contributions" = "코드 기여";
+"Following feed mode (from InstaSane)" = "팔로잉 피드 모드 (InstaSane 기반)";
+"latest" = "최신";
+"Links" = "링크";
+"No releases" = "릴리스 없음";
+"Original SCInsta developer" = "오리지널 SCInsta 개발자";
+"Release notes" = "릴리스 노트";
+"Releases" = "릴리스";
+"Report an issue" = "문제 신고";
+"Russian translation" = "러시아어 번역";
+"RyukGram developer" = "Instagram X 개발자";
+"Join Telegram channel" = "Telegram 채널 참여";
+"Source code" = "소스 코드";
+"View on GitHub" = "GitHub에서 보기";
+"Spanish translation" = "스페인어 번역";
+"Support the original SCInsta developer" = "SCInsta 원작자 후원하기";
+"Inspirations" = "영감";
+"Inspirations, contributors, translators" = "영감, 기여자, 번역가";
+"Code and research" = "코드 및 연구";
+"Translators" = "번역가";
+"Original BHInstagram developer" = "BHInstagram 원작자";
+"OLED theme inspiration" = "OLED 테마 영감";
+"Donate to Ryuk" = "Ryuk 후원하기";
+"Support RyukGram development" = "Instagram X 개발 후원";
+"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X은 SCInsta를 대폭 재작업한 포크입니다 — 원작자 후원에 감사드립니다.";
+"Browse changes from previous releases" = "이전 릴리스의 변경 사항 보기";
+"Code inspiration" = "코드 영감";
+"zxPluginsInject sideload compatibility shim" = "zxPluginsInject 사이드로드 호환성 심";
+"Telegram channel" = "Telegram 채널";
+"Testing and feature suggestions" = "테스트 및 기능 제안";
+"Version" = "버전";
+"Version, credits, and links" = "버전, 크레딧, 링크";
+"What's new in RyukGram" = "Instagram X의 새로운 기능";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             HD DOWNLOADS                                 //
+// Enhanced / HD downloads settings (DASH + FFmpegKit encoding).            //
+//////////////////////////////////////////////////////////////////////////////
+
+"720p • progressive • silent" = "720p • 프로그레시브 • 무음";
+"Audio only" = "오디오만";
+"Audio ready" = "오디오 준비됨";
+"Download video at the highest available quality" = "가능한 가장 높은 품질로 동영상 다운로드";
+"Downloads HD video via DASH streams and encodes to H.264. Requires FFmpegKit." = "DASH 스트림을 통해 HD 동영상을 다운로드하고 H.264로 인코딩합니다. FFmpegKit가 필요합니다.";
+"Encoding in software" = "소프트웨어로 인코딩 중";
+"Encoding speed" = "인코딩 속도";
+"Enhanced downloads" = "향상된 다운로드";
+"Faster = lower quality" = "빠름 = 낮은 품질";
+"FFmpeg not available" = "FFmpeg 사용 불가";
+"FFmpegKit is not available. Install the sideloaded IPA or the _ffmpeg .deb variant to enable." = "FFmpegKit을 사용할 수 없습니다. 사이드로딩된 IPA 또는 _ffmpeg .deb 버전을 설치하여 활성화하세요.";
+"Hardware encoder isn't available in the background — your quality settings were kept." = "백그라운드에서는 하드웨어 인코더를 사용할 수 없습니다 — 품질 설정은 유지되었습니다.";
+"No audio track found" = "오디오 트랙을 찾을 수 없음";
+"Photo" = "사진";
+"Photo quality" = "사진 품질";
+"Size unknown" = "크기 알 수 없음";
+"calculating size…" = "크기 계산 중…";
+"silent" = "무음";
+"Use highest resolution available" = "사용 가능한 최고 해상도 사용";
+"Video encoder locked up — restart Instagram to encode again" = "비디오 인코더가 멈췄습니다 — 다시 인코딩하려면 Instagram을 재시작하세요";
+"Video quality" = "비디오 품질";
+"Which quality to download" = "어떤 품질로 다운로드할지 선택하세요";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            ADVANCED ENCODING                             //
+// Advanced encoding page — codecs, profiles, CRF/bitrate, audio,           //
+// container. Manual ffmpeg controls behind “Advanced encoding” toggle.     //
+//////////////////////////////////////////////////////////////////////////////
+
+"'%@' is not in this FFmpegKit build — using hardware h264 instead." = "'%@'은(는) 이 FFmpegKit 빌드에 없습니다 — 대신 하드웨어 h264를 사용합니다.";
+"10-bit 4:2:0. ~2x slower, smoother gradients." = "10비트 4:2:0. 약 2배 느림, 더 매끄러운 그라데이션.";
+"10-bit colour. Slower, smoother gradients. Software only." = "10비트 색상. 더 느림, 더 매끄러운 그라데이션. 소프트웨어 전용.";
+"1080p30 baseline." = "1080p30 기준.";
+"4K30 baseline." = "4K30 기준.";
+"8-bit 4:2:0. Universal default." = "8비트 4:2:0. 범용 기본값.";
+"8-bit 4:2:2 chroma. Niche playback." = "8비트 4:2:2 크로마. 일부 재생용.";
+"8-bit 4:2:2 chroma. Software only." = "8비트 4:2:2 크로마. 소프트웨어 전용.";
+"8-bit 4:4:4 chroma. Software only." = "8비트 4:4:4 크로마. 소프트웨어 전용.";
+"8-bit 4:4:4 full chroma. Niche playback." = "8비트 4:4:4 풀 크로마. 일부 재생용.";
+"8-bit. Best for modern devices." = "8비트. 최신 기기에 적합.";
+"Advanced encoding" = "고급 인코딩";
+"Advanced encoding settings" = "고급 인코딩 설정";
+"Archival quality." = "보관용 품질.";
+"Audio bitrate" = "오디오 비트레이트";
+"Audio channels" = "오디오 채널";
+"Audio codec" = "오디오 코덱";
+"Audio conversion failed" = "오디오 변환 실패";
+"Audio sample rate" = "오디오 샘플레이트";
+"Balanced. libx264 default." = "균형. libx264 기본값.";
+"Best practical quality per bit." = "비트당 최상의 실용 품질.";
+"Bitrate, channels, and sample rate apply only when the codec is AAC (re-encoding)." = "비트레이트, 채널, 샘플레이트는 코덱이 AAC(재인코딩)일 때만 적용됩니다.";
+"Cartoons / anime." = "만화 / 애니메이션.";
+"Cinematic. Smaller files." = "영화 같은 느낌. 더 작은 파일.";
+"Codec" = "코덱";
+"Container" = "컨테이너";
+"Copy (passthrough)" = "복사 (패스스루)";
+"CRF quality" = "CRF 품질";
+"Downloading video…" = "동영상 다운로드 중…";
+"Easier to play back on weak devices." = "성능이 낮은 기기에서 재생하기 쉬움.";
+"Encoder unavailable" = "인코더 사용 불가";
+"Examples: 8M, 12M, 25M, 4500k. Leave empty for auto." = "예: 8M, 12M, 25M, 4500k. 자동으로 하려면 비워 두세요.";
+"Failed to download video" = "동영상 다운로드 실패";
+"Fast, fixed-bitrate, GPU-accelerated." = "빠름, 고정 비트레이트, GPU 가속.";
+"Fastest, worst compression." = "가장 빠름, 압축 최악.";
+"Faststart" = "Faststart";
+"Faststart moves the MP4 index to the start so playback begins before the file fully buffers. Strip metadata removes source tags (creation date, handler, encoder) from the file." = "Faststart는 MP4 인덱스를 앞으로 옮겨 파일이 완전히 버퍼링되기 전에 재생을 시작할 수 있게 합니다. 메타데이터 제거는 파일에서 소스 태그(생성 날짜, 핸들러, 인코더)를 제거합니다.";
+"FFmpeg documentation" = "FFmpeg 문서";
+"FFmpeg mux failed" = "FFmpeg 먹싱 실패";
+"Frame rate" = "프레임 레이트";
+"H.264 level" = "H.264 레벨";
+"H.264 profile" = "H.264 프로파일";
+"Hardware (VideoToolbox)" = "하드웨어 (VideoToolbox)";
+"Hardware (VideoToolbox) only supports yuv420p — '%@' was ignored. Switch to Software (libx264) to use it." = "하드웨어 (VideoToolbox)는 yuv420p만 지원합니다 — '%@'은(는) 무시되었습니다. 사용하려면 소프트웨어 (libx264)로 전환하세요.";
+"Keep original audio. Fast." = "원본 오디오 유지. 빠름.";
+"Keep the source frame rate." = "원본 프레임 레이트 유지.";
+"Let the encoder pick." = "인코더가 선택하도록 함.";
+"Live-action video." = "실사 동영상.";
+"Lossless. Huge files." = "무손실. 매우 큰 파일.";
+"Low-latency streaming." = "저지연 스트리밍.";
+"Manual ffmpeg controls in place of Encoding speed." = "인코딩 속도 대신 수동 ffmpeg 컨트롤.";
+"Marginal gain, huge time cost." = "미미한 향상, 막대한 시간 소요.";
+"Max resolution" = "최대 해상도";
+"Mono" = "모노";
+"No tuning. Default." = "튜닝 없음. 기본값.";
+"None" = "없음";
+"Pixel format" = "픽셀 포맷";
+"Pixel format ignored" = "픽셀 포맷 무시됨";
+"Preserve film grain." = "필름 그레인 유지.";
+"Preset and Tune apply to Software (libx264) only. Pair profile with pixel format: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. Mismatches downconvert silently. Hardware always uses yuv420p." = "프리셋과 튠은 소프트웨어 (libx264)에만 적용됩니다. 프로파일을 픽셀 포맷과 짝지으세요: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. 불일치 시 자동으로 다운컨버트됩니다. 하드웨어는 항상 yuv420p를 사용합니다.";
+"Re-encode. Use when source is opus or unsupported." = "재인코딩. 소스가 opus이거나 지원되지 않을 때 사용.";
+"Reset advanced encoding" = "고급 인코딩 초기화";
+"Setting a video bitrate switches Software to fixed-bitrate and ignores CRF. Leave empty for CRF. Hardware uses bitrate." = "동영상 비트레이트를 설정하면 소프트웨어가 고정 비트레이트로 전환되어 CRF를 무시합니다. CRF를 사용하려면 비워 두세요. 하드웨어는 비트레이트를 사용합니다.";
+"Slideshow-like content." = "슬라이드쇼 같은 콘텐츠.";
+"Slower, better compression per bit." = "더 느림, 비트당 더 나은 압축.";
+"Smaller, visible artefacts." = "더 작음, 눈에 띄는 화질 손상.";
+"Software (libx264)" = "소프트웨어 (libx264)";
+"Standard 8-bit." = "표준 8비트.";
+"Stereo" = "스테레오";
+"Streaming default." = "스트리밍 기본값.";
+"Strip metadata" = "메타데이터 제거";
+"Top of AAC." = "최고급 AAC.";
+"Tune" = "튠";
+"Unknown error" = "알 수 없는 오류";
+"Very high quality." = "매우 높은 품질.";
+"Video bitrate" = "동영상 비트레이트";
+"Video codec" = "동영상 코덱";
+"Visually lossless. RyukGram default." = "시각적으로 무손실. Instagram X 기본값.";
+"Widest compatibility, no B-frames." = "가장 넓은 호환성, B 프레임 없음.";
+"Worst quality." = "최저 품질.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                          ACTION MENU CONFIG                              //
+// Profile action button: per-section toggles, reorder handles, default-tap //
+// behavior, reset confirmations, action catalog labels.                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Long-press gestures" = "길게 누르기 제스처";
+"Inserts a button in the profile navigation header" = "프로필 내비게이션 헤더에 버튼을 삽입합니다";
+"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "프로필 헤더에 복사, 사진 보기, 공유, 저장, 프로필 정보 항목이 있는 Instagram X 작업 버튼을 추가합니다. 탭하면 기본적으로 메뉴가 열립니다. 메뉴 구성에서 탭 동작을 변경하세요.";
+"Configure menu" = "메뉴 구성";
+"Reorder, enable/disable, set default tap, show date" = "순서 변경, 켜기/끄기, 기본 탭 설정, 날짜 표시";
+"Reorder, enable/disable, set default tap" = "순서 변경, 켜기/끄기, 기본 탭 설정";
+"RyukGram profile actions" = "Instagram X 프로필 작업";
+"Reorder sections" = "섹션 순서 변경";
+"Drag the ≡ handle to reorder sections." = "≡ 핸들을 끌어 섹션 순서를 바꾸세요.";
+"Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "≡ 핸들을 끌어 순서를 바꾸세요. 행을 끄면 메뉴에서 숨겨집니다. 섹션을 서브메뉴로 표시하면 해당 작업이 단일 항목 뒤로 접힙니다.";
+"Show as submenu" = "서브메뉴로 표시";
+"Collapse this section's actions behind a single entry" = "이 섹션의 작업을 단일 항목 뒤로 접기";
+"Configure: %@" = "구성: %@";
+"What happens on a single tap. Long-press always opens the full menu." = "한 번 탭했을 때의 동작입니다. 길게 누르면 항상 전체 메뉴가 열립니다.";
+"Reset to defaults" = "기본값으로 재설정";
+"This will restore the default sections, order, and toggles for this menu." = "이 메뉴의 기본 섹션, 순서, 토글이 복원됩니다.";
+"Audio & visibility" = "오디오 및 표시";
+"DM disappearing media" = "DM 사라지는 미디어";
+"Bulk download" = "일괄 다운로드";
+"Feed settings" = "피드 설정";
+"Reels settings" = "릴스 설정";
+"Profile settings" = "프로필 설정";
+"Stories settings" = "스토리 설정";
+"Copy ID" = "ID 복사";
+"Copy Info" = "정보 복사";
+"Copy all info" = "모든 정보 복사";
+"Copy media URL" = "미디어 URL 복사";
+"Copy profile link" = "프로필 링크 복사";
+"Copy username" = "아이디 복사";
+"Download" = "다운로드";
+"Download to Gallery" = "갤러리에 다운로드";
+"Download all to Gallery" = "갤러리에 모두 다운로드";
+"Exclude/include user" = "사용자 제외/포함";
+"Mute / unmute audio" = "오디오 음소거/해제";
+"Save picture to Gallery" = "갤러리에 사진 저장";
+"Share picture" = "사진 공유";
+"View picture" = "사진 보기";
+"Bio" = "소개";
+"ID" = "ID";
+"Info" = "정보";
+"Profile info" = "프로필 정보";
+"Profile link" = "프로필 링크";
+"Picture not found" = "사진을 찾을 수 없음";
+"Private profile" = "비공개 프로필";
+"Profile unavailable" = "프로필을 사용할 수 없음";
+"Public profile" = "공개 프로필";
+"Username" = "아이디";
+"Followers: %@" = "팔로워: %@";
+"Following: %@" = "팔로잉: %@";
+"Copied %@" = "%@ 복사됨";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GALLERY                                  //
+// On-device media library: enable + save mode, browsing, filters, sort,    //
+// delete tools, picker entries, and the Photos/Gallery download submenu.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%.0f kbps" = "%.0f kbps";
+"%.1f Mbps" = "%.1f Mbps";
+"(unknown)" = "(알 수 없음)";
+"All files deleted" = "모든 파일 삭제됨";
+"Browsing" = "탐색";
+"By source" = "출처별";
+"By type" = "유형별";
+"By user" = "사용자별";
+"Clear filters" = "필터 지우기";
+"Comment" = "댓글";
+"Create" = "만들기";
+"Create & Move" = "만들고 이동";
+"Delete %@?" = "%@을(를) 삭제할까요?";
+"Delete all files" = "모든 파일 삭제";
+"Delete all images" = "모든 이미지 삭제";
+"Delete all videos" = "모든 동영상 삭제";
+"Delete by user" = "사용자별 삭제";
+"Delete DM media" = "DM 미디어 삭제";
+"Delete feed posts" = "피드 게시물 삭제";
+"Delete files" = "파일 삭제";
+"Delete Folder" = "폴더 삭제";
+"Delete from Gallery?" = "갤러리에서 삭제할까요?";
+"Delete profile pictures" = "프로필 사진 삭제";
+"Delete reels" = "릴스 삭제";
+"Delete selected" = "선택 항목 삭제";
+"Delete Selected Files?" = "선택한 파일을 삭제하시겠습니까?";
+"Delete stories" = "스토리 삭제";
+"Delete thumbnails" = "썸네일 삭제";
+"Deleted from Gallery" = "갤러리에서 삭제됨";
+"Deleted selected files" = "선택한 파일이 삭제됨";
+"Deselect All" = "전체 선택 해제";
+"DM media deleted" = "DM 미디어 삭제됨";
+"DMs" = "DM";
+"Each user appears as a folder next to your real folders." = "각 사용자가 실제 폴더 옆에 폴더로 표시됩니다.";
+"Each user gets a labelled section in the grid/list." = "각 사용자가 그리드/목록에 별도의 섹션을 가집니다.";
+"Enable gallery" = "갤러리 활성화";
+"Failed" = "실패";
+"Failed to delete" = "삭제 실패";
+"Favorite" = "즐겨찾기";
+"Favorite selected" = "선택 항목 즐겨찾기";
+"Favorites only" = "즐겨찾기만";
+"Feed posts deleted" = "피드 게시물 삭제됨";
+"Files deleted" = "파일 삭제됨";
+"Flat list. No grouping." = "단일 목록. 그룹 없음.";
+"Folder name" = "폴더 이름";
+"Folders" = "폴더";
+"From RyukGram Gallery" = "Instagram X 갤러리의 오디오";
+"Gallery" = "갤러리";
+"Gallery only" = "갤러리만";
+"Gallery save mode" = "갤러리 저장 모드";
+"Gallery Settings" = "갤러리 설정";
+"GIFs" = "GIF";
+"Grid view" = "그리드 보기";
+"Group by user" = "사용자별 그룹화";
+"Hold DM tab to open gallery" = "DM 탭을 길게 눌러 갤러리 열기";
+"Images" = "이미지";
+"Images deleted" = "이미지 삭제됨";
+"Images first" = "이미지 먼저";
+"item" = "항목";
+"items" = "항목";
+"Largest first" = "큰 파일부터";
+"List view" = "목록 보기";
+"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "하단 탭바의 받은편지함 버튼을 길게 눌러 Instagram X 갤러리를 엽니다";
+"Manage" = "관리";
+"More" = "더보기";
+"Move selected" = "선택 항목 이동";
+"Move to Folder" = "폴더로 이동";
+"Name A-Z" = "이름 A-Z";
+"Name Z-A" = "이름 Z-A";
+"New Folder" = "새 폴더";
+"New folder…" = "새 폴더…";
+"Newest first" = "최신순";
+"No files in Gallery" = "갤러리에 파일이 없습니다";
+"No files to delete" = "삭제할 파일 없음";
+"No matching files" = "일치하는 파일 없음";
+"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "Instagram X을 통해 다운로드한 미디어의 기기 내 라이브러리입니다. 저장 모드는 '사진 앱에 다운로드'가 실제로 어디에 쓸지 선택합니다.";
+"Open" = "열기";
+"Open Original Post" = "원본 게시물 열기";
+"Options" = "옵션";
+"Other" = "기타";
+"Photos + Gallery" = "사진 앱 + 갤러리";
+"Photos only" = "사진 앱만";
+"Profile pictures deleted" = "프로필 사진 삭제됨";
+"Reels deleted" = "릴스 삭제됨";
+"Rename" = "이름 변경";
+"Rename Folder" = "폴더 이름 변경";
+"Root" = "루트";
+"Save media from the preview screen\nto see it here." = "미리 보기 화면에서 미디어를 저장하면\n여기에 표시됩니다.";
+"Saved %lu items to Gallery" = "갤러리에 %lu개의 항목이 저장됨";
+"Saved to Gallery" = "갤러리에 저장됨";
+"Saving to Gallery" = "갤러리에 저장 중...";
+"Search users" = "사용자 검색";
+"Sections" = "섹션";
+"Select All" = "전체 선택";
+"Share" = "공유";
+"Share selected" = "선택 항목 공유";
+"Show favorites at top" = "즐겨찾기를 상단에 표시";
+"Show gallery entries in download menus and unlock the gallery button" = "다운로드 메뉴에 갤러리 항목을 표시하고 갤러리 버튼을 활성화합니다";
+"Smallest first" = "작은 파일부터";
+"Source" = "출처";
+"Source user" = "출처 사용자";
+"Storage" = "저장 공간";
+"Stories deleted" = "스토리 삭제됨";
+"Story" = "스토리";
+"The original content may no longer exist." = "원본 콘텐츠가 더 이상 존재하지 않을 수 있습니다.";
+"This folder contains %ld file(s). They will be moved to the parent folder." = "이 폴더에는 %ld개의 파일이 있습니다. 상위 폴더로 이동됩니다.";
+"This folder is empty." = "이 폴더는 비어 있습니다.";
+"This will permanently remove %ld file%@ from the gallery." = "갤러리에서 %ld개 파일%@을(를) 영구적으로 제거합니다.";
+"This will permanently remove %ld file(s)." = "%ld개의 파일이 영구적으로 제거됩니다.";
+"This will permanently remove this file from the gallery." = "이 파일이 갤러리에서 영구적으로 제거됩니다.";
+"Thumb" = "썸네일";
+"Thumbnails deleted" = "썸네일 삭제됨";
+"to Gallery" = "갤러리에";
+"Total files" = "전체 파일";
+"Total size" = "전체 크기";
+"Type" = "유형";
+"Unable to open original post" = "원본 게시물을 열 수 없음";
+"Unable to open profile" = "프로필을 열 수 없음";
+"Unfavorite" = "즐겨찾기 해제";
+"Unknown user" = "알 수 없는 사용자";
+"User files deleted" = "사용자 파일 삭제됨";
+"Videos" = "동영상";
+"Videos deleted" = "동영상 삭제됨";
+"Videos first" = "동영상 먼저";
+"When enabled, favorites are pinned above other files inside the current sort and folder context." = "켜면 현재 정렬 및 폴더 컨텍스트 내에서 즐겨찾기가 다른 파일보다 위에 고정됩니다.";
+"Where 'Download to Photos' actually writes when gallery is on" = "갤러리가 켜져 있을 때 '사진 앱에 다운로드'가 실제로 쓰는 위치";
+"Yesterday" = "어제";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              HOME SHORTCUT                               //
+// Extra button on the home top bar (right of the create-post +) — picks    //
+// between Gallery, Changelog, etc. Configure-screen and the row reorderer. //
+//////////////////////////////////////////////////////////////////////////////
+
+"Home shortcut button" = "홈 단축 버튼";
+"Show the extra button on the home top bar" = "홈 상단 바의 추가 버튼 구성";
+"Auto" = "자동";
+"Icon" = "아이콘";
+"Drag the ≡ handle to reorder. Toggle actions off to hide them. With one action enabled, tapping fires it directly. With two or more, tapping opens a menu." = "≡ 핸들을 끌어 순서를 바꿉니다. 행을 끄면 해당 대상이 숨겨집니다. 한 동작이 켜져 있으면 탭으로 바로 실행하고, 두 개 이상이면 탭하면 메뉴를 표시합니다.";
+"Changelog" = "변경 사항";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              INTERFACE PAGE                              //
+// Settings → Interface (renamed Navigation tab)                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds an extra shortcut button beside the create-post + button on the home top bar." = "홈 상단 바의 게시물 작성 + 버튼 옆에 추가 단축 버튼을 표시합니다.";
+"All buttons" = "모든 버튼";
+"Choose icon, reorder actions, and enable menu items" = "아이콘 선택, 작업 순서 변경, 메뉴 항목 활성화";
+"Choose the icon shown on the home top bar. Auto uses the selected action icon when only one action is enabled." = "홈 상단 바에 표시되는 아이콘을 선택합니다. 자동은 작업이 하나만 활성화된 경우 선택된 작업 아이콘을 사용합니다.";
+"Configure button" = "버튼 구성";
+"Global Action Icons" = "전역 작업 아이콘";
+"Interface" = "인터페이스";
+"Override the icon for a specific button. Buttons left on Default follow the shared icon above." = "특정 버튼의 아이콘을 재정의합니다. 기본값으로 둔 버튼은 위의 공유 아이콘을 따릅니다.";
+"Per button" = "버튼별";
+"Show home shortcut button" = "홈 단축 버튼 표시";
+"Tab bar" = "탭 바";
+"Universal in-app notifications. Pick style, position, per-action routing (custom pill / IG-native / off)." = "앱 내 통합 알림. 스타일, 위치, 작업별 라우팅을 선택하세요.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              NOTIFICATIONS                               //
+// Settings → Interface → Notifications + the universal pill / toast system //
+//////////////////////////////////////////////////////////////////////////////
+
+"Notifications" = "알림";
+"Appearance" = "모양";
+"Routing" = "라우팅";
+"Style" = "스타일";
+"Position" = "위치";
+"Stack size" = "스택 크기";
+"Duration" = "지속 시간";
+"Default surface" = "기본 화면";
+"System notifications" = "시스템 알림";
+"Mirror to notification centre" = "알림 센터로 미러링";
+"While the app is in the background, toasts are delivered to the iOS notification centre instead so they aren't missed." = "앱이 백그라운드에 있을 때 토스트가 iOS 알림 센터로 전달되어 놓치지 않게 됩니다.";
+"Clear when app opens" = "앱 열 때 지우기";
+"Remove mirrored notifications from notification centre when you return to the app." = "앱으로 돌아오면 미러링된 알림을 알림 센터에서 제거합니다.";
+"Background mirror" = "백그라운드 미러";
+"Uses Instagram's notification permission. Per-action overrides live in each action's menu under Background mirror; actions set to Off never mirror." = "Instagram의 알림 권한을 사용합니다. 동작별 설정은 각 동작 메뉴의 백그라운드 미러에 있으며, 끔으로 설정된 동작은 미러링되지 않습니다.";
+"Enable notifications" = "알림 활성화";
+"Haptic feedback" = "햅틱 피드백";
+"Preview pill" = "알약 미리보기";
+"Preview download pill" = "다운로드 알약 미리보기";
+"Preview loading pill" = "로딩 알약 미리보기";
+"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "마스터 스위치. 끄면 어떤 알림도 표시되지 않습니다.";
+"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "앱 내 통합 알림. 모든 Instagram X 피드백이 여기를 거칩니다.";
+"Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Minimal: 단순 블러. Colorful: 톤별 색조. Glow: 컬러 후광. Island: 다이내믹 아일랜드 캡슐.";
+"Top slides down, bottom slides up." = "위는 아래로, 아래는 위로 슬라이드합니다.";
+"How many pills can show at once before queueing." = "대기열로 보내기 전에 동시에 표시할 알약 수.";
+"Multiplies how long toasts stay on screen." = "토스트가 화면에 머무르는 시간을 곱합니다.";
+"Vibration on success/error pills." = "성공/오류 알약에서 진동.";
+"For toast-style actions you can choose between our pill and IG's native bottom toast. Per-action overrides live below." = "토스트형 작업은 알약 또는 IG 기본 토스트 중 선택할 수 있습니다. 작업별 재정의는 아래에 있습니다.";
+"What to use when an action doesn't have its own override." = "작업에 자체 재정의가 없을 때 사용할 항목입니다.";
+"Tap to cycle: info → success → warning → error" = "탭하여 순환: 정보 → 성공 → 경고 → 오류";
+"Tap to cycle between success and failure" = "성공과 실패 사이를 탭하여 전환";
+"Progress UI — pill or off only." = "진행 UI — 알약 또는 끄기만 가능.";
+"Minimal" = "미니멀";
+"Colorful" = "컬러풀";
+"Glow" = "글로우";
+"Island" = "아일랜드";
+"Top" = "위";
+"Bottom" = "아래";
+"Custom pill" = "사용자 지정 알약";
+"IG native toast" = "IG 기본 토스트";
+"Short" = "짧음";
+"Normal" = "보통";
+"Long" = "길게";
+"Very long" = "매우 길게";
+"Downloads & saving" = "다운로드 및 저장";
+"Copy to clipboard" = "클립보드에 복사";
+"Read receipts & seen" = "읽음 확인 및 보임";
+"Block, exclude & pin" = "차단, 제외 및 고정";
+"Stories & messages" = "스토리 및 메시지";
+"Voice & audio" = "음성 및 오디오";
+"Errors" = "오류";
+"Download progress" = "다운로드 진행";
+"Bulk download progress" = "대량 다운로드 진행";
+"Repost progress" = "리포스트 진행률";
+"Copied post / reel URL" = "게시물 / 릴스 URL 복사됨";
+"Copied comment text" = "댓글 텍스트 복사됨";
+"Copied GIF link" = "GIF 링크 복사됨";
+"Copied note text" = "노트 텍스트 복사됨";
+"Copied profile info" = "프로필 정보 복사됨";
+"Copied audio URL" = "오디오 URL 복사됨";
+"Copied quality picker URL" = "품질 선택기 URL 복사됨";
+"Copied unlocked password" = "잠금 해제된 비밀번호 복사됨";
+"Copied description text" = "설명 텍스트 복사됨";
+"DM seen / read receipts" = "DM 보임 / 읽음 확인";
+"Story seen / read receipts" = "스토리 보임 / 읽음 확인";
+"Someone read your message" = "누군가 내 메시지를 읽음";
+"User blocked / unblocked" = "사용자 차단 / 차단 해제";
+"Chat added / removed from exclude" = "채팅 제외 추가 / 제거";
+"Story user added / removed from exclude" = "스토리 사용자 제외 추가 / 제거";
+"Share-sheet recipient pinned" = "공유 시트 수신자 고정됨";
+"Unsent message detected" = "전송 취소된 메시지 감지됨";
+"Reaction removed detected" = "반응 제거 감지됨";
+"%lu messages unsent" = "메시지 %lu개 전송 취소됨";
+"%lu reactions removed" = "반응 %lu개 제거됨";
+"%lu chats marked seen" = "채팅 %lu개 읽음 표시됨";
+"%lu stories marked seen" = "스토리 %lu개 읽음 표시됨";
+"%lu of your messages read" = "내 메시지 %lu개 읽음";
+"%lu notifications" = "알림 %lu개";
+"Live comments toggled" = "라이브 댓글 전환됨";
+"Custom GIF sent" = "사용자 지정 GIF 전송됨";
+"GIF favorited / unfavorited" = "GIF 즐겨찾기 추가 / 해제";
+"Voice DM sent" = "음성 DM 전송됨";
+"Audio extraction status" = "오디오 추출 상태";
+"Profile Analyzer complete" = "프로필 분석기 완료";
+"Profile Analyzer progress" = "프로필 분석기 진행 상황";
+"Media extraction failed" = "미디어 추출 실패";
+"Permission denied" = "권한 거부됨";
+"Validation error" = "유효성 검사 오류";
+"Network / API error" = "네트워크 / API 오류";
+"Action error fallback" = "동작 오류 대체";
+"Unlock failed" = "잠금 해제 실패";
+"Chat locked / unlocked" = "채팅 잠금 / 잠금 해제";
+"Invalid clipboard link" = "잘못된 클립보드 링크";
+"Experimental flag warning" = "실험 플래그 경고";
+"Settings action confirmed" = "설정 작업 확인됨";
+"Cache clearing progress" = "캐시 지우기 진행";
+"Backup export / import" = "백업 내보내기 / 가져오기";
+"Other / uncategorized" = "기타 / 미분류";
+"Comment copied" = "댓글 복사됨";
+"FFmpeg log copied" = "FFmpeg 로그 복사됨";
+"GIF inserted" = "GIF 삽입됨";
+"Story marked as seen" = "스토리가 보임으로 표시됨";
+"Saved" = "저장됨";
+"Tap to retry" = "재시도하려면 탭";
+"Looks great" = "멋져 보입니다";
+"Something broke" = "문제가 발생했습니다";
+"Just so you know" = "참고하세요";
+"Success preview" = "성공 미리보기";
+"Error preview" = "오류 미리보기";
+"Warning preview" = "경고 미리보기";
+"Info preview" = "정보 미리보기";
+"Preview download…" = "다운로드 미리보기…";
+"Colors" = "색상";
+"+ Add new language" = "+ 새 언어 추가";
+"Each chat can override this in the list" = "각 채팅은 목록에서 개별 설정을 적용할 수 있습니다";
+"When on, Instagram location requests return your selected fake location. The map button adds a quick shortcut inside Friends Map." = "활성화하면 Instagram 위치 요청이 선택한 가짜 위치를 반환합니다. 지도 버튼은 친구 지도에 빠른 바로가기를 추가합니다.";
+"Tap a preset to make it active. Swipe left to delete." = "프리셋을 탭하여 활성화하세요. 왼쪽으로 밀어 삭제하세요.";
+"Override Instagram location reads." = "Instagram 위치 읽기를 재정의합니다.";
+"Show the quick button in Friends Map." = "친구 지도에 빠른 버튼 표시.";
+"Pick how absolute dates are written. “Default” leaves IG's own format untouched. Swipe a custom format to edit or delete it." = "절대 날짜 표기 방식을 선택하세요. “기본값”은 IG의 형식을 그대로 둡니다. 사용자 지정 형식을 스와이프하여 편집하거나 삭제할 수 있습니다.";
+"Dates younger than the threshold show as relative time. Older dates fall back to the absolute format. “Combine with date” shows both — “Jan 5, 2026 (2h)” or “2h – Jan 5, 2026”." = "임계값보다 최근 날짜는 상대 시간으로 표시됩니다. 오래된 날짜는 절대 형식으로 돌아갑니다. “날짜와 결합”은 둘 다 표시합니다 — “2026년 1월 5일 (2h)” 또는 “2h – 2026년 1월 5일”.";
+"Compact style" = "간결 스타일";
+"Example: “1h” instead of “1 hour ago”" = "예: “1시간 전” 대신 “1h”";
+"Example: “Jan 5, 2026 (2h)”" = "예: “Jan 5, 2026 (2h)”";
+"iOS audio APIs couldn't process this file%@%@\n\nYou can try sending it to Instagram as-is, or open a support issue." = "iOS 오디오 API가 이 파일을 처리할 수 없습니다%@%@\n\nInstagram에 그대로 보내거나 지원 이슈를 열어보세요.";
+"Combine with date" = "날짜와 결합";
+"Absolute then relative" = "절대 다음 상대";
+"Relative – absolute" = "상대 – 절대";
+"Relative when young, absolute when older." = "최근이면 상대, 오래되면 절대.";
+"Example: “2h – Jan 5, 2026”" = "예: “2h – 2026년 1월 5일”";
+"Catch view-once media unsent while you're away. ⚠️ May drain battery" = "자리를 비운 사이 취소된 한 번 보기 미디어를 포착합니다. ⚠️ 배터리 소모가 클 수 있음";
+"Disappearing (view-once) media" = "사라지는 미디어 (한 번 보기)";
+"Disappearing media expired before it could be saved" = "사라지는 미디어가 저장되기 전에 만료됨";
+"Disappearing media — gone before it could be saved" = "사라지는 미디어 — 저장되기 전에 사라짐";
+"Disappearing only" = "사라지는 미디어만";
+"Forces Instagram to keep running in the background so it can capture disappearing media that someone unsends while you're not in the app.\n\nMainly useful for view-once media — normal photos/videos are usually still recoverable without it. ⚠️ May significantly drain your battery, and can't capture anything if you force-quit Instagram from the app switcher.\n\nEnable it?" = "누군가 앱 밖에 있을 때 취소하는 사라지는 미디어를 포착할 수 있도록 Instagram을 백그라운드에서 계속 실행되게 합니다.\n\n주로 한 번 보기 미디어에 유용합니다 — 일반 사진/동영상은 보통 이 기능 없이도 복구할 수 있습니다. ⚠️ 배터리를 크게 소모할 수 있으며, 앱 전환기에서 Instagram을 강제 종료하면 아무것도 포착할 수 없습니다.\n\n사용하시겠어요?";
+"Keep Instagram active in background" = "Instagram을 백그라운드에서 활성 상태로 유지";
+"Media couldn’t be downloaded — the link expired" = "미디어를 다운로드할 수 없음 — 링크가 만료됨";
+"Media wasn’t available to save" = "저장할 미디어를 사용할 수 없음";
+"Retrying download…" = "다운로드 재시도 중…";
+"Try to download again" = "다시 다운로드 시도";
+"%lu followers removed" = "팔로워 %lu명 삭제됨";
+"Batch remove followers" = "팔로워 일괄 삭제";
+"Batch remove followers finished" = "팔로워 일괄 삭제 완료";
+"Follow back" = "맞팔로우";
+"Remove @%@ as a follower?" = "@%@님을 팔로워에서 삭제할까요?";
+"Remove follower" = "팔로워 삭제";
+"Removing… %lu / %lu" = "삭제 중… %lu / %lu";
+
+//////////////////////////////////////////////////////////////////////////
+//                            READ RECEIPTS                              //
+//////////////////////////////////////////////////////////////////////////
+
+"Read receipts log" = "읽음 확인 기록";
+"Date" = "날짜";
+"Reads" = "읽음";
+"Person" = "사람";
+"Chat" = "채팅";
+"%@ · on @%@" = "%@ · @%@ 계정";
+"%lu read · %@" = "%lu회 읽음 · %@";
+"%lu reads · %@" = "%lu회 읽음 · %@";
+"%lu reads · %lu reader · %@" = "%lu회 읽음 · 읽은 사람 %lu명 · %@";
+"%lu reads · %lu readers · %@" = "%lu회 읽음 · 읽은 사람 %lu명 · %@";
+"Browse who read your messages, grouped by person" = "메시지를 읽은 사람을 사람별로 모아 봅니다";
+"Clear all" = "모두 지우기";
+"Clear all records" = "모든 기록 지우기";
+"Clear read receipts?" = "읽음 확인 기록을 지울까요?";
+"Detects when others read your messages and notifies you" = "다른 사람이 메시지를 읽으면 감지해 알려줍니다";
+"Ignored people & chats" = "무시한 사람 및 채팅";
+"Ignored" = "무시됨";
+"Log group chats" = "그룹 채팅 기록";
+"Most reads" = "읽음 많은 순";
+"No read receipts yet.\nWhen someone reads a message you sent, it shows up here." = "아직 읽음 확인이 없습니다.\n누군가 보낸 메시지를 읽으면 여기에 표시됩니다.";
+"Notifies and records when someone reads a message you sent" = "보낸 메시지를 누군가 읽으면 알리고 기록합니다";
+"Nothing is ignored. Long-press someone in the log to stop logging them." = "무시한 항목이 없습니다. 기록에서 사람을 길게 눌러 기록을 중지하세요.";
+"Nothing matches your filters." = "필터와 일치하는 항목이 없습니다.";
+"Read %@ · %@" = "읽음 %@ · %@";
+"Record reads on this device. Off = notifications only, nothing stored" = "이 기기에 읽음을 저장합니다. 끄면 알림만, 저장 안 함";
+"Resume logging" = "기록 재개";
+"Save to log" = "기록에 저장";
+"Search by username" = "사용자 이름으로 검색";
+"Stop logging %@" = "%@ 기록 중지";
+"Delete records" = "기록 삭제";
+"When enabled, a notification fires when someone reads your message. Turn off \"Save to log\" for toast-only mode. Long-press a person in the log to stop logging them." = "활성화하면 누군가 내 메시지를 읽을 때 알림이 옵니다. 알림만 받으려면 \"기록에 저장\"을 끄세요. 기록에서 사람을 길게 눌러 기록을 중지할 수 있습니다.";
+"Swipe to remove. Removing resumes logging for that person or chat." = "밀어서 제거하세요. 제거하면 해당 사람이나 채팅의 기록이 재개됩니다.";
+"This removes all recorded reads on this device." = "이 기기에 기록된 모든 읽음을 삭제합니다.";
+"Updating names and photos" = "이름과 사진 업데이트 중";
+"Your message" = "내 메시지";
+"read your message in %@" = "%@에서 메시지를 읽음";
+"read your message" = "메시지를 읽음";
+"Also track reads in group chats. Off by default — groups can be noisy" = "그룹 채팅의 읽음도 추적합니다. 기본 꺼짐 — 그룹은 알림이 많을 수 있습니다";
+"Refreshing…" = "새로 고치는 중…";
+"Pinned" = "고정됨";
+"Liked the story" = "스토리에 좋아요";
+"Default (recent first)" = "기본 (최신순)";
+"Liked first" = "좋아요한 사람 먼저";
+"Load all viewers" = "모든 조회자 불러오기";
+"%lu viewers" = "조회자 %lu명";
+"Viewer pinned" = "조회자 고정됨";
+"Viewer unpinned" = "조회자 고정 해제됨";
+"Pin a viewer" = "조회자 고정";
+"Pin order" = "고정 순서";
+"Pin this viewer?" = "이 조회자를 고정할까요?";
+"Filter, sort & pin viewers" = "조회자 필터·정렬·고정";
+"Adds controls to your story viewers list" = "스토리 조회자 목록에 컨트롤을 추가합니다";
+"Add by username, remove, reorder" = "사용자 이름으로 추가, 삭제, 순서 변경";
+"Pinned viewers (%lu)" = "고정된 조회자 (%lu)";
+"Viewers list" = "조회자 목록";
+"Settings are saved and reused next time." = "설정이 저장되어 다음에 다시 사용됩니다.";
+"Tick several to combine them. Pinned viewers always stay on top and ignore these filters." = "여러 개를 선택하면 함께 적용됩니다. 고정된 조회자는 항상 맨 위에 표시되며 이 필터를 무시합니다.";
+"Pinned viewers" = "고정된 조회자";
+"Pin" = "고정";
+"On the 'who viewed my story' list, adds a filter/sort button (bottom-right) with sticky settings. Long-press a viewer to pin them. Pinned viewers always show at the top — even before they view your story." = "'내 스토리를 본 사람' 목록에 설정이 저장되는 필터/정렬 버튼(오른쪽 아래)을 추가합니다. 조회자를 길게 눌러 고정하세요. 고정된 조회자는 스토리를 보기 전이라도 항상 맨 위에 표시됩니다.";
+"Username or raw user PK. Pinned users always show at the top of your story viewers, even before they view it." = "사용자 이름 또는 사용자 PK. 고정된 사용자는 스토리를 보기 전이라도 항상 조회자 목록 맨 위에 표시됩니다.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DEVICE ID                                  //
+// Settings -> Advanced -> Device ID, and the login-screen Device ID button //
+//////////////////////////////////////////////////////////////////////////////
+"Roll a new fingerprint" = "새 지문 생성";
+"New device fingerprint" = "새 기기 지문";
+"New ID only" = "새 ID만";
+"New ID + clear IG data" = "새 ID + IG 데이터 삭제";
+"Fresh random device ID + FDID" = "무작위 새 기기 ID + FDID";
+"Enter ID manually…" = "ID 직접 입력…";
+"Manual device ID" = "수동 기기 ID";
+"Paste or type the UUID this device should report." = "이 기기가 보고할 UUID를 붙여넣거나 입력하세요.";
+"Device ID set" = "기기 ID 설정됨";
+"Identity masked" = "신원 마스킹됨";
+"Copy current ID" = "현재 ID 복사";
+"Revert to my real device ID" = "내 실제 기기 ID로 되돌리기";
+"Restore the original, stop masking" = "원본 복원, 마스킹 중지";
+"Spoofing off" = "스푸핑 꺼짐";
+"Relaunch now" = "지금 다시 실행";
+"Relaunch to apply" = "적용하려면 다시 실행하세요";
+"Clear device & relaunch" = "기기 초기화 후 다시 실행";
+"Clear device & relaunch?" = "기기를 초기화하고 다시 실행할까요?";
+"Clear & relaunch" = "초기화 후 다시 실행";
+"Strongest — full device reset" = "가장 강력 — 기기 전체 초기화";
+"Device ID" = "기기 ID";
+"Device identity" = "기기 신원";
+"Masked" = "마스킹됨";
+"Real" = "실제";
+"Show button on login screen" = "로그인 화면에 버튼 표시";
+"Floating Device ID button while signed out" = "로그아웃 상태에서 떠 있는 기기 ID 버튼";
+"Masks the device fingerprint Instagram sends (device ID + family device ID). Changes take effect after a relaunch. The same button also appears on the login screen." = "Instagram이 보내는 기기 지문(기기 ID + 패밀리 기기 ID)을 마스킹합니다. 변경 사항은 다시 실행한 후 적용됩니다. 동일한 버튼이 로그인 화면에도 표시됩니다.";
+"Also clear Instagram's saved logins and stored device IDs? This logs you out and relaunches as a fresh device." = "Instagram에 저장된 로그인 정보와 저장된 기기 ID도 지울까요? 로그아웃되고 새 기기로 다시 시작됩니다.";
+"Forgets every saved login, cookie and the stored device identity, then relaunches so Instagram starts as a brand-new device. You'll sign in again afterwards." = "저장된 모든 로그인 정보, 쿠키, 저장된 기기 신원을 잊은 다음 다시 실행하여 Instagram이 완전히 새 기기로 시작되도록 합니다. 이후 다시 로그인해야 합니다.";
+
+//////////////////////////////////////////////////////////////////////////
+//                         FOLLOW REQUESTS TRACKER                        //
+// Settings → Follow Requests Tracker                                     //
+//////////////////////////////////////////////////////////////////////////
+"Follow Requests Tracker" = "팔로우 요청 트래커";
+"Follow Requests" = "팔로우 요청";
+"Show follow requests" = "팔로우 요청 보기";
+"Check now" = "지금 확인";
+"Reset tracked data" = "추적 데이터 초기화";
+"Enable tracker" = "트래커 켜기";
+"Log requests and check outcomes" = "요청을 기록하고 결과 확인";
+"Logs follow requests you send and receive, and catches who cancels a request before you answer. All on-device." = "보내고 받는 팔로우 요청을 기록하고, 답하기 전에 요청을 취소하는 사람을 포착합니다. 모두 기기에서 처리됩니다.";
+"What to track" = "추적할 항목";
+"Requests I send" = "내가 보내는 요청";
+"To private accounts" = "비공개 계정으로";
+"Requests I receive" = "내가 받는 요청";
+"From people who want to follow you" = "회원님을 팔로우하려는 사람들";
+"Background check" = "백그라운드 확인";
+"Check interval" = "확인 간격";
+"How often to check for outcomes while the app is open. Also checks on launch and when you open the list." = "앱이 열려 있는 동안 결과를 확인하는 빈도입니다. 실행 시와 목록을 열 때도 확인합니다.";
+"Off (manual only)" = "끔 (수동만)";
+"Every 15 minutes" = "15분마다";
+"Every 30 minutes" = "30분마다";
+"Every hour" = "1시간마다";
+"Every 6 hours" = "6시간마다";
+"My request accepted" = "내 요청 수락됨";
+"A private account accepted you" = "비공개 계정이 회원님을 수락했습니다";
+"My request declined" = "내 요청 거절됨";
+"No longer pending" = "더 이상 대기 중 아님";
+"New request received" = "새 요청 수신됨";
+"Someone asked to follow you" = "누군가 회원님을 팔로우하려고 요청했습니다";
+"Request withdrawn" = "요청 취소됨";
+"Someone cancelled their request" = "누군가 요청을 취소했습니다";
+"Sent by me" = "내가 보낸 것";
+"Received" = "받음";
+"Sent" = "보냄";
+"Accepted" = "수락됨";
+"Rejected" = "거절됨";
+"Requested" = "요청됨";
+"Approved" = "승인됨";
+"Withdrawn" = "취소됨";
+"No follow requests tracked yet" = "아직 추적된 팔로우 요청이 없습니다";
+"Cancel requests" = "요청 취소";
+"Delete %lu record(s) from history?" = "기록에서 %lu개 항목을 삭제할까요?";
+"Cancel %lu pending request(s)?" = "대기 중인 요청 %lu개를 취소할까요?";
+"Follow back %lu account(s)?" = "%lu개 계정을 맞팔로우할까요?";
+"Clear all tracked follow requests?" = "추적된 팔로우 요청을 모두 지울까요?";
+"Reset tracked follow requests for this account?" = "이 계정의 추적된 팔로우 요청을 초기화할까요?";
+"Enable the tracker first" = "먼저 트래커를 켜세요";
+"Checking…" = "확인 중…";
+"%ld request(s) updated" = "요청 %ld개 업데이트됨";
+"No changes" = "변경 사항 없음";
+"Working…" = "처리 중…";
+"Follow request accepted" = "팔로우 요청 수락됨";
+"%@ accepted your request" = "%@님이 회원님의 요청을 수락했습니다";
+"Follow request declined" = "팔로우 요청 거절됨";
+"%@ is no longer pending" = "%@님이 더 이상 대기 중이 아닙니다";
+"New follow request" = "새 팔로우 요청";
+"%@ asked to follow you" = "%@님이 회원님을 팔로우하려고 요청했습니다";
+"Follow request withdrawn" = "팔로우 요청 취소됨";
+"%@ withdrew their request" = "%@님이 요청을 취소했습니다";
+"Follow requests log" = "팔로우 요청 로그";

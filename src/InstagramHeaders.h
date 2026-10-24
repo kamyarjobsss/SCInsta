@@ -43,6 +43,12 @@
 @interface IGExploreGridViewController : IGViewController
 @end
 
+@interface IGExploreViewController : IGViewController
+@end
+
+@interface IGExploreSearchTitleView : UIView
+@end
+
 @interface UIImage ()
 - (NSString *)ig_imageName;
 @end
@@ -143,11 +149,15 @@
 @property (nonatomic, strong) id delegate;
 
 - (void)addLongPressGestureRecognizer; // new
+- (void)sciAddDownloadButton; // new
+- (void)handleLongPress:(UILongPressGestureRecognizer *)sender; // new
 @end
 
 @interface IGModernFeedVideoCell : UIView
 - (id)mediaCellFeedItem;
 - (void)addLongPressGestureRecognizer; // new
+- (void)sciAddDownloadButton; // new
+- (void)handleLongPress:(UILongPressGestureRecognizer *)sender; // new
 @end
 
 @interface IGSundialViewerVideoCell : UIView
@@ -158,6 +168,15 @@
 
 @interface IGSundialViewerPhotoView : UIView
 - (void)addLongPressGestureRecognizer; // new
+@end
+
+@interface IGSundialViewerPhotoCell : UIView
+@end
+
+@interface IGSundialViewerCarouselPhotoCell : UIView
+@end
+
+@interface IGSundialViewerCarouselCell : UIView
 @end
 
 @interface IGImageProgressView : UIView
@@ -289,6 +308,9 @@
 - (void)handleLongPress:(UILongPressGestureRecognizer *)gr; // new
 @end
 
+@interface IGHomeFeedHeaderView : UIView
+@end
+
 @interface IGHomeFeedHeaderViewController
 - (void)headerDidLongPressLogo:(id)arg1;
 @end
@@ -391,6 +413,10 @@
 @property(nonatomic, copy, readwrite) NSArray *tools;
 @end
 
+// Swift classes: IGSundialPlaybackToggle.IGSundialPlaybackToggleView
+//                IGSundialClearMode.IGSundialClearedOverlayView
+// Hooked via %hook with mangled names — see EnhancedPlayback.xm
+
 @interface IGSundialViewerVerticalUFI : UIView
 - (void)_didTapLikeButton:(id)arg1;
 - (void)_didTapRepostButton:(id)arg1;
@@ -398,6 +424,9 @@
 
 @interface IGMainAppSurfaceIntent : NSObject
 - (id)tabStringFromSurfaceIntent;
+@end
+
+@interface IGSundialViewerVideoSectionController : NSObject
 @end
 
 @interface IGSundialFeedViewController : UIViewController
@@ -412,6 +441,18 @@
 @end
 
 @interface IGSundialViewerNavigationBarOld : UIView
+@end
+
+@interface IGMediaOverlayProfileWithPasswordView : UIView
+- (void)sciAddButtons;
+- (void)sciUnlockTapped;
+- (void)sciShowPasswordTapped;
+@end
+
+@interface IGUFIInteractionCountsView : UIView
+@end
+
+@interface IGUFIButtonBarView : UIView
 @end
 
 @interface IGFeedItemUFICell : UIView
@@ -462,11 +503,28 @@
 @property (readonly, nonatomic) long long destination;
 @end
 
+@interface IGCommentThreadConfiguration : NSObject
+@end
+
 @interface IGDSMenuItem : NSObject
+@end
+
+@interface IGDirectAudioWaveform : NSObject
+- (id)initWithVolumeRecordingInterval:(double)interval averageVolume:(NSArray *)volumes;
++ (NSArray *)generateWaveformDataFromAudioFile:(NSURL *)url maxLength:(NSInteger)maxLength;
++ (NSArray *)scaledArrayOfNumbers:(NSArray *)numbers;
 @end
 
 @interface IGDirectThreadViewController : UIViewController
 - (void)markLastMessageAsSeen;
+- (id)voiceController;
+- (id)messageSenderFeatureController;
+@end
+
+@interface IGDirectMessageSenderFeatureController : NSObject
+@end
+
+@interface MDCoreDelta : NSObject
 @end
 
 @interface IGTabBarButton : UIButton
@@ -485,6 +543,39 @@
 @interface IGCreationActionBarLabeledButton : NSObject
 @property (readonly, nonatomic) IGCreationActionBarButton *button;
 @end
+
+// Call buttons in DM thread header. Coordinator owns _audioCallButton / _videoCallButton
+// (both IGDirectCallButton) and forwards taps to _didTapAudioButton: / _didTapVideoButton:.
+// Discovered by dumping the thread VC view hierarchy for IGDirectCallButton.
+@interface IGDirectThreadCallButtonsCoordinator : NSObject @end
+@interface IGDirectCallButton : UIView @end
+
+// IG's UINavigationBar subclass — hosts the iOS 26 liquid-glass platter layout.
+@interface IGNavigationBar : UINavigationBar @end
+
+// DM thread background + message bubble views — OLED chat theme.
+@interface IGDirectThreadBackgroundImageView : UIImageView @end
+@interface IGDirectMessageBubbleView : UIView @end
+
+// UIKit-private keyboard classes — OLED keyboard theme.
+@interface UIKBBackdropView : UIView @end
+@interface UIKBKeyplaneChargedView : UIView @end
+
+// Story tray list adapter — drives data source updates for the home feed tray.
+@interface IGListAdapter : NSObject
+- (void)performUpdatesAnimated:(BOOL)animated completion:(void (^)(BOOL))completion;
+@end
+
+// Reels/feed video cell — used for long-press zoom gesture attachment.
+@interface IGFeedItemPageVideoCell : UICollectionViewCell @end
+
+// Profile page view controller — `user` is the IGUser being displayed.
+@interface IGProfileViewController : UIViewController
+@property (nonatomic, strong) id user;
+@end
+
+// Notes thought-bubble view on profiles — the note's touch target.
+@interface IGDirectNotesThoughtBubbleView : UIView @end
 
 
 
@@ -606,4 +697,39 @@ typedef FLEXAlertAction * _Nonnull (^FLEXAlertActionHandler)(void(^handler)(NSAr
 - (void)showExplorer;
 - (void)hideExplorer;
 - (void)toggleExplorer;
+@end
+
+// IGLive classes — discovered via runtime ivar/method dump.
+@interface IGLiveFeedbackController : NSObject
+- (void)start;
+- (void)stop;
+@end
+
+@interface IGLiveCommentsContainerViewController : UIViewController
+- (void)setIsHidden:(BOOL)hidden;
+- (void)setDisabled:(BOOL)disabled;
+@end
+
+// Story/reel sticker views — data accessors resolved at runtime.
+@interface IGQuizStickerView : UIView
+@end
+
+@interface IGPollStickerView : UIView
+@end
+
+@interface IGPollStickerV2View : UIView
+@end
+
+@interface IGSliderStickerView : UIView
+@end
+
+// Composer sticker tray data source — hooked to inject the quiz model.
+@interface IGStoryStickerDataSourceImpl : NSObject
+- (NSArray *)items;
+@end
+
+@interface IGQuizStickerTrayModel : NSObject
+@property (nonatomic) BOOL isBoostEligible;
+@property (nonatomic, copy) id stickerSection;
+@property (nonatomic, copy) NSArray *prompts;
 @end

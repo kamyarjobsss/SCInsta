@@ -8,6 +8,7 @@
 
 #import "InstagramHeaders.h"
 #import "QuickLook.h"
+#import "Localization/SCILocalization.h"
 
 #import "Settings/SCISettingsViewController.h"
 
@@ -25,14 +26,18 @@
 + (double)getDoublePref:(NSString *)key;
 + (NSString *)getStringPref:(NSString *)key;
 
-+ (_Bool)liquidGlassEnabledBool:(_Bool)fallback;
+// Registered SCInsta defaults (set once at app launch by Tweak.x). Used by
+// the settings backup so any new pref is included automatically.
++ (NSDictionary<NSString *, id> *)sciRegisteredDefaults;
++ (void)setSciRegisteredDefaults:(NSDictionary<NSString *, id> *)defaults;
 
-+ (void)cleanCache;
++ (_Bool)liquidGlassEnabledBool:(_Bool)fallback;
 
 // Displaying View Controllers
 + (void)showQuickLookVC:(NSArray<id> *)items;
 + (void)showShareVC:(id)item;
 + (void)showSettingsVC:(UIWindow *)window;
++ (void)showSettingsVC:(UIWindow *)window atTopLevelEntry:(NSString *)entryTitle;
 
 // Colours
 + (UIColor *)SCIColor_Primary;
@@ -79,5 +84,13 @@
 // Ivars
 + (id)getIvarForObj:(id)obj name:(const char *)name;
 + (void)setIvarForObj:(id)obj name:(const char *)name value:(id)value;
+
+// Active IG user session (walks all connected scenes for the first window
+// with a non-nil `userSession`).
++ (id)activeUserSession;
+// PK string read from an IGUser object's `_pk` ivar (walks superclass chain).
++ (NSString *)pkFromIGUser:(id)user;
+// Current logged-in user's PK via the active session.
++ (NSString *)currentUserPK;
 
 @end

@@ -1,0 +1,2507 @@
+/*
+ *  RyukGram — Localizable.strings  (English source of truth)
+ *  -------------------------------------------------------------------------
+ *
+ *  Every user-facing string in RyukGram goes through the macro
+ *      SCILocalized(@"English text here")
+ *  in the Objective-C source. The argument is BOTH the lookup key and the
+ *  English fallback, so if a translation is missing the user still sees
+ *  clean English — nothing ever breaks.
+ *
+ *
+ *  HOW TO ADD A NEW LANGUAGE
+ *  -------------------------------------------------------------------------
+ *
+ *  1. Copy this file into a new folder named after the language code:
+ *         src/Localization/Resources/<code>.lproj/Localizable.strings
+ *     e.g.  ar.lproj  (Arabic)
+ *           es.lproj  (Spanish)
+ *           fr.lproj  (French)
+ *  2. Translate the RIGHT-hand side of every `"key" = "value";` line.
+ *     Do NOT touch the left-hand side — that is the lookup key and must
+ *     stay identical to the English version, otherwise the app will never
+ *     find your translation.
+ *  3. Keep every format specifier (%@, %lu, %d, %lld, %1$@, …) exactly
+ *     as-is, in the same order. If you need to reorder them, switch to
+ *     positional specifiers (%1$@ %2$lu).
+ *  4. Keep embedded quotes escaped with a backslash: \" — and newlines
+ *     as \n.
+ *  5. Open a pull request at https://github.com/faroukbmiled/RyukGram/pulls
+ *     so we can ship the language in the next release.
+ *
+ *
+ *  HOW TO ADD A NEW STRING IN CODE
+ *  -------------------------------------------------------------------------
+ *
+ *  Just wrap the English text with SCILocalized(...) in the .m / .x / .xm
+ *  file — the helper resolves to the English text automatically when no
+ *  translation exists. Then add the same English text as BOTH the key and
+ *  the value inside the matching section below, e.g.
+ *
+ *      "Download all items" = "Download all items";
+ *
+ *  Translators copy that line into their own .lproj and translate only the
+ *  right-hand side.
+ *
+ *
+ *  FILE FORMAT NOTES
+ *  -------------------------------------------------------------------------
+ *
+ *  - UTF-8, LF line endings.
+ *  - Slash-star block comments and double-slash line comments both work.
+ *  - DO NOT nest one slash-star block comment inside another — the
+ *    parser will close the outer block at the first inner close marker
+ *    and every lookup in the file will silently fail.
+ *  - Keys and values are both quoted; every line ends with a semicolon.
+ */
+
+//////////////////////////////////////////////////////////////////////////////
+//               CHROME — TOP BAR, LANGUAGE PICKER, FIRST-RUN               //
+// Shown on the root Settings screen: title, search bar, the globe language //
+// menu, and the one-time welcome alert. These use dotted keys (settings.*) //
+// and are hand-authored rather than extracted from English source.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"settings.firstrun.message" = "İleride Instagram X ayarlarını yeniden açmak için profil sayfanızın sağ üstündeki üç çizgiye basılı tutun.";
+"settings.firstrun.ok" = "Anladım!";
+"settings.firstrun.title" = "Instagram X Ayar Bilgisi";
+"settings.language.english_only" = "Instagram X şu anda yalnızca İngilizce ile geliyor. Diğer diller hazır ve çeviri bekliyor — README'deki kısa rehberi izleyerek kendi dilinize çevirmeye yardımcı olun.";
+"settings.language.help_translate" = "Çeviriye katkı sağla";
+"settings.language.system" = "Sistem varsayılanı";
+"settings.language.title" = "Dil";
+"settings.language.restart.message" = "Ayarlar güncellendi. Uygulamanın diğer yerlerindeki menülerin, düğmelerin ve bildirimlerin de yeni dili kullanması için Instagram'ı yeniden başlatın.";
+"settings.language.restart.title" = "Her yerde uygulamak için yeniden başlat";
+"settings.language.available" = "Mevcut";
+"settings.results.many" = "%lu sonuç";
+"settings.results.one" = "%lu sonuç";
+"settings.search.placeholder" = "Ayarlarda ara";
+"settings.title" = "Instagram X Ayarları";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GENERAL                                  //
+// Settings → General tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button icon" = "Eylem düğmesi simgesi";
+"Adds a copy option to the comment long-press menu" = "Yorum uzun basma menüsüne kopyalama seçeneği ekler";
+"Adds a download button next to share/save on the reels audio page" = "Reels ses sayfasında paylaş/kaydet yanına indirme düğmesi ekler";
+"Adds download, copy and expand options to GIF and image comments" = "GIF ve görsel yorumlara indirme, kopyalama ve büyütme seçenekleri ekler";
+"Allow video in photo sticker" = "Foto etiketinde videoya izin ver";
+"Alternate icons are not supported" = "Alternatif simgeler desteklenmiyor";
+"Anonymous live viewing" = "Canlıyı anonim izleme";
+"App Icon" = "Uygulama Simgesi";
+"Audio page" = "Ses sayfası";
+"Auto-reveals sensitive media" = "Hassas medyayı otomatik gösterir";
+"Blocks the viewer-count heartbeat so the broadcaster doesn't see you — you also won't see the viewer count" = "Yayıncının sizi görmemesi için izleyici sayısı sinyalini engeller — siz de izleyici sayısını göremezsiniz";
+"Browser" = "Tarayıcı";
+"Change the app icon from the bundled icons" = "Uygulama simgesini paketlenmiş simgelerden değiştir";
+"Choose Icon" = "Simge Seç";
+"Choose which surfaces hide ads" = "Hangi yüzeylerin reklamları gizleyeceğini seçin";
+"Comments" = "Yorumlar";
+"Commerce carousels in comments and shoppable CTAs on reels" = "Yorumlardaki ticaret galerileri ve reels'lerdeki alışveriş CTA'ları";
+"Copy comment text" = "Yorum metnini kopyala";
+"Copy description" = "Açıklamayı kopyala";
+"Copy description text fields by long-pressing on them" = "Açıklama metin alanlarını üzerlerine uzun basarak kopyalayın";
+"Custom sticker colors" = "Özel etiket renkleri";
+"Custom colors aren't supported for this sticker" = "Bu etiket için özel renkler desteklenmiyor";
+"Date format" = "Tarih biçimi";
+"Disable app haptics" = "Uygulama titreşimini kapat";
+"Disables haptics/vibrations within the app" = "Uygulama içindeki dokunsal geri bildirimleri/titreşimleri kapatır";
+"Disables liquid glass for accounts that have it enabled by default. Overrides the options above" = "Liquid glass'ı varsayılan olarak etkin olan hesaplarda kapatır. Yukarıdaki seçenekleri geçersiz kılar";
+"Do not save recent searches" = "Son aramaları kaydetme";
+"Download GIF & image comments" = "GIF ve görsel yorumlarını indir";
+"Download image" = "Görseli indir";
+"Embed domain" = "Gömme alan adı";
+"Embed domain: %@" = "Gömme alan adı: %@";
+"Enable liquid glass buttons" = "Liquid glass butonlarını etkinleştir";
+"Enable liquid glass surfaces" = "Liquid glass yüzeylerini etkinleştir";
+"Enable teen app icons" = "Genç uygulama simgelerini etkinleştir";
+"Enables experimental liquid glass buttons" = "Deneysel liquid glass butonlarını etkinleştirir";
+"Enables liquid glass tab bar, floating navigation, and other UI elements" = "Liquid glass sekme çubuğunu, kayan gezinmeyi ve diğer arayüz öğelerini etkinleştirir";
+"End" = "Bitiş";
+"Experimental features" = "Deneysel özellikler";
+"Explore & search" = "Keşfet ve ara";
+"Failed to change icon" = "Simge değiştirilemedi";
+"Fixed" = "Sabit";
+"Fixed prevents shrinking. Hide makes it disappear when scrolling down" = "Sabit küçülmeyi önler. Gizle aşağı kaydırırken çubuğun kaybolmasını sağlar";
+"Focus/distractions" = "Odak/dikkat dağıtıcılar";
+"General" = "Genel";
+"Gradient color" = "Gradyan renk";
+"Hide ads" = "Reklamları gizle";
+"Hide explore posts grid" = "Keşfet gönderi ızgarasını gizle";
+"Hide friends map" = "Arkadaş haritasını gizle";
+"Hide Meta AI" = "Meta AI'ı gizle";
+"Hide metrics" = "İstatistikleri gizle";
+"Hide notes tray" = "Notlar bölümünü gizle";
+"Hide on scroll" = "Kaydırırken gizle";
+"Hide TestFlight popup" = "TestFlight açılır penceresini gizle";
+"Hide trending searches" = "Trend aramaları gizle";
+"Hide UI on capture" = "Ekran kaydında arayüzü gizle";
+"Hides all suggested users for you to follow, outside your feed" = "Akışınız dışında takip etmeniz önerilen tüm kullanıcıları gizler";
+"Hides like/comment/share counts on posts and reels" = "Gönderilerde ve reels'te beğeni/yorum/paylaşım sayılarını gizler";
+"Hides the friends map icon in the notes tray" = "Notlar bölümündeki arkadaş haritası simgesini gizler";
+"Hides the grid of suggested posts on the explore/search tab" = "Keşfet/arama sekmesindeki önerilen gönderiler ızgarasını gizler";
+"Hides the meta ai buttons/functionality within the app" = "Uygulama içindeki Meta AI butonlarını/işlevlerini gizler";
+"Hides the notes tray in the DM inbox" = "DM gelen kutusundaki notlar bölümünü gizler";
+"Hides the suggested broadcast channels in direct messages" = "Direkt mesajlardaki önerilen yayın kanallarını gizler";
+"Hides the trending searches under the explore search bar" = "Keşfet arama çubuğunun altındaki trend aramaları gizler";
+"Hold down on the Instagram logo to change the app icon" = "Uygulama simgesini değiştirmek için Instagram logosuna basılı tutun";
+"Lets the photo sticker picker show videos too, not just photos" = "Foto etiketi seçicisinin sadece fotoğrafları değil videoları da göstermesini sağlar";
+"Liquid glass tab bar" = "Liquid glass sekme çubuğu";
+"Force liquid glass off" = "Liquid glass'ı zorla kapat";
+"Force progressive blur" = "Aşamalı bulanıklığı zorla";
+"Keeps the iOS 26 scroll-edge blur visible instead of letting it fade out" = "iOS 26 kaydırma kenarı bulanıklığının kaybolmasını engelleyip görünür tutar";
+"Live" = "Canlı";
+"Long press on the eyedropper tool in stories to customize the text color more precisely" = "Metin rengini daha hassas ayarlamak için hikayelerdeki damlalık aracına uzun basın";
+"Long-press the color wheel in sticker editors to pick any solid or gradient color" = "Düz veya gradyan herhangi bir renk seçmek için etiket düzenleyicilerindeki renk çarkına uzun basın";
+"Long-press the heart button in a live to hide or show the comments" = "Yorumları gizlemek veya göstermek için canlı yayındaki kalp butonuna uzun basın";
+"Long-press the search tab to open a copied Instagram link" = "Kopyalanmış bir Instagram bağlantısını açmak için arama sekmesine uzun basın";
+"Master switch. When off, all per-surface toggles below are ignored." = "Ana anahtar. Kapalıyken aşağıdaki yüzey başına tüm anahtarlar yok sayılır.";
+"No suggested chats" = "Önerilen sohbetleri kapat";
+"No suggested users" = "Önerilen kullanıcıları kapat";
+"Notes" = "Notlar";
+"Open app icon picker" = "Uygulama simgesi seçicisini aç";
+"Open link from clipboard" = "Panodan bağlantı aç";
+"Open links in external browser" = "Bağlantıları harici tarayıcıda aç";
+"Opens links in Safari instead of Instagram's in-app browser" = "Bağlantıları Instagram'ın uygulama içi tarayıcısı yerine Safari'de açar";
+"Privacy" = "Gizlilik";
+"Removes ads across enabled surfaces" = "Etkin yüzeylerde reklamları kaldırır";
+"Removes igsh, utm_source, and other tracking parameters from shared links" = "Paylaşılan bağlantılardan igsh, utm_source ve diğer takip parametrelerini kaldırır";
+"Removes Instagram tracking wrappers (l.instagram.com) and UTM/fbclid params from URLs" = "URL'lerden Instagram takip yönlendirmelerini (l.instagram.com) ve UTM/fbclid parametrelerini kaldırır";
+"Replace domain in shared links" = "Paylaşılan bağlantılarda alan adını değiştir";
+"Replace IG's relative timestamps (\"3d ago\") with a custom format. Toggle which surfaces it applies to inside the picker." = "IG'nin göreli zaman damgalarını (\"3 gün önce\") özel bir biçimle değiştirir. Seçici içinden hangi yüzeylere uygulanacağını açıp kapatın.";
+"Rewrites copied/shared links to use an embed-friendly domain for previews in Discord, Telegram, etc." = "Kopyalanan/paylaşılan bağlantıları Discord, Telegram vb. önizlemeler için gömüme uygun bir alan adı kullanacak şekilde yeniden yazar.";
+"Search bars will no longer save your recent searches" = "Arama çubukları artık son aramalarınızı kaydetmeyecek";
+"Selected" = "Seçili";
+"Sharing" = "Paylaşım";
+"Shopping" = "Alışveriş";
+"Skip sensitive content covers" = "Hassas içerik kapaklarını atla";
+"Solid color" = "Düz renk";
+"Sponsored posts in main, contextual, video, and chaining feeds" = "Ana, bağlamsal, video ve zincirleme akışlardaki sponsorlu gönderiler";
+"Sponsored posts on the explore grid" = "Keşfet ızgarasındaki sponsorlu gönderiler";
+"Sponsored reels in the sundial feed" = "Sundial akışındaki sponsorlu reels'ler";
+"Start" = "Başlangıç";
+"Story ads and sponsored entries in the story tray" = "Hikaye tepsisindeki hikaye reklamları ve sponsorlu girişler";
+"Strip tracking from links" = "Bağlantılardan takip verilerini kaldır";
+"Strip tracking params" = "Takip parametrelerini kaldır";
+"Suppresses the \"It's time to update Instagram Beta\" nag" = "\"It's time to update Instagram Beta\" bildirimini bastırır";
+"Tap to apply" = "Uygulamak için dokun";
+"The selected icon will be saved and shown here the next time you open this page." = "Seçilen simge kaydedilecek ve bu sayfayı bir sonraki açışınızda burada gösterilecek.";
+"Toggle live comments" = "Canlı yorumları aç/kapat";
+"Use detailed color picker" = "Gelişmiş renk seçici kullan";
+"Used across feed, stories, reels, and DMs." = "Akış, hikayeler, Reels ve DM'lerde kullanılır";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DATE FORMAT                                //
+// Settings → Date format tab                                               //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld day ago" = "%ld gün önce";
+"%ld days ago" = "%ld gün önce";
+"%ld hour ago" = "%ld saat önce";
+"%ld hours ago" = "%ld saat önce";
+"%ld minute ago" = "%ld dakika önce";
+"%ld minutes ago" = "%ld dakika önce";
+"%ld week ago" = "%ld hafta önce";
+"%ld weeks ago" = "%ld hafta önce";
+"%ldd" = "%ldg";
+"%ldh" = "%ldsa";
+"%ldm" = "%lddk";
+"%ldw" = "%ldh";
+"Always ask" = "Her zaman sor";
+"Balanced" = "Dengeli";
+"Block all" = "Tümünü engelle";
+"Block selected" = "Seçilenleri engelle";
+"Button" = "Buton";
+"Date format — %@" = "Tarih biçimi — %@";
+"Default" = "Varsayılan";
+"Disabled" = "Kapalı";
+"Download and share" = "İndir ve paylaş";
+"Download to Photos" = "Fotoğraflar'a indir";
+"Save with music" = "Müzikle kaydet";
+"Gallery with music" = "Müzikle galeriye";
+"Photo with music" = "Müzikli fotoğraf";
+"Enabled" = "Açık";
+"Expand" = "Genişlet";
+"Explore" = "Keşfet";
+"Fast" = "Hızlı";
+"Feed" = "Akış";
+"Feed posts" = "Akış gönderileri";
+"High" = "Yüksek";
+"Inbox" = "Gelen kutusu";
+"just now" = "az önce";
+"Low" = "Düşük";
+"Max" = "Maksimum";
+"Medium" = "Orta";
+"Mute/Unmute" = "Sesi kapat/aç";
+"Notes, comments, stories" = "Notlar, yorumlar, hikayeler";
+"now" = "şimdi";
+"Open menu" = "Menüyü aç";
+"Pause/Play" = "Duraklat/Oynat";
+"Profile" = "Profil";
+"Quality" = "Kalite";
+"Reels" = "Reels";
+"Requires restart" = "Yeniden başlatma gerekir";
+"Save to Photos" = "Fotoğraflar'a kaydet";
+"Share sheet" = "Paylaşım sayfası";
+"Standard" = "Standart";
+"Toggle" = "Aç/Kapat";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   FEED                                   //
+// Settings → Feed tab                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"Action button" = "Eylem butonu";
+"Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "Hikaye çubuğu uzun basma menülerine 'Profil fotoğrafını görüntüle' ve 'Kapağı görüntüle' seçeneklerini ekler";
+"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Her akış gönderisinin altına indirme/paylaşma/kopyalama/genişletme/yeniden paylaşma seçenekleri olan bir Instagram X eylem butonu ekler. Varsayılan olarak dokunma menüyü açar; dokunma davranışını aşağıdan değiştirin.";
+"Choose Instagram's default feed or force the Following feed" = "Instagram'ın varsayılan akışını seçin veya Takip Edilenler akışını zorlayın";
+"Main feed" = "Ana akış";
+"Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "Akışın ne zaman ve nasıl yenileneceğini kontrol eder. Arka plan yenileme, yaklaşık 10 dakika sonra uygulamaya geri dönüldüğünde gerçekleşir. Ana sayfa butonu yenilemesi, zaten Ana Sayfa sekmesindeyken sekmeye dokunulduğunda gerçekleşir.";
+"Default tap action" = "Varsayılan dokunma eylemi";
+"Disable background refresh" = "Arka plan yenilemeyi kapat";
+"Disable home button refresh" = "Ana sayfa butonu yenilemeyi kapat";
+"Disable home button scroll" = "Ana sayfa butonu kaydırmasını kapat";
+"Disable video autoplay" = "Video otomatik oynatmayı kapat";
+"Hide" = "Gizle";
+"Hide entire feed" = "Tüm akışı gizle";
+"Hide repost button" = "Yeniden paylaş butonunu gizle";
+"Hide stories tray" = "Hikaye çubuğunu gizle";
+"Hide suggested stories" = "Önerilen hikayeleri gizle";
+"Hide story highlights" = "Öne çıkan hikayeleri gizle";
+"Removes resurfaced highlights from the stories tray in feed" = "Akıştaki hikaye şeridinde yeniden beliren öne çıkanları kaldırır";
+"Hides suggested accounts" = "Önerilen hesapları gizler";
+"Hides suggested reels" = "Önerilen reels'i gizler";
+"Hides suggested threads posts" = "Önerilen Threads gönderilerini gizler";
+"Hides the repost button on feed posts" = "Akış gönderilerindeki yeniden paylaş butonunu gizler";
+"Hides the story tray at the top" = "Üstteki hikaye çubuğunu gizler";
+"Inserts a button row below like/comment/share on each post" = "Her gönderide beğen/yorum/paylaş altına bir buton satırı ekler";
+"Long press on media to expand in full-screen viewer" = "Medyayı tam ekran görüntüleyicide açmak için uzun basın";
+"Start media muted" = "Medyayı sessiz başlat";
+"Expanded videos open with sound off" = "Genişletilen videolar sesi kapalı açılır";
+"Enhanced media resolution" = "Geliştirilmiş medya çözünürlüğü";
+"Media saving" = "Medya kaydetme";
+"Spoof device profile so IG serves higher-quality images" = "IG'nin daha yüksek kaliteli görseller sunması için cihaz profilini taklit eder";
+"Media" = "Medya";
+"Media zoom" = "Medya yakınlaştırma";
+"No suggested for you" = "Sana önerilenler yok";
+"No suggested posts" = "Önerilen gönderi yok";
+"No suggested reels" = "Önerilen reels yok";
+"No suggested threads" = "Önerilen Threads yok";
+"Prevents feed from reloading when returning from background" = "Arka plandan dönüldüğünde akışın yeniden yüklenmesini engeller";
+"Prevents videos from playing automatically" = "Videoların otomatik oynatılmasını engeller";
+"Refresh" = "Yenile";
+"Removes all content from your home feed" = "Ana sayfa akışınızdaki tüm içeriği kaldırır";
+"Removes suggested accounts from the stories tray" = "Hikaye çubuğundaki önerilen hesapları kaldırır";
+"Removes suggested posts" = "Önerilen gönderileri kaldırır";
+"Scroll to top without refreshing when tapping Home" = "Ana Sayfa'ya dokununca yenilemeden en üste kaydır";
+"Show action button" = "Eylem butonunu göster";
+"Show date" = "Tarihi göster";
+"Stories tray" = "Hikaye çubuğu";
+"Tapping Home does nothing when already on feed" = "Zaten akıştayken Ana Sayfa'ya dokunmak hiçbir şey yapmaz";
+"Tray long-press actions" = "Çubuk uzun basma eylemleri";
+"Composer doesn't accept GIFs" = "Yazma alanı GIF kabul etmiyor";
+"Copy GIF link" = "GIF bağlantısını kopyala";
+"Copy image link" = "Görsel bağlantısını kopyala";
+"Custom GIF in comments" = "Yorumlarda özel GIF";
+"Favorite GIFs" = "Favori GIF'ler";
+"Long-press a GIF in the picker to pin it — favorites show first" = "Sabitlemek için seçicide bir GIF'e basılı tutun — favoriler önce gösterilir";
+"Added to favorites" = "Favorilere eklendi";
+"Removed from favorites" = "Favorilerden çıkarıldı";
+"Failed to build GIF model" = "GIF modeli oluşturulamadı";
+"GIF link copied" = "GIF bağlantısı kopyalandı";
+"Image" = "Görsel";
+"Image link copied" = "Görsel bağlantısı kopyalandı";
+"Invalid Giphy URL" = "Geçersiz Giphy URL'si";
+"Long-press the GIF button to paste any Giphy URL" = "Herhangi bir Giphy URL'sini yapıştırmak için GIF düğmesine uzun basın";
+"Paste Giphy Link" = "Giphy bağlantısı yapıştır";
+"Paste a giphy.com URL or media ID" = "Bir giphy.com URL'si ya da medya kimliği yapıştırın";
+"Send" = "Gönder";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  REELS                                   //
+// Settings → Reels tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Reels yan çubuğunun üstüne kapak görüntüleme/indirme/paylaşma/kopyalama/genişletme/yeniden paylaşma seçenekleri olan bir Instagram X eylem butonu ekler. Varsayılan olarak dokunma menüyü açar; dokunma davranışını aşağıdan değiştirin.";
+"Always show progress scrubber" = "İlerleme çubuğunu her zaman göster";
+"Change what happens when you tap on a reel" = "Bir reel'e dokunduğunuzda ne olacağını değiştirir";
+"Confirm reel refresh" = "Reels yenilemeyi onayla";
+"Custom speed" = "Özel hız";
+"Disable auto-unmuting reels" = "Reels otomatik sesi açmayı kapat";
+"Disable scrolling reels" = "Reels kaydırmayı kapat";
+"Disable tab button refresh" = "Sekme butonu yenilemeyi kapat";
+"Doom scrolling limit" = "Sonsuz kaydırma limiti";
+"e.g. 1.75" = "örn. 1.75";
+"Enter a value between 0.5 and 2.0" = "0.5 ile 2.0 arasında bir değer girin";
+"Forces the progress bar to appear on every reel" = "İlerleme çubuğunu her reel'de görünmeye zorlar";
+"Hide \"Made with Edits\" badge" = "\"Made with Edits\" rozetini gizle";
+"Hide friends avatars" = "Arkadaş avatarlarını gizle";
+"Hide reels header" = "Reels üst çubuğunu gizle";
+"Hide social context overlay" = "Sosyal bağlam katmanını gizle";
+"Hides the avatar bubbles next to the Friends tab in reels" = "Reels'taki Arkadaşlar sekmesinin yanındaki avatar baloncuklarını gizler";
+"Hides the Edits app promo pill on reels" = "Reels'taki Edits uygulaması tanıtım hapını gizler";
+"Hides the floating overlay showing who reposted or commented on reels" = "Reels'ta kimin yeniden paylaştığını veya yorum yaptığını gösteren yüzen katmanı gizler";
+"Hides the repost button on the reels sidebar" = "Reels yan çubuğundaki yeniden paylaş butonunu gizler";
+"Hides the top navigation bar when watching reels" = "Reels izlerken üst gezinme çubuğunu gizler";
+"Hiding" = "Gizleme";
+"Hold the 3-dot on any reel to open speed picker" = "Hız seçiciyi açmak için herhangi bir reel'deki 3 noktaya basılı tutun";
+"IG default" = "IG varsayılanı";
+"Limits" = "Limitler";
+"Limits the amount of reels available to scroll at any given time, and prevents refreshing" = "Herhangi bir anda kaydırılabilecek reels miktarını sınırlar ve yenilemeyi engeller";
+"Only loads %@ %@" = "Yalnızca %@ %@ yükler";
+"Places a button above the like/comment/share column on each reel" = "Her reel'de beğeni/yorum/paylaş sütununun üstüne bir buton yerleştirir";
+"Playback speed" = "Oynatma hızı";
+"Prevent doom scrolling" = "Sonsuz kaydırmayı engelle";
+"Prevents reels from being scrolled to the next video" = "Reels'in sonraki videoya kaydırılmasını engeller";
+"Prevents reels from unmuting when the volume/silent button is pressed" = "Ses/sessiz butonuna basıldığında reels'in sesinin açılmasını engeller";
+"RyukGram" = "Instagram X";
+"Shows an alert when you trigger a reels refresh" = "Reels yenilemesi tetiklediğinizde bir uyarı gösterir";
+"Shows buttons to reveal and auto-fill the password on locked reels" = "Kilitli reels'te şifreyi göstermek ve otomatik doldurmak için butonlar gösterir";
+"Swipe a reel left to open the author's profile" = "Bir reel'i sola kaydırarak yazarının profilini aç";
+"Swipe left to profile" = "Sola kaydırarak profili aç";
+"Tap Controls" = "Dokunma kontrolleri";
+"Tap to mute on photo reels" = "Fotoğraf reels'te dokunarak sesi kapat";
+"Tapping the Reels tab while on reels does nothing" = "Reels'teyken Reels sekmesine dokunmak hiçbir şey yapmaz";
+"Unlock password-locked reels" = "Şifreli reels'leri aç";
+"When pause mode is on, tap on photo reels toggles audio instead of the native pause gesture" = "Duraklatma modu açıkken fotoğraf reels'e dokunmak, yerel duraklatma hareketi yerine sesi açıp kapatır";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 PROFILE                                  //
+// Settings → Profile tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a button to filter & sort any followers/following list. Resets when you leave." = "Herhangi bir takipçi/takip listesini filtrelemek ve sıralamak için bir düğme ekler. Çıkınca sıfırlanır.";
+"Adds a view option to the highlight long-press menu to open the cover in full-screen" = "Öne çıkanlar uzun basma menüsüne kapağı tam ekranda açmak için görüntüleme seçeneği ekler";
+"Adds the like count to each card" = "Her karta beğeni sayısını ekler";
+"Adds the upload date to each card" = "Her karta yükleme tarihini ekler";
+"Copy note on long press" = "Uzun basınca notu kopyala";
+"Extra stats shown on each post and reel card in profile grids." = "Profil ızgaralarındaki her gönderi ve reel kartında gösterilen ek istatistikler.";
+"Fake follower count" = "Sahte takipçi sayısı";
+"Fake following count" = "Sahte takip edilen sayısı";
+"Fake post count" = "Sahte gönderi sayısı";
+"Fake profile stats" = "Sahte profil istatistikleri";
+"Fake verified badge" = "Sahte doğrulama rozeti";
+"Fetch missing counts" = "Eksik sayıları getir";
+"Filter & sort lists" = "Listeleri filtrele ve sırala";
+"Follow indicator" = "Takip göstergesi";
+"Follower & following lists" = "Takipçi ve takip listeleri";
+"Follower count" = "Takipçi sayısı";
+"Following count" = "Takip edilen sayısı";
+"Long press a profile picture to open it in full-screen with zoom, share, and save" = "Profil fotoğrafını yakınlaştırma, paylaşma ve kaydetme seçenekleriyle tam ekranda açmak için uzun basın";
+"Long press the note bubble on a profile to copy the text" = "Metni kopyalamak için profildeki not balonuna uzun basın";
+"Long press to download directly (ignored when zoom is on)" = "Doğrudan indirmek için uzun basın (yakınlaştırma açıkken yok sayılır)";
+"Long-press gestures on profile elements — kept separate from the per-feature action buttons." = "Profil öğelerindeki uzun basma hareketleri — özellik başına eylem butonlarından ayrı tutulur.";
+"Only affects your own profile header. Other users see the real numbers." = "Yalnızca kendi profil başlığınızı etkiler. Diğer kullanıcılar gerçek sayıları görür.";
+"Override view count" = "Görüntülenme sayısını geçersiz kıl";
+"Post count" = "Gönderi sayısı";
+"Profile card details" = "Profil kartı detayları";
+"Profile stats" = "Profil istatistikleri";
+"Render counts in shortened format." = "Sayıları kısaltılmış biçimde göster.";
+"Save profile picture" = "Profil fotoğrafını kaydet";
+"Short numbers" = "Kısa sayılar";
+"Show a checkmark next to your name on your own profile" = "Kendi profilinizde adınızın yanında onay işareti gösterir";
+"Show full follower count" = "Tam takipçi sayısını göster";
+"Show full post count" = "Tam gönderi sayısını göster";
+"Show like count" = "Beğeni sayısını göster";
+"Show the custom number set below" = "Aşağıda ayarlanan özel sayıyı gösterir";
+"Show the exact number instead of a shortened one" = "Kısaltılmış sayı yerine tam sayıyı gösterir";
+"Show upload date" = "Yüklenme tarihini göster";
+"Shows whether the profile user follows you" = "Profil kullanıcısının sizi takip edip etmediğini gösterir";
+"Tap to set" = "Ayarlamak için dokun";
+"Uses Instagram's API. May hit rate limits." = "Instagram API'sini kullanır. Hız limitlerine takılabilir.";
+"View highlight cover" = "Öne çıkan kapak görselini görüntüle";
+"Zoom profile photo" = "Profil fotoğrafını yakınlaştır";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            SAVING & DOWNLOADS                            //
+// Settings → Saving tab                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Active, queued, and finished downloads" = "Etkin, sırada bekleyen ve tamamlanan indirmeler";
+"Auto-retry attempts" = "Otomatik yeniden deneme sayısı";
+"Auto-retry failed downloads" = "Başarısız indirmeleri otomatik yeniden dene";
+"Confirm before download" = "İndirmeden önce onayla";
+"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Kullanımdan kaldırıldı. Instagram X eylem butonu (Akış/Reels/Hikayeler içinde özellik bazında yapılandırılır) medya indirmenin yeni yoludur. Bu ana anahtarı yalnızca medyanın üzerinde eski çok parmaklı uzun basma yöntemini tercih ediyorsanız etkinleştirin.";
+"Don't pause downloads, encoding, or profile scans when you leave the app" = "Uygulamadan çıktığınızda indirmeleri, kodlamayı veya profil taramalarını duraklatma";
+"Download queue" = "İndirme kuyruğu";
+"Downloads" = "İndirmeler";
+"Downloads with %@ %@" = "%@ %@ ile indirir";
+"Enable long-press gesture" = "Uzun basma hareketini etkinleştir";
+"Finger count for long-press" = "Uzun basma için parmak sayısı";
+"How many downloads run at once — extras wait in line and start as slots free up. Failed downloads retry automatically on network errors. Open the manager to watch, cancel, or retry downloads." = "Aynı anda kaç indirmenin çalışacağı — ekstralar sırada bekler ve yuvalar boşaldıkça başlar. Başarısız indirmeler ağ hatalarında otomatik olarak yeniden denenir. İndirmeleri izlemek, iptal etmek veya yeniden denemek için yöneticiyi açın.";
+"Keep running in background" = "Arka planda çalışmaya devam et";
+"Legacy long-press gesture" = "Eski uzun basma hareketi";
+"Long-press hold time" = "Uzun basma bekleme süresi";
+"Master toggle for the deprecated gesture workflow (off by default)" = "Kullanımdan kaldırılan hareket iş akışı için ana anahtar (varsayılan olarak kapalı)";
+"Max simultaneous downloads" = "Maks eşzamanlı indirme";
+"Open download manager" = "İndirme yöneticisini aç";
+"Press finger(s) for %@ %@" = "%@ %@ boyunca parmakla basın";
+"Retry automatically when a download drops on a network error" = "Bir indirme ağ hatasıyla düştüğünde otomatik olarak yeniden dene";
+"Route saves into a custom album in Photos instead of the camera roll root" = "Kayıtları film rulosu kökü yerine Fotoğraflar'da özel bir albüme yönlendir";
+"Run up to %@ %@ at once" = "Aynı anda en fazla %@ %@ çalıştır";
+"Save action" = "Kaydetme eylemi";
+"Save to dedicated album" = "Özel albüme kaydet";
+"Show a confirmation dialog before starting a download" = "İndirme başlamadan önce onay iletişim kutusu göster";
+"Try %@ more %@ before giving up" = "Vazgeçmeden önce %@ kez daha %@ dene";
+"What happens after the gesture downloads" = "Hareket indirmeden sonra ne olacağı";
+"When \"Save to dedicated album\" is on, downloads and share-sheet \"Save to Photos\" picks are routed into a named album in your Photos library. Tap \"Album name\" to change it." = "\"Özel albüme kaydet\" açıkken, indirmeler ve paylaşım sayfası \"Fotoğraflar'a kaydet\" seçimleri Fotoğraflar kitaplığınızdaki adlandırılmış bir albüme yönlendirilir. Değiştirmek için \"Albüm adı\"na dokunun.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         DOWNLOAD QUEUE & MANAGER                         //
+// Download queue settings + the in-app download manager:                   //
+// active/queued/finished lists, concurrency, auto-retry, background.       //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu failed" = "%lu başarısız";
+"%lu of %lu done" = "%lu / %lu tamamlandı";
+"%lu saved, %lu failed" = "%lu kaydedildi, %lu başarısız";
+"Active" = "Etkin";
+"Auto-retry" = "Otomatik yeniden dene";
+"Clear completed" = "Tamamlananları temizle";
+"Completed" = "Tamamlandı";
+"Download settings" = "İndirme ayarları";
+"Downloading %lu items" = "%lu öğe indiriliyor";
+"Downloading…" = "İndiriliyor…";
+"Encoding %d%%" = "Kodlanıyor %d%%";
+"Encoding…" = "Kodlanıyor…";
+"Extra downloads wait in line and start as slots free up." = "Ekstra indirmeler sırada bekler ve yuvalar boşaldıkça başlar.";
+"No downloads yet" = "Henüz indirme yok";
+"Preview" = "Önizleme";
+"Queued" = "Sırada";
+"Redownload" = "Yeniden indir";
+"Retry" = "Yeniden dene";
+"Retrying…" = "Yeniden deneniyor…";
+"Waiting for connection…" = "Bağlantı bekleniyor…";
+"Waiting…" = "Bekleniyor…";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 STORIES                                  //
+// Settings → Stories tab                                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Hikayelerde göz butonunun yanına indirme/paylaşma/kopyalama/genişletme/yeniden paylaşma/bahsedilenleri görüntüleme seçenekleri olan bir Instagram X eylem butonu ekler. Varsayılan olarak dokunma menüyü açar; dokunma davranışını aşağıdan değiştirin.";
+"Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "Hikaye katmanına sesi açıp kapatmak için hoparlör butonu ekler. 3 nokta menüsünde de bulunur";
+"Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "Hikaye katmanlarına göz butonunu ekler. Kapalıyken görüldü engelleme buton olmadan açık kalır";
+"Advance on story like" = "Hikaye beğenilince ilerle";
+"Advance on story reply" = "Hikayeye yanıt verince ilerle";
+"Advance when marking as seen" = "Görüldü olarak işaretleyince ilerle";
+"Audio" = "Ses";
+"Block all: all stories blocked — listed users are exceptions.\nBlock selected: only listed users are blocked — everything else is normal.\nBoth lists are saved independently." = "Tümünü engelle: tüm hikayeler engellenir — listedeki kullanıcılar istisnadır.\nSeçilenleri engelle: yalnızca listedeki kullanıcılar engellenir — diğer her şey normaldir.\nİki liste bağımsız olarak kaydedilir.";
+"Blocking mode" = "Engelleme modu";
+"Button = single-tap mark seen. Toggle = tap toggles story read receipts on/off (eye fills blue when on)" = "Buton = tek dokunuşta görüldü işaretler. Anahtar = dokunma hikaye okundu bilgisini açıp kapatır (açıkken göz mavi dolar)";
+"Disable story seen receipt" = "Hikaye görüldü bilgisini kapat";
+"Enable story user list" = "Hikaye kullanıcı listesini etkinleştir";
+"Hides the notification for others when you view their story" = "Hikayelerini görüntülediğinizde başkalarına giden bildirimi gizler";
+"Inserts a button next to the seen/eye button on story overlays" = "Hikaye katmanlarında görüldü/göz butonunun yanına bir buton ekler";
+"Keep stories visually seen locally" = "Hikayeleri yerelde görsel olarak görüldü tut";
+"Liking a story automatically advances to the next one after a short delay" = "Bir hikayeyi beğenmek kısa bir gecikmeden sonra otomatik olarak sonrakine ilerletir";
+"Manage list" = "Listeyi yönet";
+"Manage list (%lu)" = "Listeyi yönet (%lu)";
+"Manual seen button mode" = "Manuel görüldü butonu modu";
+"Mark seen on story like" = "Hikaye beğenisinde görüldü işaretle";
+"Mark seen on story reply" = "Hikaye yanıtında görüldü işaretle";
+"Marks a story as seen the moment you tap the heart, even with seen blocking on" = "Görüldü engelleme açık olsa bile kalbe dokunduğunuz anda hikayeyi görüldü olarak işaretler";
+"Marks a story as seen when you send a reply or emoji reaction, even with seen blocking on" = "Görüldü engelleme açık olsa bile yanıt veya emoji tepkisi gönderdiğinizde hikayeyi görüldü olarak işaretler";
+"Marks stories as seen locally (grey ring) while still blocking the seen receipt on the server" = "Sunucuda görüldü bilgisini engellemeye devam ederken hikayeleri yerelde görüldü (gri halka) işaretler";
+"Master toggle. When off, the list is ignored" = "Ana anahtar. Kapalıyken liste yok sayılır";
+"Playback" = "Oynatma";
+"Search, sort, swipe to remove" = "Ara, sırala, kaldırmak için kaydır";
+"Seen receipts" = "Görüldü bilgileri";
+"Sending a reply or emoji reaction automatically advances to the next story" = "Yanıt veya emoji tepkisi göndermek otomatik olarak sonraki hikayeye ilerletir";
+"Adds a 'View mentions' entry to the action button menu and story 3-dot menu" = "Eylem düğmesi menüsüne ve hikaye 3 nokta menüsüne 'Bahsetmeleri görüntüle' girişi ekler";
+"Mentions overlay button" = "Bahsetmeler katman düğmesi";
+"Mentions count badge" = "Bahsetme sayısı rozeti";
+"Adds a button next to the action/eye button on the story overlay. Only appears when the current story has mentions or shared posts/reels" = "Hikaye katmanındaki eylem/göz düğmesinin yanına bir düğme ekler. Yalnızca geçerli hikayede bahsetmeler veya paylaşılan gönderiler/Reels olduğunda görünür";
+"Shows the number of unique mentioned accounts as a red badge on the overlay button" = "Bindirme düğmesinde benzersiz bahsedilen hesap sayısını kırmızı bir rozetle gösterir";
+"Hide stories midcards" = "Hikâye orta kartlarını gizle";
+"Removes the Trending and Music promo cards from the stories tray" = "Hikâye tepsisindeki Trend ve Müzik tanıtım kartlarını kaldırır";
+"Stickers" = "Çıkartmalar";
+"Peek at poll/quiz/slider results before interacting — you can still tap to vote normally. Force legacy adds the Quiz and Reveal stickers back to the story composer." = "Etkileşime geçmeden önce anket/quiz/kaydırıcı sonuçlarına göz atın — normal şekilde oy vermek için yine dokunabilirsiniz. “Force legacy”, Quiz ve Reveal etiketlerini hikaye düzenleyiciye geri ekler.";
+"Peek at poll/quiz/slider results on reels before interacting — you can still tap to vote normally." = "Etkileşmeden önce reels üzerindeki anket/quiz/kaydırıcı sonuçlarına göz atın — yine normal şekilde oy vermek için dokunabilirsiniz.";
+"Force legacy stickers in tray" = "Eski etiketleri çubukta zorla göster";
+"Adds Quiz and Reveal stickers back to the picker" = "Quiz ve Reveal etiketlerini seçiciye geri ekler";
+"Bypass Reveal sticker" = "Reveal etiketini atla";
+"Skip the DM-to-reveal step on stories with a Reveal sticker" = "Reveal etiketli hikayelerde DM ile gösterme adımını atla";
+"Show quiz answer" = "Quiz yanıtını göster";
+"Circle the correct option on quiz stickers, or the leading option on polls" = "Quiz çıkartmalarında doğru seçeneği veya anketlerde önde olan seçeneği daire içine alır";
+"Show poll vote counts" = "Anket oy sayılarını göster";
+"Show vote tallies on poll options and slider count/average before you vote" = "Oy vermeden önce anket seçeneklerindeki oy toplamlarını ve kaydırıcı sayı/ortalamasını göster";
+"Stop story auto-advance" = "Hikaye otomatik ilerlemeyi durdur";
+"Stories" = "Hikayeler";
+"Stories won't auto-skip to the next one when the timer ends. Tap to advance manually" = "Sayaç bitince hikayeler otomatik olarak sonrakine geçmez. Manuel ilerlemek için dokunun";
+"Story audio toggle" = "Hikaye sesi anahtarı";
+"Story user list" = "Hikaye kullanıcı listesi";
+"Tapping the eye button to mark a story as seen advances to the next story automatically" = "Bir hikayeyi görüldü işaretlemek için göz butonuna dokunmak otomatik olarak sonraki hikayeye ilerletir";
+"This will send a story view receipt." = "Hikaye için görüldü bilgisi gönderilecek.";
+"View story mentions" = "Hikaye bahsetmelerini görüntüle";
+"Which stories get seen-receipt blocking" = "Hangi hikayelerde görüldü bilgisi engellensin";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — READ RECEIPTS                         //
+// Settings → Read receipts tab                                             //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds the eye button to DM threads. Off keeps receipt blocking on without the button" = "DM konuşmalarına göz butonunu ekler. Kapalıyken okundu bilgisi engelleme buton olmadan açık kalır";
+"Auto mark seen on interact" = "Etkileşimde otomatik görüldü işaretle";
+"Auto mark seen on typing" = "Yazarken otomatik görüldü işaretle";
+"Blocks the auto read receipt — mark seen happens only when you choose" = "Otomatik okundu bilgisini engeller — görüldü işareti yalnızca siz seçtiğinizde gönderilir";
+"Control when messages are marked as seen" = "Mesajların ne zaman görüldü işaretleneceğini kontrol eder";
+"How the seen button behaves" = "Görüldü butonunun nasıl davranacağı";
+"Manually mark messages as seen" = "Mesajları manuel olarak görüldü işaretle";
+"Mark as seen?" = "Görüldü olarak işaretlensin mi?";
+"Mark as viewed?" = "Görüntülendi olarak işaretlensin mi?";
+"Marks messages as seen when you reply, react or send media" = "Yanıtladığında, tepki verdiğinde veya medya gönderdiğinde mesajları görüldü işaretler";
+"Marks messages as seen when you start typing" = "Yazmaya başladığınızda mesajları görüldü işaretler";
+"Read receipt mode" = "Okundu bilgisi modu";
+"Read receipts" = "Okundu bilgileri";
+"Show seen button" = "Görüldü butonunu göster";
+"This will send a read receipt for the latest messages." = "En son mesajlar için okundu bilgisi gönderilecek.";
+"This will send a view receipt for the current message." = "Bu mesaj için görüntülendi bilgisi gönderilecek.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         MESSAGES — KEEP DELETED                          //
+// Settings → Keep deleted messages tab                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Activity" = "Etkinlik";
+"Adds a 'Download' option to the long-press menu on voice messages to save them as M4A audio" = "Sesli mesajları M4A ses olarak kaydetmek için uzun basma menüsüne 'İndir' seçeneği ekler";
+"Allows typing and sending DMs longer than Instagram's limit" = "Instagram'ın sınırından daha uzun mesajlar yazıp göndermenize izin verir";
+"Adds a 'Send File' option to the plus menu in DMs. Supported file types may be limited by Instagram" = "DM'lerde artı menüsüne 'Dosya Gönder' seçeneği ekler. Desteklenen dosya türleri Instagram tarafından sınırlanabilir";
+"Adds an 'Audio File' option to the plus menu in DMs to send audio files as voice messages" = "Ses dosyalarını sesli mesaj olarak göndermek için DM'lerde artı menüsüne 'Ses Dosyası' seçeneği ekler";
+"Adds copy text, download GIF/audio to the note long-press menu" = "Not uzun basma menüsüne metin kopyalama, GIF/ses indirme seçenekleri ekler";
+"Block all: all chats blocked — listed chats are exceptions.\nBlock selected: only listed chats are blocked — everything else is normal.\nBoth lists are saved independently. Long-press a chat in the inbox to add or remove." = "Tümünü engelle: tüm sohbetler engellenir — listedeki sohbetler istisnadır.\nSeçilenleri engelle: yalnızca listedeki sohbetler engellenir — diğer her şey normaldir.\nİki liste bağımsız olarak kaydedilir. Eklemek veya kaldırmak için gelen kutusunda bir sohbete uzun basın.";
+"Block keep-deleted for excluded chats" = "Hariç tutulan sohbetlerde silinenleri tutmayı engelle";
+"Block keep-deleted for unlisted chats" = "Listelenmemiş sohbetlerde silinenleri tutmayı engelle";
+"Bypass DM character limit" = "Mesaj karakter sınırını atla";
+"Chat list" = "Sohbet listesi";
+"Confirmation dialog before clearing preserved messages" = "Korunan mesajları temizlemeden önce onay iletişim kutusu";
+"Copies note text directly on long press without opening the menu" = "Uzun basınca menüyü açmadan not metnini doğrudan kopyalar";
+"Copy text on hold" = "Basılı tutunca metni kopyala";
+"Adds Background, Text and Emoji buttons to the note editor" = "Not düzenleyiciye Arka Plan, Metin ve Emoji düğmeleri ekler";
+"Custom note themes" = "Özel not temaları";
+"Disable vanish mode swipe" = "Kaybolma modu kaydırmasını kapat";
+"Disable typing status" = "Yazıyor durumunu kapat";
+"Disable view-once limitations" = "Bir kez görüntüleme sınırlamalarını kapat";
+"Download voice messages" = "Sesli mesajları indir";
+"Enable chat list" = "Sohbet listesini etkinleştir";
+"Enable note theming" = "Not temalarını etkinleştir";
+"Enables the notes theme picker" = "Not tema seçicisini etkinleştirir";
+"Files" = "Dosyalar";
+"Full last active date" = "Tam son aktiflik tarihi";
+"Hide reels blend button" = "Reels blend butonunu gizle";
+"Hide send to group chat" = "Grup sohbetine gönder seçeneğini gizle";
+"Pin recipients on long-press" = "Uzun basışla alıcıları sabitle";
+"Long-press in the share sheet to pin a chat/user to the top" = "Paylaş sayfasında bir sohbeti/kullanıcıyı en üste sabitlemek için uzun basın";
+"Long-press a recipient to pin or unpin. Pinned recipients render at the top." = "Bir alıcıya uzun basarak sabitleyin veya kaldırın. Sabitlenen alıcılar en üstte görünür.";
+"Recipient pinned" = "Alıcı sabitlendi";
+"Recipient unpinned" = "Alıcı sabitlemesi kaldırıldı";
+"Couldn't resolve recipient id" = "Alıcı kimliği çözümlenemedi";
+"Hide video call button" = "Görüntülü arama butonunu gizle";
+"Hide voice call button" = "Sesli arama butonunu gizle";
+"Hides the blend button in DMs" = "DM'lerde blend butonunu gizler";
+"Removes the create/send to group chat row when sharing to multiple recipients" = "Birden fazla alıcıyla paylaşırken grup sohbeti oluştur/gönder satırını kaldırır";
+"Hides typing indicator from others" = "Yazıyor göstergesini başkalarından gizler";
+"Indicate unsent messages" = "Gönderilmemiş mesajları belirt";
+"Keep deleted messages" = "Silinen mesajları tut";
+"Makes view-once messages behave like normal visual messages (loopable/pauseable)" = "Bir kez görüntülenen mesajların normal görsel mesajlar gibi davranmasını sağlar (döngülenebilir/duraklatılabilir)";
+"Note actions" = "Not eylemleri";
+"Preserves messages that others unsend" = "Başkalarının geri aldığı mesajları korur";
+"Prevents accidental swipe-up activation of vanish mode" = "Kaybolma modunun yanlışlıkla yukarı kaydırmayla etkinleşmesini engeller";
+"Quick list button in chats" = "Sohbetlerde hızlı liste butonu";
+"Removes the audio call button from DM thread header" = "DM konuşma başlığından sesli arama butonunu kaldırır";
+"Removes the video call button from DM thread header" = "DM konuşma başlığından görüntülü arama butonunu kaldırır";
+"Replay visual messages without expiring. Toggle in the eye button menu, or as a standalone button when the eye button is disabled" = "Görsel mesajları süresi dolmadan tekrar oynatır. Göz butonu menüsünden açıp kapatın veya göz butonu kapalıyken bağımsız buton olarak kullanın";
+"Search, sort, swipe to remove or toggle keep-deleted" = "Ara, sırala, kaldırmak veya silinenleri tutmayı açıp kapatmak için kaydır";
+"Send audio as file" = "Sesi dosya olarak gönder";
+"Send files (experimental)" = "Dosya gönder (deneysel)";
+"File sending not available" = "Dosya gönderme kullanılamıyor";
+"Show full date instead of \"Active 2h ago\"" = "\"2 saat önce aktifti\" yerine tam tarihi göster";
+"Shows a button in DM threads to add/remove chats from the list. Long-press for more options" = "Sohbetleri listeye eklemek/kaldırmak için DM konuşmalarında bir buton gösterir. Daha fazla seçenek için uzun basın";
+"Shows a notification pill when a message is unsent" = "Bir mesaj geri alındığında bildirim etiketi gösterir";
+"Shows an \"Unsent\" label on preserved messages" = "Korunan mesajlarda \"Geri alındı\" etiketi gösterir";
+"Unlimited replay of visual messages" = "Görsel mesajları sınırsız tekrar oynatma";
+"Unsent message notification" = "Geri alınan mesaj bildirimi";
+"Voice messages" = "Sesli mesajlar";
+"Warn before clearing on refresh" = "Yenilemede temizlemeden önce uyar";
+"Which chats get read-receipt blocking" = "Hangi sohbetlerde okundu bilgisi engellensin";
+"⚠️ Pull-to-refresh in the DMs tab clears all preserved messages. Enable the warning below to get a confirmation dialog." = "⚠️ DM sekmesinde yenilemek için çekme, tüm korunan mesajları temizler. Onay iletişim kutusu almak için aşağıdaki uyarıyı etkinleştirin.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                       MESSAGES — DELETED MESSAGES LOG                    //
+// Settings → Messages → Deleted messages log + the in-app log UI           //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@%lu deleted" = "%@%lu silindi";
+"%lu selected" = "%lu seçildi";
+"Absolute date + time" = "Tarih ve saat (mutlak)";
+"Adjust the filters or clear the search to see more." = "Daha fazlasını görmek için filtreleri değiştirin veya aramayı temizleyin.";
+"All time" = "Tüm zamanlar";
+"Browse, filter and search recorded messages" = "Kaydedilen mesajlarda gezin, filtrele ve ara";
+"Captures unsent messages with their text or media" = "Gönderilmeyen mesajları metni veya medyasıyla yakalar";
+"Clear deleted-message log?" = "Silinmiş mesaj günlüğü temizlensin mi?";
+"Clear from this user" = "Bu kullanıcıdan temizle";
+"Clear log" = "Günlüğü temizle";
+"Clear log for this account" = "Bu hesabın günlüğünü temizle";
+"Clear log for this user?" = "Bu kullanıcının günlüğü temizlensin mi?";
+"Clear media files" = "Medya dosyalarını temizle";
+"Clearing media keeps the records (text, sender, timestamp). Clearing the log removes everything for this account." = "Medyayı temizlemek kayıtları (metin, gönderen, zaman) korur. Günlüğü temizlemek bu hesabın her şeyini siler.";
+"Close" = "Kapat";
+"Content unavailable" = "İçerik kullanılamıyor";
+"Copied" = "Kopyalandı";
+"Copy URL" = "URL'yi kopyala";
+"Date range" = "Tarih aralığı";
+"Deleted messages" = "Silinmiş mesajlar";
+"Deleted messages log" = "Silinmiş mesaj günlüğü";
+"Deleted: %@\n" = "Silindi: %@\n";
+"Edit %lu" = "Düzenleme %lu";
+"Edit history" = "Düzenleme geçmişi";
+"Edited" = "Düzenlendi";
+"Empty" = "Boş";
+"Enable deleted messages log" = "Silinmiş mesaj günlüğünü etkinleştir";
+"Enable Settings → Messages → Deleted messages log to start recording." = "Kayda başlamak için Ayarlar → Mesajlar → Silinmiş mesaj günlüğü’nü etkinleştirin.";
+"GIF" = "GIF";
+"Hashtag" = "Hashtag";
+"IGTV" = "IGTV";
+"Kind: %@\n" = "Tür: %@\n";
+"Last 30 days" = "Son 30 gün";
+"Last 7 days" = "Son 7 gün";
+"Link" = "Bağlantı";
+"Live location" = "Canlı konum";
+"Location" = "Konum";
+"Logging is off" = "Kayıt kapalı";
+"Media on disk" = "Diskteki medya";
+"Most messages" = "En çok mesaj";
+"Most recent" = "En yeniler";
+"No deleted messages yet" = "Henüz silinmiş mesaj yok";
+"No matches" = "Eşleşme yok";
+"Nothing to save" = "Kaydedilecek bir şey yok";
+"Oldest first" = "Önce en eski";
+"Open log" = "Günlüğü aç";
+"Group chat" = "Grup sohbeti";
+"%lu messages in %lu chats" = "%lu mesaj · %lu sohbet";
+"%lu people · %lu deleted" = "%lu kişi · %lu silindi";
+"When someone unsends a message, it will appear here grouped by chat." = "Biri bir mesajı geri çektiğinde, burada sohbete göre gruplanmış olarak görünür.";
+"Clear this chat" = "Bu sohbeti temizle";
+"Clear log for this chat?" = "Bu sohbetin günlüğü temizlensin mi?";
+"Removes every preserved deleted message from this group chat." = "Bu grup sohbetinde saklanan tüm silinmiş mesajları kaldırır.";
+"Reaction removed" = "Tepki kaldırıldı";
+"Log removed reactions" = "Kaldırılan tepkileri kaydet";
+"Also records when someone removes a reaction, and which message it was on" = "Birinin bir tepkiyi kaldırdığını ve hangi mesajda olduğunu da kaydeder.";
+"Removed a reaction" = "Bir tepkiyi kaldırdı";
+"on @%@: %@" = "@%@ kişisinin mesajında: %@";
+"on: %@" = "şu mesajda: %@";
+"a message" = "bir mesaj";
+"removed %@ on: %@" = "%@ tepkisini kaldırdı: %@";
+"removed reaction %@" = "%@ tepkisini kaldırdı";
+"%@ removed the %@ reaction." = "%@, %@ tepkisini kaldırdı.";
+"Removed %@" = "%@ kaldırıldı";
+"Someone" = "Biri";
+"Photo or video" = "Fotoğraf veya video";
+"Refresh names & photos" = "Adları ve fotoğrafları yenile";
+"Refreshing names & photos" = "Adlar ve fotoğraflar yenileniyor";
+"Records every message someone unsends, grouped by chat" = "Birinin geri çektiği her mesajı sohbete göre gruplayarak kaydeder";
+"Open profile" = "Profili aç";
+"Original" = "Orijinal";
+"Play" = "Oynat";
+"Post" = "Gönderi";
+"Reel" = "Reel";
+"Relative (1m / 3h / 3d ago)" = "Göreli (1d / 3sa / 3g önce)";
+"Removes every preserved deleted message and its captured media for the current account. This cannot be undone." = "Geçerli hesap için saklanan her silinmiş mesajı ve yakalanan medyasını kaldırır. Geri alınamaz.";
+"Removes every preserved deleted message and its captured media for this account." = "Bu hesap için saklanan her silinmiş mesajı ve yakalanan medyasını kaldırır.";
+"Removes every preserved deleted message from this sender." = "Bu göndericinin saklanan her silinmiş mesajını kaldırır.";
+"Removes every saved photo, video and voice clip. Records keep their text and sender info." = "Kaydedilen her fotoğraf, video ve ses klibini kaldırır. Kayıtlar metni ve gönderen bilgisini korur.";
+"Search messages" = "Mesaj ara";
+"Search senders or messages" = "Gönderen veya mesaj ara";
+"Select" = "Seç";
+"Show edit history" = "Düzenleme geçmişini göster";
+"Source URL recorded but media not stored.\n" = "Kaynak URL kaydedildi ancak medya saklanmadı.\n";
+"Sticker" = "Çıkartma";
+"Tap to open in Instagram" = "Instagram'da açmak için dokunun";
+"Tap to open in Maps" = "Haritalar'da açmak için dokunun";
+"Tap to play" = "Oynatmak için dokunun";
+"Tap to play · %@" = "Oynatmak için dokunun · %@";
+"Text" = "Metin";
+"This account" = "Bu hesap";
+"Unknown" = "Bilinmiyor";
+"Video" = "Video";
+"View" = "Görüntüle";
+"Voice" = "Ses";
+"When enabled, deleted messages and their media are saved on this device. Toggle off and clear the log to wipe history." = "Etkinleştirildiğinde, silinmiş mesajlar ve medyaları bu cihaza kaydedilir. Geçmişi silmek için kapatın ve günlüğü temizleyin.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 MESSAGES                                 //
+// Settings → Messages tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Bypass \"You can't send messages\"" = "“Mesaj gönderemezsiniz” uyarısını atla";
+"Removes the blocked composer banner and restores the text input in restricted threads" = "Engellenmiş yazma alanı başlığını kaldırır ve kısıtlı sohbetlerde metin girişini geri getirir";
+"Custom chat background" = "Özel sohbet arka planı";
+"DM Save button" = "DM Kaydet düğmesi";
+"Make Instagram's built-in Save button on DM photos & videos download to Photos, the Gallery, or Share" = "Instagram'ın DM fotoğraf ve videolarındaki yerleşik Kaydet düğmesini Fotoğraflar'a, Galeri'ye veya Paylaş'a indirecek şekilde ayarlar";
+"Reroute native Save" = "Yerleşik Kaydet'i yönlendir";
+"Save media" = "Medyayı kaydet";
+"Incoming calls stay silent — no ring, no screen, no notification" = "Gelen aramalar sessiz kalır — zil yok, ekran yok, bildirim yok";
+"Messages" = "Mesajlar";
+"Silence incoming calls" = "Gelen aramaları sustur";
+"Threads" = "Konular";
+"Use your own images as chat backgrounds" = "Kendi görsellerinizi sohbet arka planı olarak kullanın";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            MESSAGES — INSTANTS                           //
+// Settings → Messages → Instants section                                   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ (%lu)" = "%@ (%lu)";
+"Adds a gallery button to the instants camera so you can send a photo from your album" = "Albümünüzden fotoğraf göndermek için anlık kamerasına bir galeri butonu ekler";
+"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Instants görüntüleyicisinin başlığına genişlet, kaydet, paylaş ve tümünü kaydet girişleri içeren bir Instagram X eylem düğmesi ekler";
+"All loaded instants" = "Yüklü tüm anlıklar";
+"Auto advance after reaction" = "Tepkiden sonra otomatik ilerle";
+"Automatically moves to the next instant after you like or react" = "Beğendikten veya tepki verdikten sonra otomatik olarak sonraki anlığa geçer";
+"Bypasses the Instants screenshot block" = "Instants ekran görüntüsü engelini atlar";
+"Could not locate the instant on screen" = "Ekrandaki anlık bulunamadı";
+"Current instant" = "Geçerli anlık";
+"In-app Gallery" = "Uygulama içi galeri";
+"Instant" = "Anlık";
+"Instants" = "Anlık";
+"Auto-saved instants log" = "Otomatik kaydedilen instant günlüğü";
+"Auto-save instants" = "Instant'ları otomatik kaydet";
+"Automatically saves every instant you view, including as you swipe — each one only once" = "Kaydırırken dahil, görüntülediğiniz her instant'ı otomatik kaydeder — her biri yalnızca bir kez";
+"Instants action button" = "Instants eylem düğmesi";
+"No instants currently loaded" = "Şu anda yüklü anlık yok";
+"No media available to save" = "Kaydedilecek medya yok";
+"Photos library" = "Fotoğraflar kitaplığı";
+"Pick from" = "Şuradan seç";
+"Queued %lu instants" = "%lu anlık kuyruğa alındı";
+"Save all to Gallery" = "Hepsini galeriye kaydet";
+"Save all to Photos" = "Hepsini Fotoğraflar'a kaydet";
+"Save to Gallery" = "Galeriye kaydet";
+"Send from gallery" = "Galeriden gönder";
+"Tweaks for the QuickSnap / Instants camera surface." = "QuickSnap / Anlık kamera ekranı için ayarlar.";
+"Use" = "Kullan";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                NAVIGATION                                //
+// Settings → Navigation tab                                                //
+//////////////////////////////////////////////////////////////////////////////
+
+"Also hide the bottom tab bar — only the inbox is visible" = "Alt sekme çubuğunu da gizle — yalnızca gelen kutusu görünür";
+"Hide search tab" = "Arama sekmesini gizle";
+"Remove the search/explore button from the tab bar" = "Sekme çubuğundan arama/keşfet düğmesini kaldır";
+"Hide tab bar" = "Sekme çubuğunu gizle";
+"Hides every tab except DM inbox + profile and forces launch into the inbox. Settings shortcut moves to long-press on the inbox tab." = "DM gelen kutusu + profil dışındaki tüm sekmeleri gizler ve uygulamayı gelen kutusunda açmaya zorlar. Ayarlar kısayolu gelen kutusu sekmesine uzun basmaya taşınır.";
+"Icon order" = "Simge sırası";
+"Launch tab" = "Açılış sekmesi";
+"Lets you swipe to switch between navigation bar tabs" = "Gezinme çubuğu sekmeleri arasında geçmek için kaydırmanıza izin verir";
+"Messages only" = "Yalnızca mesajlar";
+"Messages-only mode" = "Yalnızca mesajlar modu";
+"Navigation" = "Gezinme";
+"Swipe between tabs" = "Sekmeler arasında kaydır";
+"Tab the app opens to. Ignored when Messages-only is on" = "Uygulamanın açılacağı sekme. Yalnızca Mesajlar açıkken yok sayılır";
+"The order of the icons on the bottom navigation bar" = "Alt gezinme çubuğundaki simgelerin sırası";
+"Drag the ≡ handle to reorder tabs. Toggle a tab off to hide it from the bottom navigation bar." = "Sekmeleri yeniden sıralamak için ≡ tutamağını sürükleyin. Bir sekmeyi alt gezinme çubuğundan gizlemek için kapatın.";
+"This will restore the default tab order and unhide all tabs." = "Bu işlem varsayılan sekme sıralamasını geri yükler ve tüm sekmeleri gösterir.";
+"Turn IG into a DM-only client" = "IG'yi yalnızca DM istemcisine dönüştür";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CONFIRM ACTIONS                              //
+// Settings → Confirm actions tab                                           //
+//////////////////////////////////////////////////////////////////////////////
+
+"All" = "Tümü";
+"Calls" = "Aramalar";
+"Comments & posts" = "Yorumlar ve gönderiler";
+"Confirm actions" = "Eylemleri onayla";
+"Confirm changing theme" = "Tema değiştirmeyi onayla";
+"Confirm disappearing media mark as viewed" = "Kaybolan medyayı görüntülendi olarak işaretlemeyi onayla";
+"Confirm DM mark as seen" = "DM'i görüldü olarak işaretlemeyi onayla";
+"Confirm follow" = "Takip etmeyi onayla";
+"Confirm follow requests" = "Takip isteklerini onayla";
+"Confirm Instants capture" = "Instants çekimini onayla";
+"Confirm Instants emoji reaction" = "Instants emoji tepkisini onayla";
+"Confirm like: Posts" = "Beğeniyi onayla: Gönderiler";
+"Confirm like: Reels" = "Beğeniyi onayla: Reels";
+"Confirm note emoji reaction" = "Not emoji tepkisini onayla";
+"Confirm note like" = "Not beğenisini onayla";
+"Confirm posting comment" = "Yorum göndermeyi onayla";
+"Confirm repost" = "Yeniden paylaşmayı onayla";
+"Confirm send to group chat" = "Grup sohbetine göndermeyi onayla";
+"Confirm sticker interaction (highlights)" = "Çıkartma etkileşimini onayla (öne çıkanlar)";
+"Confirm sticker interaction (stories)" = "Çıkartma etkileşimini onayla (hikayeler)";
+"Confirm story emoji reaction" = "Hikaye emoji tepkisini onayla";
+"Confirm story like" = "Hikaye beğenisini onayla";
+"Confirm story mark as seen" = "Hikayeyi görüldü olarak işaretlemeyi onayla";
+"Confirm switching Instant" = "Instant değiştirmeyi onayla";
+"Confirm unfollow" = "Takibi bırakmayı onayla";
+"Confirm vanish mode" = "Kaybolma modunu onayla";
+"Confirm video call" = "Görüntülü aramayı onayla";
+"Confirm voice call" = "Sesli aramayı onayla";
+"Confirm voice messages" = "Sesli mesajları onayla";
+"Follows" = "Takip ediyor";
+"Likes" = "Beğeniler";
+"Messaging" = "Mesajlaşma";
+"Reaction stickers only" = "Yalnızca tepki etiketleri";
+"Reactions" = "Tepkiler";
+"Send to group chat?" = "Grup sohbetine gönderilsin mi?";
+"Shows an alert before creating/sending to a group chat from the share sheet" = "Paylaşım sayfasından bir grup sohbeti oluşturmadan/göndermeden önce uyarı gösterir";
+"Shows an alert before marking a disappearing message as viewed" = "Kaybolan bir mesajı görüntülendi olarak işaretlemeden önce uyarı gösterir";
+"Shows an alert before sending a read receipt from the DM seen button or menu" = "DM görüldü butonundan veya menüden okundu bilgisi göndermeden önce uyarı gösterir";
+"Shows an alert before sending a story view receipt from the eye button or menu" = "Göz butonundan veya menüden hikaye görüntüleme bilgisi göndermeden önce uyarı gösterir";
+"Shows an alert before sending an emoji reaction on a note" = "Bir nota emoji tepkisi göndermeden önce uyarı gösterir";
+"Shows an alert before sending an emoji reaction on a story" = "Bir hikayeye emoji tepkisi göndermeden önce uyarı gösterir";
+"Shows an alert before sending an emoji reaction on an Instant" = "Bir Instant'a emoji tepkisi göndermeden önce uyarı gösterir";
+"Shows an alert before taking a photo with the Instants camera" = "Instants kamerasıyla fotoğraf çekmeden önce uyarı gösterir";
+"Shows an alert before tapping to switch to the next/previous Instant" = "Sonraki/önceki Instant'a geçmek için dokunmadan önce uyarı gösterir";
+"Shows an alert to confirm before sending a voice message" = "Sesli mesaj göndermeden önce onay uyarısı gösterir";
+"Shows an alert to confirm before toggling vanish mode" = "Kaybolma modunu açıp kapatmadan önce onay uyarısı gösterir";
+"Shows an alert when you accept/decline a follow request" = "Bir takip isteğini kabul/reddettiğinizde uyarı gösterir";
+"Shows an alert when you change a chat theme to confirm" = "Sohbet temasını değiştirdiğinizde onay uyarısı gösterir";
+"Shows an alert when you click the follow button to confirm the follow" = "Takibi onaylamak için takip butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the like button on notes to confirm the like" = "Notlarda beğeniyi onaylamak için beğen butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the like button on posts to confirm the like" = "Gönderilerde beğeniyi onaylamak için beğen butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the like button on reels to confirm the like" = "Reels'te beğeniyi onaylamak için beğen butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the like button on stories to confirm the like" = "Hikayelerde beğeniyi onaylamak için beğen butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the post comment button to confirm" = "Gönderi yorumu butonuna tıklayınca onay uyarısı gösterir";
+"Shows an alert when you click the repost button to confirm before reposting" = "Yeniden paylaşmadan önce onaylamak için yeniden paylaş butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the unfollow button to confirm" = "Takibi bırakmayı onaylamak için takibi bırak butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the video call button to confirm before calling" = "Aramadan önce onaylamak için görüntülü arama butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you click the voice call button to confirm before calling" = "Aramadan önce onaylamak için sesli arama butonuna tıkladığınızda uyarı gösterir";
+"Shows an alert when you tap a sticker inside a highlight" = "Öne çıkan içindeki çıkartmaya dokunduğunuzda uyarı gösterir";
+"Shows an alert when you tap a sticker on someone's story" = "Birinin hikayesindeki çıkartmaya dokunduğunuzda uyarı gösterir";
+"Stories & highlights" = "Hikayeler ve öne çıkanlar";
+
+//////////////////////////////////////////////////////////////////////////////
+//                           SECURITY & PRIVACY                             //
+// Settings → Security & Privacy                                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"%ld h" = "%ld sa";
+"%ld locked" = "%ld kilitli";
+"%ld min" = "%ld dk";
+"%ldh idle" = "%ld sa boşta";
+"%ldm idle" = "%ld dk boşta";
+"%lds" = "%ld sn";
+"%lds idle" = "%ld sn boşta";
+"%lu hidden" = "%lu gizli";
+"4 digits" = "4 hane";
+"6 digits" = "6 hane";
+"Add hidden chat" = "Gizli sohbet ekle";
+"Add locked chat" = "Kilitli sohbet ekle";
+"Allow Instants screenshots" = "Instants ekran görüntülerine izin ver";
+"Always ask when opening again" = "Tekrar açarken her zaman sor";
+"Ask again after Instagram returns" = "Instagram geri döndükten sonra tekrar sor";
+"Auto-relock after idle" = "Boşta kaldıktan sonra otomatik yeniden kilitle";
+"Balanced default" = "Dengeli varsayılan";
+"Best for sensitive sections" = "Hassas bölümler için en iyisi";
+"Biometric" = "Biyometrik";
+"Change passcode" = "Şifreyi değiştir";
+"Chat hidden" = "Sohbet gizlendi";
+"Chat locked" = "Sohbet kilitlendi";
+"Chat unlocked" = "Sohbet kilidi açıldı";
+"Choose a code you'll remember." = "Hatırlayacağınız bir kod seçin.";
+"Choose how long this section stays unlocked while idle. Never keeps it unlocked until Instagram closes or goes to background." = "Bu bölümün boştayken ne kadar süre kilitsiz kalacağını seçin. Asla, Instagram kapanana veya arka plana geçene kadar kilitsiz tutar.";
+"Confirm current passcode" = "Mevcut şifreyi onayla";
+"Confirm passcode" = "Şifreyi onayla";
+"Could not save passcode" = "Şifre kaydedilemedi";
+"Create passcode" = "Şifre oluştur";
+"Derivation failed" = "Türetme başarısız";
+"DM inbox" = "DM gelen kutusu";
+"Don't share unlock" = "Kilit açmayı paylaşma";
+"Each target has its own enable, timeout, and re-lock configuration." = "Her hedefin kendi etkinleştirme, zaman aşımı ve yeniden kilitleme yapılandırması vardır.";
+"Enable lock" = "Kilidi etkinleştir";
+"Enter passcode" = "Şifreyi gir";
+"Enter value" = "Değer gir";
+"Enter your current passcode to change it" = "Değiştirmek için mevcut şifrenizi girin";
+"Enter your current passcode to reset it" = "Sıfırlamak için mevcut parolanızı girin";
+"Enter your passcode to continue" = "Devam etmek için şifrenizi girin";
+"every use" = "her kullanımda";
+"Every use" = "Her kullanımda";
+"Hidden chats" = "Gizli sohbetler";
+"Hide chat" = "Sohbeti gizle";
+"Hide message preview" = "Mesaj önizlemesini gizle";
+"Hide this chat?" = "Bu sohbet gizlensin mi?";
+"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Instagram X arayüzünü ekran görüntülerinden/kayıtlardan gizler ve Instagram’ın özellik bazlı ekran görüntüsü uyarılarını atlatır.";
+"Idle timeout" = "Boşta kalma süresi";
+"Instagram" = "Instagram";
+"Keep this target locked separately" = "Bu hedefi ayrı olarak kilitli tut";
+"Less frequent prompts" = "Daha seyrek istemler";
+"Lock" = "Kilitle";
+"Lock chat" = "Sohbeti kilitle";
+"Lock every time" = "Her seferinde kilitle";
+"Lock every time overrides idle timeout. Don't share unlock keeps this target separate." = "Her seferinde kilitle, boşta zaman aşımını geçersiz kılar. Kilit açmayı paylaşma, bu hedefi ayrı tutar.";
+"Lock targets" = "Kilit hedefleri";
+"Lock the tweak" = "Tweak’i kilitle";
+"Lock this chat" = "Bu sohbeti kilitle";
+"Lock this chat?" = "Bu sohbet kilitlensin mi?";
+"Lock with passcode" = "Şifre ile kilitle";
+"Locked chats" = "Kilitli sohbetler";
+"Long-press a chat to lock it individually" = "Bireysel olarak kilitlemek için bir sohbete uzun basın";
+"Long-press a DM thread → Hide chat to add it here. Hidden chats are filtered out of the inbox until you remove them from this list." = "Bir DM sohbetine uzun basın → Sohbeti gizle’ye dokunarak buraya ekleyin. Gizli sohbetler bu listeden çıkarana kadar gelen kutusundan filtrelenir.";
+"Long-press a DM to add" = "Eklemek için bir DM’ye uzun basın";
+"Longest idle window" = "En uzun boşta süresi";
+"Manage locked chats" = "Kilitli sohbetleri yönet";
+"Master switch. Turn off to disable every lock target without losing per-target configuration." = "Ana anahtar. Hedef başına yapılandırmayı kaybetmeden tüm kilit hedeflerini devre dışı bırakmak için kapatın.";
+"Never" = "Asla";
+"No passcode set" = "Şifre ayarlanmadı";
+"Nothing here yet." = "Burada henüz bir şey yok.";
+"Off" = "Kapalı";
+"On" = "Açık";
+"On — %@" = "Açık — %@";
+"On — %@ + %ld more" = "Açık — %@ + %ld diğer";
+"On — no targets enabled" = "Açık — etkin hedef yok";
+"Passcode" = "Şifre";
+"Passcode + biometric. Gate the tweak settings popup, gallery, deleted-messages log, individual chats and the whole app." = "Şifre + biyometrik. Tweak ayarları penceresini, galeriyi, silinen mesajlar günlüğünü, bireysel sohbetleri ve tüm uygulamayı kilitler.";
+"Passcode changed" = "Şifre değiştirildi";
+"Passcode reset" = "Şifre sıfırlandı";
+"Passcode set" = "Şifre ayarlandı";
+"Passcode too short" = "Parola çok kısa";
+"Passcodes did not match — try again" = "Şifreler eşleşmedi — tekrar deneyin";
+"Per-chat locks" = "Sohbet başına kilitler";
+"Prompt before Instagram opens" = "Instagram açılmadan önce sor";
+"Prompt before Profile Analyzer opens" = "Profil Analizörü açılmadan önce sor";
+"Prompt before the deleted-messages log opens" = "Silinen mesajlar günlüğü açılmadan önce sor";
+"Prompt before the gallery opens" = "Galeri açılmadan önce sor";
+"Prompt before tweak settings open" = "Tweak ayarları açılmadan önce sor";
+"Prompt on every entry to the DM inbox, including launch-to-messages" = "Doğrudan mesajlara açılış dahil, DM gelen kutusuna her girişte sor";
+"Re-enter the same passcode" = "Aynı şifreyi tekrar gir";
+"Re-lock on background" = "Arka planda yeniden kilitle";
+"re-lock on bg" = "arka planda yeniden kilitle";
+"Recently hidden" = "Son gizlenenler";
+"Recently locked" = "Son kilitlenenler";
+"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "Ekran görüntüleri, ekran kayıtları ve yansıtmadan Instagram X düğmelerini gizler";
+"Remove screenshot alert" = "Ekran görüntüsü uyarısını kaldır";
+"Replace inbox preview with • • •" = "Gelen kutusu önizlemesini • • • ile değiştir";
+"Require passcode for this section" = "Bu bölüm için parola iste";
+"Requires your current passcode" = "Mevcut parolanızı gerektirir";
+"Reset passcode" = "Şifreyi sıfırla";
+"Reset passcode?" = "Şifre sıfırlansın mı?";
+"Screenshots & capture" = "Ekran görüntüsü ve kayıt";
+"Security & Privacy" = "Güvenlik ve gizlilik";
+"Set a passcode to protect Settings, Gallery, deleted messages, chats, the DM inbox, Profile Analyzer, or Instagram itself." = "Ayarları, Galeriyi, silinen mesajlar günlüğünü, bireysel sohbetleri, DM gelen kutusunu, Profil Analizörü veyan Instagram’ın kendisini kilitlemek için bir şifre ayarlayın.";
+"Set passcode" = "Şifre ayarla";
+"Short idle window" = "Kısa boşta süresi";
+"Stay unlocked until app close or background" = "Uygulama kapanana veya arka plana geçene kadar kilitsiz kal";
+"Suppress IG's \"X took a screenshot\" notification across stories, DMs and disappearing media" = "IG'nin \"X ekran görüntüsü aldı\" bildirimini hikayeler, DM'ler ve kaybolan medya genelinde gizle";
+"Tap Unlock" = "Kilidi aç’a dokun";
+"Tap Unlock or enter your passcode" = "Kilidi aç’a dokun veya şifreni gir";
+"This clears the passcode, disables every lock target, and unlocks all chats. Gallery and Keep-Deleted data are untouched." = "Bu, şifreyi siler, tüm kilit hedeflerini devre dışı bırakır ve tüm sohbetlerin kilidini açar. Galeri ve silinen mesaj verileri etkilenmez.";
+"Thread %@" = "Sohbet %@";
+"Tweak settings" = "Tweak ayarları";
+"Unlock" = "Kilidi aç";
+"Unlock %@" = "%@ kilidini aç";
+"Unlock chat" = "Sohbet kilidini aç";
+"Unlock Instagram" = "Instagram kilidini aç";
+"Unlock this chat" = "Bu sohbetin kilidini aç";
+"Use %@" = "%@ kullan";
+"Username (looks up the DM thread) or raw thread ID" = "Kullanıcı adı (DM sohbetini bulur) veya ham sohbet kimliği";
+"Username or thread ID" = "Kullanıcı adı veya sohbet kimliği";
+"Wrong passcode" = "Yanlış şifre";
+"Wrong passcode • %ld attempts" = "Yanlış parola • %ld deneme";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             BACKUP & RESTORE                             //
+// Settings → Backup & Restore tab                                          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu account(s)" = "%lu hesap";
+"%lu account(s) · %lu image(s) · %@" = "%lu hesap · %lu görsel · %@";
+"%lu file(s) · %@" = "%lu dosya · %@";
+"%lu preferences" = "%lu tercih";
+"(none)" = "(yok)";
+"Apply backup?" = "Yedek uygulansın mı?";
+"Applying backup…" = "Yedek uygulanıyor…";
+"archive error" = "arşiv hatası";
+"Archived snapshots" = "Arşivlenen anlık görüntüler";
+"Backup & Restore" = "Yedekle ve Geri Yükle";
+"Backup exported" = "Yedek dışa aktarıldı";
+"Backup failed" = "Yedekleme başarısız";
+"Backup has no importable sections." = "Yedekte içe aktarılabilir bölüm yok.";
+"Chat & story filters" = "Sohbet ve hikaye filtreleri";
+"Chat backgrounds" = "Sohbet arka planları";
+"Clear selected data" = "Seçili verileri temizle";
+"Corrupt entry path." = "Bozuk giriş yolu.";
+"Could not decompress archive." = "Arşiv açılamadı.";
+"Could not open archive." = "Arşiv açılamadı.";
+"Could not open staging file." = "Hazırlama dosyası açılamadı.";
+"Could not read the backup archive." = "Yedek arşivi okunamadı.";
+"Could not write archive." = "Arşiv yazılamadı.";
+"Could not write backup file." = "Yedek dosyası yazılamadı.";
+"Could not write extracted file." = "Çıkarılan dosya yazılamadı.";
+"Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "İşaretli öğeler için mevcut veriler değiştirilecek. Her şeyin etkili olması için yeniden başlatma gerekebilir.";
+"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "Instagram X verilerini dışa veya içe aktarın — ayarlar, hesap başına filtreler, gizli ve kilitli sohbetler, Profil Analizcisi, galeri, sohbet arka planları, silinen mesajlar ve okundu bilgisi kaydı. Her sayfada herhangi bir kombinasyonu seçin. Ayarlar düz bir JSON dosyası olarak kalır; medya içeren paketler sıkıştırılmış bir .ryukbak olarak dışa aktarılır.";
+"Feature data" = "Özellik verileri";
+"Import mode" = "İçe aktarma modu";
+"Merge" = "Birleştir";
+"Replace" = "Değiştir";
+"Add the backup's data to what's already here" = "Yedeğin verilerini buradakilere ekler";
+"Clear existing data, then apply the backup" = "Mevcut verileri temizler, ardından yedeği uygular";
+"Merge keeps what's on this device and adds the backup's data — duplicates are combined, including the gallery." = "Birleştir bu cihazdakileri korur ve yedeğin verilerini ekler — galeri dahil, yinelenenler birleştirilir.";
+"Replace clears existing data for each ticked item, then applies the backup." = "Değiştir, işaretlenen her öğenin mevcut verilerini temizler ve ardından yedeği uygular.";
+"The backup will be merged into your existing data — nothing is deleted, duplicates are combined. A restart may be needed for everything to take effect." = "Yedek mevcut verilerinizle birleştirilecek — hiçbir şey silinmez, yinelenenler birleştirilir. Her şeyin etkili olması için yeniden başlatma gerekebilir.";
+"Hidden & locked chats" = "Gizli ve kilitli sohbetler";
+"Import" = "İçe aktar";
+"Inspect the full manifest" = "Tam manifesti incele";
+"Load a .json or .ryukbak backup" = "Bir .json veya .ryukbak yedeği yükle";
+"Not a RyukGram backup archive." = "Instagram X yedek arşivi değil.";
+"PK %@" = "PK %@";
+"Preparing backup…" = "Yedek hazırlanıyor…";
+"Reading backup…" = "Yedek okunuyor…";
+"Save settings or a full backup" = "Ayarları veya tam yedeği kaydet";
+"Tick what to apply. Rows not in this backup are hidden." = "Neyin uygulanacağını işaretleyin. Bu yedekte olmayan satırlar gizlidir.";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "Neyin dahil edileceğini işaretleyin. İncelemek için bir satıra dokunun. Galeri, sohbet arka planları veya silinen mesajları eklemek sıkıştırılmış bir .ryukbak paketi oluşturur.";
+"Truncated entry data." = "Kesik giriş verisi.";
+"Truncated entry length." = "Kesik giriş uzunluğu.";
+"Truncated entry path." = "Kesik giriş yolu.";
+"Unsafe entry path." = "Güvensiz giriş yolu.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 ADVANCED                                 //
+// Settings → Advanced tab                                                  //
+//////////////////////////////////////////////////////////////////////////////
+
+"Advanced" = "Gelişmiş";
+"Auto-clear cache" = "Önbelleği otomatik temizle";
+"Automatically opens settings when the app launches" = "Uygulama açıldığında ayarları otomatik açar";
+"Cache" = "Önbellek";
+"Cache cleared" = "Önbellek temizlendi";
+"Calculating cache size…" = "Önbellek boyutu hesaplanıyor…";
+"Clear" = "Temizle";
+"Clear cache" = "Önbelleği temizle";
+"Clear cache (%@)" = "Önbelleği temizle (%@)";
+"Clearing cache…" = "Önbellek temizleniyor…";
+"Clearing still scans on demand." = "Temizleme yine de gerektiğinde tarama yapar.";
+"Daily" = "Günlük";
+"All tweak options are disabled" = "Tüm Tweak seçenekleri devre dışı";
+"Disable all tweak options" = "Tüm Tweak seçeneklerini devre dışı bırak";
+"Instagram runs stock while this is on. Turn it back off to restore your settings." = "Bu açıkken Instagram normal şekilde çalışır. Ayarlarını geri yüklemek için kapat.";
+"Tap to re-enable everything" = "Her şeyi yeniden etkinleştirmek için dokun";
+"Turn every feature off — your settings are kept" = "Tüm özellikleri kapat — ayarların korunur";
+"Disable safe mode" = "Güvenli modu kapat";
+"Enable tweak settings quick-access" = "Tweak ayarlarına hızlı erişimi etkinleştir";
+"Fix duplicate notifications" = "Yinelenen bildirimleri düzelt";
+"Free %@ of Instagram cache." = "Instagram önbelleğinden %@ boşalt.";
+"Freed %@" = "%@ boşaltıldı";
+"Hold on the home tab to open RyukGram settings" = "Instagram X ayarlarını açmak için ana sayfa sekmesine basılı tutun";
+"Monthly" = "Aylık";
+"Nothing to clear" = "Temizlenecek bir şey yok";
+"Off skips the size scan when Advanced opens." = "Kapalıyken Gelişmiş açıldığında boyut taraması atlanır.";
+"Pause playback when opening settings" = "Ayarlar açılırken oynatmayı duraklat";
+"Always show what's new" = "Yenilikleri her zaman göster";
+"Keep the blue dot on every new feature instead of clearing it once viewed" = "Mavi noktayı görüntüledikten sonra kaldırmak yerine her yeni özellikte tut";
+"Preserve messages database" = "Mesaj veritabanını koru";
+"Pauses any playing video/audio when settings opens" = "Ayarlar açıldığında oynayan video/sesi duraklatır";
+"Prevents Instagram from resetting settings after crashes (at your own risk)" = "Çökmelerden sonran Instagram'ın ayarları sıfırlamasını engeller (risk size aittir)";
+"Prevents two banners for the same message when IG is in the foreground" = "IG ön plandayken aynı mesaj için iki bildirimin gösterilmesini önler";
+"Remove Instagram's cached images, videos, and temporary files." = "Instagram'ın önbelleğe alınmış görsellerini, videolarını ve geçici dosyalarını kaldırır.";
+"Reset onboarding state" = "İlk kullanım durumunu sıfırla";
+"Run a silent cache clear on launch when the interval has elapsed." = "Aralık dolduğunda açılışta sessiz önbellek temizliği çalıştırır.";
+"Show cache size" = "Önbellek boyutunu göster";
+"Skip the messages database when clearing — keeps DMs, drafts, and saved messages." = "Temizlik sırasında mesaj veritabanını atla — DM'leri, taslakları ve kayıtlı mesajları korur.";
+"Show tweak settings on app launch" = "Uygulama açılışında tweak ayarlarını göster";
+"Suppresses the second notification IG enqueues in-app while the notification extension is also delivering it." = "Bildirim uzantısı da bildirimi iletirken IG'nin uygulama içinde sıraya aldığı ikinci bildirimi bastırır.";
+"Weekly" = "Haftalık";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         ADVANCED EXPERIMENTAL                            //
+// Settings → Advanced → Advanced experimental features                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Actions" = "Eylemler";
+"Advanced experimental features" = "Gelişmiş deneysel özellikler";
+"All experimental toggles will be turned off. Instagram will restart." = "Tüm deneysel anahtarlar kapatılacak. Instagram yeniden başlatılacak.";
+"Direct Notes — Audio reply" = "Direct Notes — Sesli yanıt";
+"Direct Notes — Avatar reply" = "Direct Notes — Avatar yanıtı";
+"Direct Notes — Friend Map" = "Direct Notes — Arkadaş Haritası";
+"Direct Notes — GIFs & stickers reply" = "Direct Notes — GIF ve çıkartma yanıtı";
+"Direct Notes — Photo reply" = "Direct Notes — Fotoğraf yanıtı";
+"Disabled after repeated crashes." = "Tekrarlanan çökmelerden sonra devre dışı bırakıldı.";
+"Enables GIF/sticker replies" = "GIF/çıkartma yanıtlarını etkinleştirir";
+"Enables photo replies" = "Fotoğraf yanıtlarını etkinleştirir";
+"Enables the audio-note reply type" = "Sesli not yanıt türünü etkinleştirir";
+"Enables the avatar reply type" = "Avatar yanıt türünü etkinleştirir";
+"Experimental flags reset" = "Deneysel bayraklar sıfırlandı";
+"Flip what you want on, then tap Apply to restart. Some flags may not work on every account or IG version. Flags auto-reset if IG crashes on launch 3 times." = "Açmak istediklerinizi etkinleştirin, ardından yeniden başlatmak için Uygula'ya dokunun. Bazı bayraklar her hesapta veya IG sürümünde çalışmayabilir. IG açılışta 3 kez çökerse bayraklar otomatik sıfırlanır.";
+"Forces Prism-gated experiments on" = "Prism ile kısıtlanan deneyleri açmaya zorlar";
+"Forces the Homecoming home surface / nav on" = "Homecoming ana yüzeyini/gezinmesini açmaya zorlar";
+"Forces the QuickSnap / Instants surface on in feed, inbox, stories, and notes tray" = "QuickSnap / Instants yüzeyini akışta, gelen kutusunda, hikayelerde ve notlar tepsisinde açmaya zorlar";
+"Got it" = "Anladım";
+"Heads up" = "Dikkat";
+"Hidden Instagram experiments" = "Gizli Instagram deneyleri";
+"Hidden Instagram experiments (in Advanced)" = "Gizli Instagram deneyleri (Gelişmiş içinde)";
+"Homecoming" = "Eve dönüş";
+"Notes & QuickSnap" = "Notlar ve QuickSnap";
+"Prism design system" = "Prism tasarım sistemi";
+"QuickSnap (Instants)" = "QuickSnap (Anlık)";
+"Reset all experimental flags" = "Tüm deneysel bayrakları sıfırla";
+"Reset experimental flags?" = "Deneysel bayraklar sıfırlansın mı?";
+"Restart Instagram to apply changes" = "Değişiklikleri uygulamak için Instagram'ı yeniden başlatın";
+"Shows the friend map entry in Direct Notes" = "Direct Notes içinde arkadaş haritası girişini gösterir";
+"Surfaces" = "Yüzeyler";
+"These toggles flip hidden Instagram experiments on. Some features may not work on every account or IG version. If IG keeps crashing on launch, the flags auto-reset after 3 failed starts." = "Bu anahtarlar gizli Instagram deneylerini açar. Bazı özellikler her hesapta veya IG sürümünde çalışmayabilir. IG açılışta çökmeye devam ederse bayraklar 3 başarısız başlatmadan sonra otomatik sıfırlanır.";
+"Toggle hidden Instagram experiments. Some may not work on every account or IG version." = "Gizli Instagram deneylerini açıp kapatın. Bazıları her hesapta veya IG sürümünde çalışmayabilir.";
+"Turn every experimental toggle off" = "Tüm deneysel anahtarları kapat";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                  DEBUG                                   //
+// Settings → Debug tab                                                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"Button Cell" = "Buton hücresi";
+"Change the value on the right" = "Sağdaki değeri değiştir";
+"Could not delete: %@" = "Silinemedi: %@";
+"Debug" = "Hata ayıklama";
+"Delete an imported override and fall back to the shipped strings" = "İçe aktarılan geçersiz kılmayı sil ve paketle gelen metinlere geri dön";
+"Deleted %@ override. Restart to apply." = "%@ geçersiz kılma silindi. Uygulamak için yeniden başlatın.";
+"Enable FLEX gesture" = "FLEX hareketini etkinleştir";
+"Enable file logging" = "Dosyaya günlük kaydını etkinleştir";
+"Export strings" = "Metinleri dışa aktar";
+"Hold 5 fingers on the screen to open FLEX" = "FLEX'i açmak için ekranda 5 parmağınızı basılı tutun";
+"I have %@%@" = "Bende %@%@ var";
+"Import a .strings file for a language" = "Bir dil için .strings dosyası içe aktar";
+"Import a .strings file to update a translation. Pick a language, select the file, restart." = "Bir çeviriyi güncellemek için .strings dosyası içe aktarın. Bir dil seçin, dosyayı seçin, yeniden başlatın.";
+"Link Cell" = "Bağlantı hücresi";
+"Localization" = "Yerelleştirme";
+"Log file is empty" = "Günlük dosyası boş";
+"Logging" = "Günlük kaydı";
+"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Instagram X'ın kendi etkinliğini uygulama ve uzantılarında paylaşılabilir tek bir dosyaya kaydeder. Varsayılan olarak kapalı — açın, sorunu yeniden oluşturun, sonra paylaşın.";
+"Menu Cell" = "Menü hücresi";
+"Navigation Cell" = "Gezinme hücresi";
+"No imported localization files to reset." = "Sıfırlanacak içe aktarılmış yerelleştirme dosyası yok.";
+"No overrides" = "Geçersiz kılma yok";
+"Open FLEX on app focus" = "Uygulama odaklandığında FLEX'i aç";
+"Open FLEX on app launch" = "Uygulama açılışında FLEX'i aç";
+"Opens FLEX when the app is focused" = "Uygulama odaklandığında FLEX'i açar";
+"Opens FLEX when the app launches" = "Uygulama açıldığında FLEX'i açar";
+"Pick a language to delete the imported file" = "İçe aktarılan dosyayı silmek için bir dil seçin";
+"Pick a language to export" = "Dışa aktarmak için bir dil seçin";
+"Reset localization" = "Yerelleştirmeyi sıfırla";
+"Share log file" = "Günlük dosyasını paylaş";
+"Pick a language and share its .strings file" = ".strings dosyasını paylaşmak için bir dil seçin";
+"Static Cell" = "Statik hücre";
+"Stepper cell" = "Adımlayıcı hücre";
+"Switch Cell" = "Anahtar hücresi";
+"Switch Cell (Restart)" = "Anahtar hücresi (Yeniden başlatma)";
+"Tap the switch" = "Anahtara dokun";
+"These features rely on hidden Instagram flags and may not work on all accounts or versions." = "Bu özellikler gizli Instagram bayraklarına dayanır ve tüm hesaplarda veya sürümlerde çalışmayabilir.";
+"Update localization file" = "Yerelleştirme dosyasını güncelle";
+"Using icon" = "Simge kullanılıyor";
+"Using image" = "Görsel kullanılıyor";
+
+//////////////////////////////////////////////////////////////////////////////
+//                        DOWNLOADS & MEDIA ACTIONS                         //
+// Action button menus, download/share/copy toasts, quality picker pills.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ settings" = "%@ ayarları";
+"%lu items" = "%lu öğe";
+"Cancelled" = "İptal edildi";
+"Carousel" = "Galeri";
+"Carousel · %lu items" = "Galeri · %lu öğe";
+"Copied %lu URLs" = "%lu URL kopyalandı";
+"Copied caption" = "Açıklama kopyalandı";
+"Copied download URL" = "İndirme URL'si kopyalandı";
+"Copied quality info" = "Kalite bilgisi kopyalandı";
+"Copied video URL" = "Video URL'si kopyalandı";
+"Copy all URLs" = "Tüm URL'leri kopyala";
+"Copy caption" = "Açıklamayı kopyala";
+"Copy download URL" = "İndirme URL'sini kopyala";
+"Could not extract any URLs" = "Hiç URL çıkarılamadı";
+"Could not extract audio URL" = "Ses URL'si çıkarılamadı";
+"Could not extract media URL" = "Medya URL'si çıkarılamadı";
+"Could not extract photo URL" = "Fotoğraf URL'si çıkarılamadı";
+"Could not extract video URL" = "Video URL'si çıkarılamadı";
+"Done" = "Tamamlandı";
+"Download all stories and share?" = "Tüm hikayeler indirilip paylaşılsın mı?";
+"Download all to Photos" = "Tümünü Fotoğraflar'a indir";
+"Download and share all" = "Tümünü indir ve paylaş";
+"Download failed" = "İndirme başarısız";
+"Downloaded %lu items" = "%lu öğe indirildi";
+"Downloading audio…" = "Ses indiriliyor…";
+"Failed to save" = "Kaydedilemedi";
+"File" = "Dosya";
+"HD" = "HD";
+"HD download complete" = "HD indirme tamamlandı";
+"HD video" = "HD video";
+"Mute audio" = "Sesi kapat";
+"No caption on this post" = "Bu gönderide açıklama yok";
+"No carousel children" = "Carousel öğesi yok";
+"No cover image" = "Kapak görseli yok";
+"No media" = "Medya yok";
+"No media to expand" = "Genişletilecek medya yok";
+"No media to show" = "Gösterilecek medya yok";
+"No media URL" = "Medya URL'si yok";
+"No URLs" = "URL yok";
+"No URLs found" = "URL bulunamadı";
+"No video URL" = "Video URL'si yok";
+"Not a carousel" = "Carousel değil";
+"Nothing to share" = "Paylaşılacak bir şey yok";
+"Opening creator…" = "Oluşturucu açılıyor...";
+"Photo library access denied" = "Fotoğraf arşivi erişimi reddedildi";
+"Photos access denied" = "Fotoğraflar erişimi reddedildi";
+"Preparing repost…" = "Yeniden paylaşım hazırlanıyor...";
+"Raw image" = "Ham görsel";
+"Repost" = "Yeniden paylaş";
+"Repost unavailable" = "Yeniden paylaşım kullanılamıyor";
+"Save failed" = "Kaydetme başarısız";
+"Saved %lu items" = "%lu öğe kaydedildi";
+"Saved to Photos" = "Fotoğraflar'a kaydedildi";
+"Saved to RyukGram" = "Instagram X'a kaydedildi";
+"Saving to Photos" = "Fotoğraflar'a kaydediliyor";
+"Saving…" = "Kaydediliyor...";
+"Unmute audio" = "Sesi aç";
+"Video · %@" = "Video · %@";
+"View cover" = "Kapağı görüntüle";
+"View mentions" = "Bahsetmeleri görüntüle";
+
+//////////////////////////////////////////////////////////////////////////////
+//                      STORIES & MESSAGES (FEATURES)                       //
+// Buttons, menu entries, toasts and alerts shown while watching stories or //
+// inside DM threads.                                                       //
+//////////////////////////////////////////////////////////////////////////////
+
+"  %lu votes · avg %.0f%%  " = "  %lu oy · ort %.0f%%  ";
+"%@ can't be converted" = "%@ dönüştürülemiyor";
+"%@ unsent a message" = "%@ bir mesajı geri aldı";
+"%@ unsent a message from %@" = "%1$@, %2$@ kişisinden gelen bir mesajı geri aldı";
+"A message was unsent" = "Bir mesaj geri alındı";
+"Add" = "Ekle";
+"Add to block list" = "Engel listesine ekle";
+"Added to block list" = "Engel listesine eklendi";
+"Added to exclude list" = "Hariç tutma listesine eklendi";
+"Audio not loaded yet. Play the message first and try again." = "Ses henüz yüklenmedi. Önce mesajı oynatıp tekrar deneyin.";
+"Audio sent" = "Ses gönderildi";
+"Audio URL not available" = "Ses URL'si kullanılamıyor";
+"Audio/Video from Files" = "Dosyalardan Ses/Video";
+"Blocked" = "Engellendi";
+"Cancel" = "İptal";
+"Clear preserved messages?" = "Korunan mesajlar temizlensin mi?";
+"Converting…" = "Dönüştürülüyor...";
+"Copy link" = "Bağlantıyı kopyala";
+"Copy text" = "Metni kopyala";
+"Could not copy selected video" = "Seçili video kopyalanamadı";
+"Could not find media" = "Medya bulunamadı";
+"Could not find story media" = "Hikaye medyası bulunamadı";
+"Could not get audio data. Try again after refreshing the chat." = "Ses verisi alınamadı. Sohbeti yeniledikten sonra tekrar deneyin.";
+"Disable read receipts" = "Okundu bilgilerini kapat";
+"Disappearing media" = "Kaybolan medya";
+"Download audio" = "Sesi indir";
+"Enable read receipts" = "Okundu bilgilerini etkinleştir";
+"Error: %@" = "Hata: %@";
+"Exclude chat" = "Sohbeti hariç tut";
+"Exclude from seen" = "Görüldüden hariç tut";
+"Exclude story seen" = "Hikaye görüldüden hariç tut";
+"Excluded" = "Hariç tutuldu";
+"Extracting audio…" = "Ses çıkarılıyor...";
+"FFmpeg conversion failed" = "FFmpeg dönüştürme başarısız oldu";
+"File sending not supported" = "Dosya gönderme desteklenmiyor";
+"Follow" = "Takip et";
+"Following" = "Takip ediliyor";
+"Format not supported without FFmpegKit" = "FFmpegKit olmadan biçim desteklenmiyor";
+"Inserts a button on disappearing media overlays" = "Kaybolan medya katmanlarına bir buton ekler";
+"Inserts a speaker button to mute/unmute disappearing media" = "Kaybolan medyanın sesini kapatmak/açmak için hoparlör butonu ekler";
+"Inserts an eye button to mark the current disappearing media as viewed" = "Mevcut kaybolan medyayı görüntülendi olarak işaretlemek için göz butonu ekler";
+"Link copied" = "Bağlantı kopyalandı";
+"Mark as viewed" = "Görüntülendi olarak işaretle";
+"Marking as viewed advances to the next stacked media instead of closing" = "Görüldü olarak işaretlemek kapatmak yerine sıradaki yığılı medyaya geçer";
+"Mark messages as seen" = "Mesajları görüldü işaretle";
+"Mark seen" = "Görüldü işaretle";
+"Marked as viewed" = "Görüntülendi olarak işaretlendi";
+"Marked messages as seen" = "Mesajlar görüldü işaretlendi";
+"Mentions" = "Bahsetmeler";
+"Message from %@ was unsent" = "%@ kişisinden gelen mesaj geri alındı";
+"Message sender not found" = "Mesaj gönderen bulunamadı";
+"Messages settings" = "Mesaj ayarları";
+"Mute story audio" = "Hikaye sesini kapat";
+"no audio track could be read" = "ses kanalı okunamadı";
+"No audio URL found. Try again after refreshing the chat." = "Ses URL'si bulunamadı. Sohbeti yeniledikten sonra tekrar deneyin.";
+"No mentions in this story" = "Bu hikayede bahsetme yok";
+"No thread key" = "Konu anahtarı yok";
+"No video selected" = "Video seçilmedi";
+"No voice send method found" = "Ses gönderme yöntemi bulunamadı";
+"Note has no downloadable content" = "Notta indirilebilir içerik yok";
+"Note text copied" = "Not metni kopyalandı";
+"Open GitHub" = "GitHub'ı aç";
+"Pick audio or video" = "Ses veya video seç";
+"Read receipts disabled" = "Okundu bilgileri kapatıldı";
+"Read receipts enabled" = "Okundu bilgileri etkinleştirildi";
+"Read receipts will be blocked for this chat." = "Bu sohbet için okundu bilgileri engellenecek.";
+"Read receipts will no longer be blocked for this chat." = "Bu sohbet için okundu bilgileri artık engellenmeyecek.";
+"Refreshing the DMs tab will clear %lu preserved unsent message. This cannot be undone." = "DM sekmesini yenilemek %lu korunan mesajı silecek. Bu geri alınamaz.";
+"Refreshing the DMs tab will clear %lu preserved unsent messages. This cannot be undone." = "DM sekmesini yenilemek %lu korunan mesajı silecek. Bu geri alınamaz.";
+"Remove" = "Kaldır";
+"Remove from block list" = "Engel listesinden kaldır";
+"Remove from exclude list" = "Hariç tutma listesinden kaldır";
+"Removed" = "Kaldırıldı";
+"Removed from list" = "Listeden kaldırıldı";
+"Save GIF" = "GIF'i kaydet";
+"Selection too short (min 0.5s)" = "Seçim çok kısa (min. 0,5 sn)";
+"Send anyway" = "Yine de gönder";
+"Send Audio" = "Ses Gönder";
+"Send failed: %@" = "Gönderme başarısız: %@";
+"Send File" = "Dosya Gönder";
+"Send service not found" = "Gönderme servisi bulunamadı";
+"Show audio toggle" = "Ses anahtarını göster";
+"Show mark-as-viewed button" = "Görüntülendi işaretleme butonunu göster";
+"Story read receipts disabled" = "Hikaye okundu bilgileri kapatıldı";
+"Story read receipts enabled" = "Hikaye okundu bilgileri etkinleştirildi";
+"This chat will resume normal read-receipt behavior." = "Bu sohbet normal okundu bilgisi davranışına dönecek.";
+"This file" = "Bu dosya";
+"Total: %@" = "Toplam: %@";
+"Un-exclude chat" = "Sohbeti hariç tutmadan çıkar";
+"Un-exclude story seen" = "Hikaye görüldü hariç tutmadan çıkar";
+"Un-excluded" = "Hariç tutmadan çıkarıldı";
+"Unblocked" = "Engel kaldırıldı";
+"Unlimited replay enabled" = "Sınırsız tekrar oynatma etkin";
+"Unmute story audio" = "Hikaye sesini aç";
+"Unsent" = "Geri alındı";
+"Upload Audio" = "Ses Yükle";
+"VC not found" = "VC bulunamadı";
+"Video from Library" = "Arşivden video";
+"Visual messages will expire" = "Görsel mesajların süresi dolacak";
+"Visual messages: expiring" = "Görsel mesajlar: süresi doluyor";
+"Visual messages: unlimited replay" = "Görsel mesajlar: sınırsız tekrar";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             CHAT BACKGROUNDS                             //
+// Custom per-chat image backgrounds: importer, library, per-image          //
+// settings, chat picker, defaults.                                         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add Background" = "Arka Plan Ekle";
+"Add Chat Background" = "Sohbet Arka Planı Ekle";
+"Adds your own image backgrounds to Instagram chats" = "Instagram sohbetlerine kendi görsel arka planlarınızı ekler";
+"After enabling, open any chat, tap the theme button, then tap the photo icon at the top-right." = "Etkinleştirdikten sonra herhangi bir sohbeti açın, tema düğmesine dokunun, ardından sağ üstteki fotoğraf simgesine dokunun.";
+"Blur" = "Bulanıklık";
+"Browse chats" = "Sohbetlere göz at";
+"Browse chats (%ld)" = "Sohbetlere göz at (%ld)";
+"Change Background" = "Arka Planı Değiştir";
+"Change default" = "Varsayılanı değiştir";
+"Chat Backgrounds" = "Sohbet Arka Planları";
+"Choose an image used when no chat override exists" = "Sohbet için özel ayar yokken kullanılacak bir görsel seçin";
+"Choose Image" = "Görsel Seç";
+"Clear default" = "Varsayılanı temizle";
+"Couldn't import image" = "Görsel içe aktarılamadı";
+"Custom Chat Background" = "Özel Sohbet Arka Planı";
+"Default background" = "Varsayılan arka plan";
+"Delete library images, default background, and chat overrides" = "Kitaplık görsellerini, varsayılan arka planı ve sohbet özel ayarlarını sil";
+"Dim in dark mode" = "Karanlık modda karart";
+"Edit image settings" = "Görsel ayarlarını düzenle";
+"Enable custom backgrounds" = "Özel arka planları etkinleştir";
+"Enter a username, chat name, or thread ID." = "Bir kullanıcı adı, sohbet adı veya thread ID girin.";
+"Group" = "Grup";
+"Image Settings" = "Görsel Ayarları";
+"Auto bubble color" = "Otomatik baloncuk rengi";
+"Bubble color" = "Baloncuk rengi";
+"Me" = "Ben";
+"Both" = "İkisi de";
+"Gradient" = "Gradyan";
+"Direction" = "Yön";
+"Vertical" = "Dikey";
+"Horizontal" = "Yatay";
+"Diagonal" = "Çapraz";
+"Text color" = "Metin rengi";
+"Automatic (contrast)" = "Otomatik (kontrast)";
+"Choose color…" = "Renk seç…";
+"Tap to apply · hold to edit" = "Uygulamak için dokun · düzenlemek için basılı tut";
+"Library" = "Kitaplık";
+"Library, default, and per-chat overrides will be deleted." = "Kitaplık, varsayılan ve sohbet başına özel ayarlar silinecek.";
+"No Custom" = "Özel Yok";
+"Opacity" = "Opaklık";
+"Photo Library" = "Fotoğraf Kitaplığı";
+"Pick default" = "Varsayılanı seç";
+"Pinch + drag to position" = "Konumlandırmak için sıkıştır + sürükle";
+"Quit and reopen Instagram for the change to take effect." = "Değişikliğin etkili olması için Instagram'dan çıkıp yeniden açın.";
+"Recently set" = "Yakın zamanda ayarlandı";
+"Remove the global fallback background" = "Genel yedek arka planı kaldır";
+"Replace the default background image" = "Varsayılan arka plan görselini değiştir";
+"Reset all backgrounds" = "Tüm arka planları sıfırla";
+"Reset all backgrounds?" = "Tüm arka planlar sıfırlansın mı?";
+"Reset sets opacity to 1.0, blur to 0, dim to 0." = "Sıfırlama opaklığı 1.0, bulanıklığı 0, kararmayı 0 yapar.";
+"RyukGram Gallery" = "Instagram X Galerisi";
+"Search username, name, or thread ID" = "Kullanıcı adı, ad veya thread ID ara";
+"Set as default" = "Varsayılan olarak ayarla";
+"Tap plus to add. Tap a background to edit, set as default, or delete." = "Eklemek için artıya dokunun. Düzenlemek, varsayılan yapmak veya silmek için bir arka plana dokunun.";
+"This Chat Background" = "Bu Sohbet Arka Planı";
+"Thread ID" = "Sohbet kimliği";
+"Used only when a chat does not have its own custom background." = "Yalnızca bir sohbetin kendi özel arka planı olmadığında kullanılır.";
+"View and manage chats with custom backgrounds" = "Özel arka planlı sohbetleri görüntüleyin ve yönetin";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             GENERAL FEATURES                             //
+// Strings inside per-feature overlays: fake location, color picker, notes  //
+// customization, profile copy, etc.                                        //
+//////////////////////////////////////////////////////////////////////////////
+
+"Add location" = "Konum ekle";
+"Add preset" = "Hazır ayar ekle";
+"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Yukarıdaki her şeyi etkiler. Kapalıyken Instagram X'ın teması ve yüzey geçersiz kılmaları yalnızca iOS karanlık moddayken uygulanır — aydınlık mod olduğu gibi kalır.";
+"Apply & restart" = "Uygula ve yeniden başlat";
+"Background" = "Arka plan";
+"Behavior" = "Davranış";
+"Change location" = "Konumu değiştir";
+"Clipboard is not an Instagram URL" = "Pano bir Instagram URL'si değil";
+"Comments hidden" = "Yorumlar gizlendi";
+"Comments shown" = "Yorumlar gösterildi";
+"Copied text to clipboard" = "Metin panoya kopyalandı";
+"Copy" = "Kopyala";
+"Copy bio" = "Biyografiyi kopyala";
+"Copy name" = "Adı kopyala";
+"Could not find cover image" = "Kapak görseli bulunamadı";
+"Current: %@" = "Geçerli: %@";
+"Dark" = "Karanlık";
+"Disable" = "Kapat";
+"Download GIF" = "GIF indir";
+"Dropped pin" = "Bırakılan iğne";
+"Emoji" = "Emoji";
+"Enable" = "Etkinleştir";
+"Enable Location Services for Instagram in Settings to use your current location." = "Geçerli konumunuzu kullanmak için Ayarlar'dan Instagram için Konum Servisleri'ni etkinleştirin.";
+"Enter emoji" = "Emoji girin";
+"Fake location" = "Sahte konum";
+"Force theme" = "Temayı zorla uygula";
+"Keyboard theme" = "Klavye teması";
+"Light" = "Açık";
+"Location access denied" = "Konum erişimi reddedildi";
+"Location Services off" = "Konum Servisleri kapalı";
+"Name" = "Ad";
+"Nothing to copy" = "Kopyalanacak bir şey yok";
+"Off, Light, Dark, or OLED" = "Kapalı, Açık, Koyu veya OLED";
+"OLED" = "OLED";
+"OLED chat theme" = "OLED sohbet teması";
+"Open Settings" = "Ayarları Aç";
+"Optional per-surface overrides. Each one is independent of the theme above." = "İsteğe bağlı yüzey başına geçersiz kılmalar. Her biri yukarıdaki temadan bağımsızdır.";
+"Override iOS appearance regardless of system mode" = "Sistem modundan bağımsız olarak iOS görünümünü geçersiz kıl";
+"Override the keyboard appearance when typing" = "Yazarken klavye görünümünü geçersiz kıl";
+"Pick location" = "Konum seç";
+"Pure black DM thread + incoming bubbles" = "Saf siyah DM dizisi + gelen mesaj baloncukları";
+"Reset theme" = "Temayı sıfırla";
+"Restart Instagram to apply your theme changes" = "Tema değişikliklerinizi uygulamak için Instagram'ı yeniden başlatın";
+"Save" = "Kaydet";
+"Save preset" = "Hazır ayarı kaydet";
+"Saved locations" = "Kayıtlı konumlar";
+"Select color" = "Renk seç";
+"Set location" = "Konumu ayarla";
+"The theme RyukGram applies to Instagram." = "Instagram X'ın Instagram'a uyguladığı tema.";
+"Theme" = "Tema";
+"Turn every theme option off and restart" = "Tüm tema seçeneklerini kapat ve yeniden başlat";
+"Turn Location Services on in Settings → Privacy to use your current location." = "Geçerli konumunuzu kullanmak için Ayarlar → Gizlilik içinde Konum Servisleri'ni açın.";
+"Type an emoji to use as the note bubble icon." = "Not balonu simgesi olarak kullanılacak emojiyi yazın.";
+"View profile picture" = "Profil fotoğrafını görüntüle";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE ANALYZER                              //
+// Settings → Profile Analyzer                                              //
+//////////////////////////////////////////////////////////////////////////////
+
+" BETA " = " BETA ";
+"%lu of %lu checks on" = "%lu denetimden %lu tanesi açık";
+"Checks" = "Denetimler";
+"Pick which categories each scan computes. A disabled check is greyed out and skipped — it won't be calculated or shown." = "Her taramanın hangi kategorileri hesaplayacağını seçin. Devre dışı bir denetim soluk görünür ve atlanır — hesaplanmaz ve gösterilmez.";
+"Snapshot saved" = "Anlık görüntü kaydedildi";
+"Your current scan was archived" = "Mevcut taramanız arşivlendi";
+"%@ %lu accounts? The first %ld will be processed to avoid rate limits." = "%@ %lu hesap? Hız sınırlarından kaçınmak için ilk %ld işlenecek.";
+"%@ %lu accounts? This runs sequentially with a short pause between each." = "%@ %lu hesap? Bu, her biri arasında kısa bir duraklamayla sırayla çalışır.";
+"%@ followers · %@ following" = "%@ takipçi · %@ takip";
+"%@ · %ld" = "%@ · %ld";
+"%dd ago" = "%d g önce";
+"%dh ago" = "%d sa önce";
+"%dm ago" = "%d dk önce";
+"%lu accounts followed" = "%lu hesap takip edildi";
+"%lu accounts unfollowed" = "%lu hesabın takibi bırakıldı";
+"%lu followers · %lu following" = "%lu takipçi · %lu takip edilen";
+"%lu of %lu" = "%lu / %lu";
+"%lu saved · comparing against %@" = "%lu kaydedildi · %@ ile karşılaştırılıyor";
+"(empty)" = "(boş)";
+"(no analyzer data)" = "(analizör verisi yok)";
+"a saved snapshot" = "kaydedilmiş bir anlık görüntü";
+"About Profile Analyzer" = "Profil Analizörü hakkında";
+"All preferences (%lu)" = "Tüm tercihler (%lu)";
+"Analysis complete" = "Analiz tamamlandı";
+"Analysis failed" = "Analiz başarısız";
+"Another analysis is already running" = "Başka bir analiz zaten çalışıyor";
+"Available after your next scan" = "Bir sonraki taramanızdan sonra kullanılabilir";
+"Batch follow" = "Toplu takip";
+"Batch follow finished" = "Toplu takip tamamlandı";
+"Batch unfollow" = "Toplu takibi bırak";
+"Batch unfollow finished" = "Toplu takibi bırakma tamamlandı";
+"Categories" = "Kategoriler";
+"Clear visited profiles" = "Ziyaret edilen profilleri temizle";
+"Compare next scan against" = "Sonraki taramayı şununla karşılaştır";
+"Comparing against %@" = "%@ ile karşılaştırılıyor";
+"Continue" = "Devam";
+"Couldn't fetch profile information" = "Profil bilgileri alınamadı";
+"Delete %lu snapshots? This can't be undone." = "%lu anlık görüntü silinsin mi? Bu geri alınamaz.";
+"Delete (%lu)" = "Sil (%lu)";
+"Delete snapshots" = "Anlık görüntüleri sil";
+"Delete this snapshot? This can't be undone." = "Bu anlık görüntü silinsin mi? Bu geri alınamaz.";
+"Each scan saves a full copy of your followers and following so you can compare against it later. Everything stays on this device." = "Her tarama, daha sonra karşılaştırabilmeniz için takipçilerinizin ve takip ettiklerinizin tam bir kopyasını kaydeder. Her şey bu cihazda kalır.";
+"Export" = "Dışa aktar";
+"Fetching followers (%lu/%ld)…" = "Takipçiler alınıyor (%lu/%ld)…";
+"Fetching following (%lu/%ld)…" = "Takip edilenler alınıyor (%lu/%ld)…";
+"Fetching profile info…" = "Profil bilgisi alınıyor…";
+"File is not a valid RyukGram backup." = "Dosya geçerli bir Instagram X dışa aktarımı değil.";
+"Filter" = "Filtre";
+"Filter · %lu" = "Filtre · %lu";
+"First scan: %@" = "İlk tarama: %@";
+"First scan: we collect your followers and following lists and save them locally." = "İlk tarama: takipçi ve takip edilen listelerinizi toplar ve yerelde kaydederiz.";
+"Follower count exceeds %ld — analysis disabled to avoid rate limits." = "Takipçi sayısı %ld değerini aşıyor — hız sınırlarından kaçınmak için analiz devre dışı.";
+"Followers" = "Takipçiler";
+"Following… %lu / %lu" = "Takip ediliyor… %lu / %lu";
+"Gained since last scan" = "Son taramadan beri kazanılan";
+"Heads up: this feature is in beta and hits Instagram's private API. Running it back-to-back or right after heavy follow/unfollow activity can trigger a short rate-limit. Use it sparingly and at your own risk." = "Dikkat: bu özellik beta aşamasındadır ve Instagram'ın özel API'sini kullanır. Arka arkaya veya yoğun takip/takip bırakma etkinliğinden hemen sonra çalıştırmak kısa süreli hız sınırını tetikleyebilir. Seyrek ve kendi riskinizle kullanın.";
+"Import complete" = "İçe aktarma tamamlandı";
+"Include" = "Dahil et";
+"Keep newest" = "En yenileri sakla";
+"Keep newest snapshots" = "En yeni anlık görüntüleri sakla";
+"Large accounts are blocked: analysis is disabled above 13,000 followers to avoid Instagram rate-limiting the whole app." = "Büyük hesaplar engellenir: Instagram'ın tüm uygulamayı hız sınırına sokmasını önlemek için 13.000 takipçinin üzerinde analiz devre dışıdır.";
+"Last scan: %@" = "Son tarama: %@";
+"Logs every profile you open. Stays on-device." = "Açtığınız her profili günlüğe kaydeder. Yalnızca cihazda kalır.";
+"Lost followers" = "Kaybedilen takipçiler";
+"Most visited" = "En çok ziyaret edilen";
+"Mutual followers" = "Karşılıklı takipçiler";
+"Name: %@ → %@" = "Ad: %@ → %@";
+"New followers" = "Yeni takipçiler";
+"NEW" = "YENİ";
+"New first" = "Önce yeniler";
+"New only" = "Yalnızca yeniler";
+"No active Instagram session found" = "Aktif Instagram oturumu bulunamadı";
+"No results" = "Sonuç yok";
+"No scan yet" = "Henüz tarama yok";
+"Not following you back" = "Sizi geri takip etmiyor";
+"Not verified only" = "Yalnızca doğrulanmamış";
+"Nothing is uploaded — everything stays on this device and can be wiped from the trash icon." = "Hiçbir şey yüklenmez — her şey bu cihazda kalır ve çöp kutusu simgesinden silinebilir.";
+"Nothing was applied." = "Hiçbir şey uygulanmadı.";
+"OK" = "Tamam";
+"Older snapshots beyond the limit are removed automatically" = "Sınırın ötesindeki eski anlık görüntüler otomatik olarak kaldırılır";
+"Older snapshots beyond this limit are deleted on the next scan." = "Bu sınırın ötesindeki eski anlık görüntüler bir sonraki taramada silinir.";
+"Pick what to remove. Snapshots clears the scan diffs and every recorded snapshot; visited profiles wipes the visit history." = "Neyin kaldırılacağını seçin. Anlık görüntüler, tarama farklarını ve kaydedilen her anlık görüntüyü temizler; ziyaret edilen profiller, ziyaret geçmişini siler.";
+"Posts" = "Gönderiler";
+"Preferences" = "Tercihler";
+"Previous scan" = "Önceki tarama";
+"Private account" = "Gizli hesap";
+"Private only" = "Yalnızca gizli";
+"Profile Analyzer" = "Profil Analizörü";
+"Profile Analyzer data" = "Profil Analizörü verileri";
+"Profile picture changed" = "Profil fotoğrafı değişti";
+"Profile updates" = "Profil güncellemeleri";
+"Profiles you've opened recently" = "Son zamanlarda açtığınız profiller";
+"Raw" = "Ham";
+"Raw JSON" = "Ham JSON";
+"Record snapshots" = "Anlık görüntü kaydet";
+"Recording" = "Kaydediliyor";
+"Request failed" = "İstek başarısız";
+"Reset analyzer data" = "Analizör verilerini sıfırla";
+"Reset complete" = "Sıfırlama tamamlandı";
+"Reset everything" = "Her şeyi sıfırla";
+"Reset selected data?" = "Seçili veriler sıfırlansın mı?";
+"Reset snapshots" = "Anlık görüntüleri sıfırla";
+"Rolling — always your last run" = "Sürekli güncel — her zaman son çalıştırmanız";
+"Run analysis" = "Analizi çalıştır";
+"Run your first analysis" = "İlk analizinizi çalıştırın";
+"Save a dated entry on every scan" = "Her taramada tarihli bir giriş kaydet";
+"Second scan onward: each scan compares against the last, so we can show gained/lost followers, your own follow/unfollow moves, and profile updates." = "İkinci taramadan itibaren her tarama bir öncekiyle karşılaştırılır; böylece kazanılan/kaybedilen takipçileri, kendi takip/takip bırakma hareketlerinizi ve profil güncellemelerini gösterebiliriz.";
+"Settings" = "Ayarlar";
+"Since last scan" = "Son taramadan beri";
+"Snapshot" = "Anlık görüntü";
+"Snapshots" = "Anlık görüntüler";
+"Snapshots let you archive each scan and pick which one new scans compare against. Track visits records every profile you open so you can review them here." = "Anlık görüntüler her taramayı arşivlemenize ve yeni taramaların hangisiyle karşılaştırılacağını seçmenize olanak tanır. Ziyaretleri izle, açtığınız her profili kaydeder, böylece burada inceleyebilirsiniz.";
+"Sort" = "Sırala";
+"Starting…" = "Başlatılıyor…";
+"They follow you, you don't follow back" = "Onlar sizi takip ediyor, siz geri takip etmiyorsunuz";
+"This can't be undone." = "Bu geri alınamaz.";
+"Ticked data will be cleared. Tap a row to see what's stored." = "Seçili veriler temizlenecek. Nelerin saklandığını görmek için herhangi bir satıra dokunun.";
+"Today" = "Bugün";
+"Too many followers" = "Çok fazla takipçi";
+"Too many followers to analyze" = "Analiz edilemeyecek kadar fazla takipçi";
+"Track visited profiles" = "Ziyaret edilen profilleri izle";
+"Tracking" = "İzleme";
+"Tracking off — enable below to log visits" = "İzleme kapalı — ziyaretleri kaydetmek için aşağıdan etkinleştirin";
+"Unfollow" = "Takibi bırak";
+"Unfollow %lu" = "%lu kişinin takibini bırak";
+"Unfollow @%@?" = "@%@ takibi bırakılsın mı?";
+"Unfollowed you since last scan" = "Son taramadan beri sizi takipten çıkardı";
+"Unfollowing… %lu / %lu" = "Takip bırakılıyor… %lu / %lu";
+"Unlimited" = "Sınırsız";
+"Username A → Z" = "Kullanıcı adı A → Z";
+"Username Z → A" = "Kullanıcı adı Z → A";
+"Username, name or picture changes" = "Kullanıcı adı, ad veya fotoğraf değişiklikleri";
+"Username: @%@ → @%@" = "Kullanıcı adı: @%@ → @%@";
+"Using %@ across %lu snapshots." = "%lu anlık görüntü genelinde %@ kullanılıyor.";
+"Verified only" = "Yalnızca doğrulanmış";
+"Visited" = "Ziyaret edildi";
+"Visited profiles" = "Ziyaret edilen profiller";
+"We refuse to run when the follower count exceeds %ld to avoid Instagram rate limits." = "Instagram hız sınırlarından kaçınmak için takipçi sayısı %ld değerini aştığında çalışmayı reddediyoruz.";
+"You both follow each other" = "Birbirinizi takip ediyorsunuz";
+"You don't follow back" = "Geri takip etmiyorsunuz";
+"You follow them, they don't follow back" = "Siz onları takip ediyorsunuz, onlar geri takip etmiyor";
+"You started following" = "Takip etmeye başladınız";
+"You unfollowed" = "Takibi bıraktınız";
+"your previous scan" = "önceki taramanız";
+"“Previous scan” always measures against your last run. Pick a saved snapshot to compare against a fixed point in time instead." = "“Önceki tarama” her zaman son çalıştırmanıza göre ölçer. Bunun yerine sabit bir zaman noktasıyla karşılaştırmak için kaydedilmiş bir anlık görüntü seçin.";
+"⚠️ This is getting large — lower the limit or delete older snapshots to free space." = "⚠️ Bu büyüyor — yer açmak için sınırı düşürün veya eski anlık görüntüleri silin.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                         SETTINGS VIEWS & DIALOGS                         //
+// Excluded-lists managers, backup/restore flows, in-picker labels.         //
+//////////////////////////////////////////////////////////////////////////////
+
+"Absolute format" = "Mutlak biçim";
+"Add chat" = "Sohbet ekle";
+"Add custom domain" = "Özel alan adı ekle";
+"Add to list?" = "Listeye eklensin mi?";
+"Add user" = "Kullanıcı ekle";
+"Apply" = "Uygula";
+"Apply to" = "Şuna uygula";
+"Chats" = "Sohbetler";
+"Colored" = "Renkli";
+"Could not read file." = "Dosya okunamadı.";
+"Could not resolve user ID" = "Kullanıcı kimliği çözümlenemedi";
+"Current location" = "Geçerli konum";
+"Custom" = "Özel";
+"Delete" = "Sil";
+"Each surface in IG goes through a different NSDate formatter. Toggle the ones you want this format to apply to." = "IG'deki her yüzey farklı bir NSDate biçimlendirici kullanır. Bu biçimin uygulanmasını istediğiniz yüzeyleri açın.";
+"Enable fake location" = "Sahte konumu etkinleştir";
+"Excluded chats" = "Hariç tutulan sohbetler";
+"Excluded users" = "Hariç tutulan kullanıcılar";
+"Follow default" = "Varsayılanı izle";
+"Force OFF (allow unsends)" = "Kapalıya zorla (geri almaya izin ver)";
+"Force ON (preserve unsends)" = "Açığa zorla (geri alınanları koru)";
+"Include seconds when the format already shows time. The custom format controls seconds itself with {ss}." = "Biçim zaman içeriyorsa saniyeleri de göster. Özel biçim, saniyeleri {ss} ile kendisi kontrol eder.";
+"Add custom format…" = "Özel biçim ekle…";
+"Edit" = "Düzenle";
+"Template" = "Şablon";
+"Placeholders" = "Yer tutucular";
+"Placeholders are replaced with date parts; anything else is shown as-is." = "Yer tutucular tarih parçalarıyla değiştirilir; geri kalan her şey olduğu gibi gösterilir.";
+"Tap a placeholder to insert it at the cursor." = "Bir yer tutucuya dokunarak imlecin olduğu yere ekleyin.";
+"Included chats" = "Dahil edilen sohbetler";
+"Included users" = "Dahil edilen kullanıcılar";
+"KD: default" = "ST: varsayılan";
+"KD: ON" = "ST: AÇIK";
+"Keep-deleted" = "Silinenleri tut";
+"Keep-deleted override" = "Silinenleri tut geçersiz kılması";
+"Name (A–Z)" = "Ad (A–Z)";
+"No DM thread found with @%@" = "@%@ ile DM konuşması bulunamadı";
+"Presets" = "Hazır ayarlar";
+"Recently added" = "Son eklenenler";
+"Relative time" = "Göreli zaman";
+"Relative within" = "Göreli süre";
+"Remove from list" = "Listeden kaldır";
+"Reset" = "Sıfırla";
+"Search" = "Ara";
+"Search address or place" = "Adres veya yer ara";
+"Search by name or username" = "Ada veya kullanıcı adına göre ara";
+"Search by username or name" = "Kullanıcı adına veya ada göre ara";
+"Select location on map" = "Haritada konum seç";
+"Set current location" = "Geçerli konumu ayarla";
+"Set keep-deleted override" = "Silinenleri tut geçersiz kılmasını ayarla";
+"Show map button" = "Harita butonunu göster";
+"Show relative time for dates younger than this many days. 0 disables it." = "Belirtilen günden daha yeni tarihler için göreli zaman göster. 0 kapatır.";
+"Show seconds" = "Saniyeleri göster";
+"Sort by" = "Şuna göre sırala";
+"Thread" = "Sohbet";
+"Time" = "Saat";
+"Use this location" = "Bu konumu kullan";
+"User '%@' not found" = "'%@' kullanıcısı bulunamadı";
+"Username (A–Z)" = "Kullanıcı adı (A–Z)";
+"Within %ld days" = "%ld gün içinde";
+"Within 1 day" = "1 gün içinde";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             REELS (FEATURES)                             //
+// Strings from Reels.                                                      //
+//////////////////////////////////////////////////////////////////////////////
+
+"No password found" = "Şifre bulunamadı";
+"No text field found" = "Metin alanı bulunamadı";
+"Refresh Reels?" = "Reels yenilensin mi?";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            PROFILE (FEATURES)                            //
+// Strings from Profile.                                                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"%lu accounts" = "%lu hesap";
+"%lu loaded" = "%lu yüklendi";
+"%lu loaded · all loaded" = "%lu yüklendi · tümü yüklendi";
+"Doesn't follow you" = "Sizi takip etmiyor";
+"Everyone is already loaded." = "Herkes zaten yüklendi.";
+"Filter & sort" = "Filtrele ve sırala";
+"Follows me" = "Beni takip ediyor";
+"Follows me first" = "Önce beni takip edenler";
+"Follows you" = "Sizi takip ediyor";
+"Hides everyone who doesn't match all picked filters." = "Seçili filtrelerin tümüyle eşleşmeyen herkesi gizler.";
+"Jump to bottom" = "En alta atla";
+"Jump to top" = "En üste atla";
+"List" = "Liste";
+"List fully loaded" = "Liste tamamen yüklendi";
+"Load more" = "Daha fazla yükle";
+"Loaded more" = "Daha fazlası yüklendi";
+"Mutuals" = "Karşılıklı";
+"Mutuals first" = "Önce karşılıklılar";
+"Note copied" = "Not kopyalandı";
+"People I follow" = "Takip ettiklerim";
+"People I follow first" = "Önce takip ettiklerim";
+"Reverse order" = "Ters sırala";
+"Show only" = "Yalnızca göster";
+"Verified" = "Doğrulanmış";
+"Verified first" = "Önce doğrulanmışlar";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                   MISC                                   //
+// Anything that didn't fit a named section. Usually short labels.          //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ - BETA" = "%@ - BETA";
+"(unset)" = "(ayarsız)";
+"720p • progressive • fastest" = "720p • aşamalı • en hızlı";
+"Add language" = "Dil ekle";
+"Album name" = "Albüm adı";
+"Are you sure?" = "Emin misiniz?";
+"Bundle" = "Paket";
+"Copy audio URL" = "Ses URL'sini kopyala";
+"Copy quality info" = "Kalite bilgisini kopyala";
+"Copy video URL" = "Video URL'sini kopyala";
+"Could not access reel media" = "Reel medyasına erişilemedi";
+"Could not access reel photo" = "Reel fotoğrafına erişilemedi";
+"Could not write file." = "Dosya yazılamadı.";
+"Download all and share?" = "Tümünü indirip paylaşılsın mı?";
+"Download Quality" = "İndirme Kalitesi";
+"Downloading %d%%" = "İndiriliyor %%%d";
+"e.g. 1000000" = "örn. 1000000";
+"Localization file not found" = "Çeviri dosyası bulunamadı";
+"Enter the language code (e.g. fr, de, ja)" = "Dil kodunu girin (ör. fr, de, ja)";
+"Error" = "Hata";
+"Extras" = "Ekstralar";
+"FFmpegKit Debug" = "FFmpegKit Hata Ayıklama";
+"File is empty or not a valid .strings file." = "Dosya boş veya geçerli bir .strings dosyası değil.";
+"KD: OFF" = "KD: KAPALI";
+"Keep-deleted: OFF" = "  • Silinenleri sakla: KAPALI";
+"Keep-deleted: ON" = "  • Silinenleri sakla: AÇIK";
+"Later" = "Daha sonra";
+"Loading" = "Yükleniyor";
+"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Instagram X'ın kaydettiği Fotoğraflar albümünün adı. Varsayılana dönmek için boş bırakın.";
+"Next" = "İleri";
+"No results found." = "Sonuç bulunamadı.";
+"No!" = "Hayır!";
+"Pick a language to update, or add a new one" = "Güncellemek için bir dil seçin veya yeni bir tane ekleyin";
+"Preset" = "Hazır ayar";
+"Restart" = "Yeniden başlat";
+"Restart now" = "Şimdi yeniden başlat";
+"Restart required" = "Yeniden başlatma gerekli";
+"Saved preset \"%@\"" = "Kaydedilen ön ayar \"%@\"";
+"selected" = "seçildi";
+"Shared icon, or override per button" = "Paylaşılan simge veya düğme başına geçersiz kıl";
+"Speed" = "Hız";
+"Unset" = "Ayarlanmamış";
+"Update localization" = "Çeviriyi güncelle";
+"Updated %@ (%ld keys). Restart to apply." = "%@ güncellendi (%ld anahtar). Uygulamak için yeniden başlatın.";
+"Use default" = "Varsayılanı kullan";
+"Username or PK" = "Kullanıcı adı veya PK";
+"Username or raw user PK" = "Kullanıcı adı veya ham kullanıcı PK";
+"Yes" = "Evet";
+"You must restart the app to apply this change" = "Bu değişikliği uygulamak için uygulamayı yeniden başlatmalısınız";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               ABOUT / CREDITS                            //
+// Strings from the About / Credits footer of Settings.                     //
+//////////////////////////////////////////////////////////////////////////////
+
+"%@ — GitHub, Telegram, Donate" = "%@ — GitHub, Telegram, Bağış";
+"About" = "Hakkında";
+"Arabic translation" = "Arapça çeviri";
+"Chinese (Traditional and Simplified) translation" = "Çince (Geleneksel ve Basitleştirilmiş) çevirisi";
+"Credits" = "Katkıda bulunanlar";
+"Developers" = "Geliştiriciler";
+"Donate to SoCuul" = "SoCuul'a bağış yap";
+"installed" = "yüklü";
+"Korean translation" = "Korece çeviri";
+"Portuguese (Brazil) translation" = "Portekizce (Brezilya) çevirisi";
+"Turkish translation" = "Türkçe çeviri";
+"Vietnamese translation" = "Vietnamca çeviri";
+"French translation" = "Fransızca çeviri";
+"Code contributions" = "Kod katkıları";
+"Following feed mode (from InstaSane)" = "Takip Edilenler akış modu (InstaSane'den)";
+"latest" = "en son";
+"Links" = "Bağlantılar";
+"No releases" = "Sürüm yok";
+"Original SCInsta developer" = "Orijinal SCInsta geliştiricisi";
+"Release notes" = "Sürüm notları";
+"Releases" = "Sürümler";
+"Report an issue" = "Sorun bildir";
+"Russian translation" = "Rusça çeviri";
+"RyukGram developer" = "Instagram X geliştiricisi";
+"Join Telegram channel" = "Telegram kanalına katıl";
+"Source code" = "Kaynak kod";
+"View on GitHub" = "GitHub'da görüntüle";
+"Spanish translation" = "İspanyolca çeviri";
+"Support the original SCInsta developer" = "Orijinal SCInsta geliştiricisini destekle";
+"Inspirations" = "İlham kaynakları";
+"Inspirations, contributors, translators" = "İlham kaynakları, katkıda bulunanlar, çevirmenler";
+"Code and research" = "Kod ve araştırma";
+"Translators" = "Çevirmenler";
+"Original BHInstagram developer" = "Orijinal BHInstagram geliştiricisi";
+"OLED theme inspiration" = "OLED tema ilhamı";
+"Donate to Ryuk" = "Ryuk'a bağış yap";
+"Support RyukGram development" = "Instagram X geliştirmesini destekle";
+"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X, SCInsta'nın büyük ölçüde yeniden çalışılmış bir çatallanmasıdır — orijinal geliştiriciye yapılan destek takdir edilir.";
+"Browse changes from previous releases" = "Önceki sürümlerdeki değişikliklere göz at";
+"Code inspiration" = "Kod ilhamı";
+"zxPluginsInject sideload compatibility shim" = "zxPluginsInject sideload uyumluluk katmanı";
+"Telegram channel" = "Telegram kanalı";
+"Testing and feature suggestions" = "Test ve özellik önerileri";
+"Version" = "Sürüm";
+"Version, credits, and links" = "Sürüm, katkılar ve bağlantılar";
+"What's new in RyukGram" = "Instagram X'da yenilikler";
+
+//////////////////////////////////////////////////////////////////////////////
+//                             HD DOWNLOADS                                 //
+// Enhanced / HD downloads settings (DASH + FFmpegKit encoding).            //
+//////////////////////////////////////////////////////////////////////////////
+
+"720p • progressive • silent" = "720p • aşamalı • sessiz";
+"Audio only" = "Yalnızca ses";
+"Audio ready" = "Ses hazır";
+"Download video at the highest available quality" = "Videoyu mevcut en yüksek kalitede indir";
+"Downloads HD video via DASH streams and encodes to H.264. Requires FFmpegKit." = "HD videoyu DASH akışları üzerinden indirir ve H.264'e kodlar. FFmpegKit gerektirir.";
+"Encoding in software" = "Yazılımla kodlanıyor";
+"Encoding speed" = "Kodlama hızı";
+"Enhanced downloads" = "Gelişmiş indirmeler";
+"Faster = lower quality" = "Daha hızlı = daha düşük kalite";
+"FFmpeg not available" = "FFmpeg kullanılamıyor";
+"FFmpegKit is not available. Install the sideloaded IPA or the _ffmpeg .deb variant to enable." = "FFmpegKit kullanılamıyor. Etkinleştirmek için sideload edilmiş IPA'yı veya _ffmpeg .deb varyantını yükleyin.";
+"Hardware encoder isn't available in the background — your quality settings were kept." = "Donanım kodlayıcı arka planda kullanılamıyor — kalite ayarlarınız korundu.";
+"No audio track found" = "Ses parçası bulunamadı";
+"Photo" = "Fotoğraf";
+"Photo quality" = "Fotoğraf kalitesi";
+"Size unknown" = "Boyut bilinmiyor";
+"calculating size…" = "boyut hesaplanıyor…";
+"silent" = "sessiz";
+"Use highest resolution available" = "Mevcut en yüksek çözünürlüğü kullan";
+"Video encoder locked up — restart Instagram to encode again" = "Video kodlayıcı kilitlendi — yeniden kodlamak için Instagram'ı yeniden başlatın";
+"Video quality" = "Video kalitesi";
+"Which quality to download" = "Hangi kalitenin indirileceği";
+
+//////////////////////////////////////////////////////////////////////////////
+//                            ADVANCED ENCODING                             //
+// Advanced encoding page — codecs, profiles, CRF/bitrate, audio,           //
+// container. Manual ffmpeg controls behind “Advanced encoding” toggle.     //
+//////////////////////////////////////////////////////////////////////////////
+
+"'%@' is not in this FFmpegKit build — using hardware h264 instead." = "'%@' bu FFmpegKit derlemesinde yok — bunun yerine donanım h264 kullanılıyor.";
+"10-bit 4:2:0. ~2x slower, smoother gradients." = "10-bit 4:2:0. ~2x daha yavaş, daha pürüzsüz geçişler.";
+"10-bit colour. Slower, smoother gradients. Software only." = "10-bit renk. Daha yavaş, daha pürüzsüz geçişler. Yalnızca yazılım.";
+"1080p30 baseline." = "1080p30 temel.";
+"4K30 baseline." = "4K30 temel.";
+"8-bit 4:2:0. Universal default." = "8-bit 4:2:0. Evrensel varsayılan.";
+"8-bit 4:2:2 chroma. Niche playback." = "8-bit 4:2:2 kroma. Niş oynatma.";
+"8-bit 4:2:2 chroma. Software only." = "8-bit 4:2:2 kroma. Yalnızca yazılım.";
+"8-bit 4:4:4 chroma. Software only." = "8-bit 4:4:4 kroma. Yalnızca yazılım.";
+"8-bit 4:4:4 full chroma. Niche playback." = "8-bit 4:4:4 tam kroma. Niş oynatma.";
+"8-bit. Best for modern devices." = "8-bit. Modern cihazlar için en iyisi.";
+"Advanced encoding" = "Gelişmiş kodlama";
+"Advanced encoding settings" = "Gelişmiş kodlama ayarları";
+"Archival quality." = "Arşiv kalitesi.";
+"Audio bitrate" = "Ses bit hızı";
+"Audio channels" = "Ses kanalları";
+"Audio codec" = "Ses codec'i";
+"Audio conversion failed" = "Ses dönüştürme başarısız";
+"Audio sample rate" = "Ses örnekleme hızı";
+"Balanced. libx264 default." = "Dengeli. libx264 varsayılanı.";
+"Best practical quality per bit." = "Bit başına en iyi pratik kalite.";
+"Bitrate, channels, and sample rate apply only when the codec is AAC (re-encoding)." = "Bit hızı, kanallar ve örnekleme hızı yalnızca codec AAC olduğunda (yeniden kodlama) geçerlidir.";
+"Cartoons / anime." = "Çizgi film / anime.";
+"Cinematic. Smaller files." = "Sinematik. Daha küçük dosyalar.";
+"Codec" = "Codec";
+"Container" = "Konteyner";
+"Copy (passthrough)" = "Kopyala (geçiş)";
+"CRF quality" = "CRF kalitesi";
+"Downloading video…" = "Video indiriliyor…";
+"Easier to play back on weak devices." = "Zayıf cihazlarda oynatması daha kolay.";
+"Encoder unavailable" = "Kodlayıcı kullanılamıyor";
+"Examples: 8M, 12M, 25M, 4500k. Leave empty for auto." = "Örnekler: 8M, 12M, 25M, 4500k. Otomatik için boş bırakın.";
+"Failed to download video" = "Video indirilemedi";
+"Fast, fixed-bitrate, GPU-accelerated." = "Hızlı, sabit bit hızı, GPU hızlandırmalı.";
+"Fastest, worst compression." = "En hızlı, en kötü sıkıştırma.";
+"Faststart" = "Faststart";
+"Faststart moves the MP4 index to the start so playback begins before the file fully buffers. Strip metadata removes source tags (creation date, handler, encoder) from the file." = "Faststart, MP4 dizinini başa taşır, böylece oynatma dosya tamamen arabelleğe alınmadan başlar. Meta verileri çıkar, kaynak etiketlerini (oluşturma tarihi, işleyici, kodlayıcı) dosyadan kaldırır.";
+"FFmpeg documentation" = "FFmpeg belgeleri";
+"FFmpeg mux failed" = "FFmpeg birleştirme başarısız";
+"Frame rate" = "Kare hızı";
+"H.264 level" = "H.264 seviyesi";
+"H.264 profile" = "H.264 profili";
+"Hardware (VideoToolbox)" = "Donanım (VideoToolbox)";
+"Hardware (VideoToolbox) only supports yuv420p — '%@' was ignored. Switch to Software (libx264) to use it." = "Donanım (VideoToolbox) yalnızca yuv420p destekler — '%@' yok sayıldı. Kullanmak için Yazılım (libx264) seçeneğine geçin.";
+"Keep original audio. Fast." = "Orijinal sesi koru. Hızlı.";
+"Keep the source frame rate." = "Kaynak kare hızını koru.";
+"Let the encoder pick." = "Kodlayıcı seçsin.";
+"Live-action video." = "Gerçek çekim video.";
+"Lossless. Huge files." = "Kayıpsız. Çok büyük dosyalar.";
+"Low-latency streaming." = "Düşük gecikmeli akış.";
+"Manual ffmpeg controls in place of Encoding speed." = "Kodlama hızı yerine manuel ffmpeg kontrolleri.";
+"Marginal gain, huge time cost." = "Marjinal kazanç, büyük zaman maliyeti.";
+"Max resolution" = "Maks çözünürlük";
+"Mono" = "Mono";
+"No tuning. Default." = "Ayar yok. Varsayılan.";
+"None" = "Yok";
+"Pixel format" = "Piksel biçimi";
+"Pixel format ignored" = "Piksel biçimi yok sayıldı";
+"Preserve film grain." = "Film grenini koru.";
+"Preset and Tune apply to Software (libx264) only. Pair profile with pixel format: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. Mismatches downconvert silently. Hardware always uses yuv420p." = "Ön ayar ve İnce ayar yalnızca Yazılım (libx264) için geçerlidir. Profili piksel biçimiyle eşleştirin: high↔yuv420p, high10↔yuv420p10le, high422↔yuv422p, high444↔yuv444p. Uyumsuzluklar sessizce alt biçime dönüştürülür. Donanım her zaman yuv420p kullanır.";
+"Re-encode. Use when source is opus or unsupported." = "Yeniden kodla. Kaynak opus veya desteklenmiyorsa kullanın.";
+"Reset advanced encoding" = "Gelişmiş kodlamayı sıfırla";
+"Setting a video bitrate switches Software to fixed-bitrate and ignores CRF. Leave empty for CRF. Hardware uses bitrate." = "Bir video bit hızı ayarlamak Yazılım'ı sabit bit hızına geçirir ve CRF'yi yok sayar. CRF için boş bırakın. Donanım bit hızını kullanır.";
+"Slideshow-like content." = "Slayt gösterisi benzeri içerik.";
+"Slower, better compression per bit." = "Daha yavaş, bit başına daha iyi sıkıştırma.";
+"Smaller, visible artefacts." = "Daha küçük, görünür bozulmalar.";
+"Software (libx264)" = "Yazılım (libx264)";
+"Standard 8-bit." = "Standart 8-bit.";
+"Stereo" = "Stereo";
+"Streaming default." = "Akış varsayılanı.";
+"Strip metadata" = "Meta verileri çıkar";
+"Top of AAC." = "AAC'nin en üstü.";
+"Tune" = "İnce ayar";
+"Unknown error" = "Bilinmeyen hata";
+"Very high quality." = "Çok yüksek kalite.";
+"Video bitrate" = "Video bit hızı";
+"Video codec" = "Video codec'i";
+"Visually lossless. RyukGram default." = "Görsel olarak kayıpsız. Instagram X varsayılanı.";
+"Widest compatibility, no B-frames." = "En geniş uyumluluk, B-kare yok.";
+"Worst quality." = "En kötü kalite.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                          ACTION MENU CONFIG                              //
+// Profile action button: per-section toggles, reorder handles, default-tap //
+// behavior, reset confirmations, action catalog labels.                    //
+//////////////////////////////////////////////////////////////////////////////
+
+"Long-press gestures" = "Uzun basma hareketleri";
+"Inserts a button in the profile navigation header" = "Profil gezinme başlığına bir düğme ekler";
+"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Profil başlığına kopyalama, fotoğrafı görüntüleme, paylaşma, kaydetme ve profil bilgisi girişlerine sahip bir Instagram X eylem düğmesi ekler. Varsayılan olarak dokunma menüyü açar; dokunma davranışını Menüyü yapılandır bölümünden değiştirin.";
+"Configure menu" = "Menüyü yapılandır";
+"Reorder, enable/disable, set default tap, show date" = "Yeniden sırala, etkinleştir/devre dışı bırak, varsayılan dokunmayı ayarla, tarihi göster";
+"Reorder, enable/disable, set default tap" = "Yeniden sırala, etkinleştir/devre dışı bırak, varsayılan dokunmayı ayarla";
+"RyukGram profile actions" = "Instagram X profil eylemleri";
+"Reorder sections" = "Bölümleri yeniden sırala";
+"Drag the ≡ handle to reorder sections." = "Bölümleri yeniden sıralamak için ≡ tutamağını sürükleyin.";
+"Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "Yeniden sıralamak için ≡ tutamağını sürükleyin. Bir satırı kapatarak menüden gizleyin. Bir bölümü alt menü olarak işaretleyerek eylemlerini tek bir girişin arkasında toplayın.";
+"Show as submenu" = "Alt menü olarak göster";
+"Collapse this section's actions behind a single entry" = "Bu bölümün eylemlerini tek bir girişin arkasında topla";
+"Configure: %@" = "Yapılandır: %@";
+"What happens on a single tap. Long-press always opens the full menu." = "Tek dokunmada ne olacağı. Uzun basma her zaman tam menüyü açar.";
+"Reset to defaults" = "Varsayılanlara sıfırla";
+"This will restore the default sections, order, and toggles for this menu." = "Bu işlem, bu menü için varsayılan bölümleri, sıralamayı ve anahtarları geri yükler.";
+"Audio & visibility" = "Ses ve görünürlük";
+"DM disappearing media" = "DM kaybolan medya";
+"Bulk download" = "Toplu indirme";
+"Feed settings" = "Akış ayarları";
+"Reels settings" = "Reels ayarları";
+"Profile settings" = "Profil ayarları";
+"Stories settings" = "Hikaye ayarları";
+"Copy ID" = "Kimliği kopyala";
+"Copy Info" = "Bilgileri kopyala";
+"Copy all info" = "Tüm bilgileri kopyala";
+"Copy media URL" = "Medya URL'sini kopyala";
+"Copy profile link" = "Profil bağlantısını kopyala";
+"Copy username" = "Kullanıcı adını kopyala";
+"Download" = "İndir";
+"Download to Gallery" = "Galeriye indir";
+"Download all to Gallery" = "Tümünü Galeriye indir";
+"Exclude/include user" = "Kullanıcıyı hariç tut/dahil et";
+"Mute / unmute audio" = "Sesi kapat / aç";
+"Save picture to Gallery" = "Fotoğrafı Galeriye kaydet";
+"Share picture" = "Fotoğrafı paylaş";
+"View picture" = "Fotoğrafı görüntüle";
+"Bio" = "Biyografi";
+"ID" = "Kimlik";
+"Info" = "Bilgi";
+"Profile info" = "profil bilgileri";
+"Profile link" = "Profil bağlantısı";
+"Picture not found" = "Fotoğraf bulunamadı";
+"Private profile" = "Gizli profil";
+"Profile unavailable" = "Profil kullanılamıyor";
+"Public profile" = "Herkese açık profil";
+"Username" = "Kullanıcı adı";
+"Followers: %@" = "Takipçiler: %@";
+"Following: %@" = "Takip edilen: %@";
+"Copied %@" = "%@ kopyalandı";
+
+//////////////////////////////////////////////////////////////////////////////
+//                                 GALLERY                                  //
+// On-device media library: enable + save mode, browsing, filters, sort,    //
+// delete tools, picker entries, and the Photos/Gallery download submenu.   //
+//////////////////////////////////////////////////////////////////////////////
+
+"%.0f kbps" = "%.0f kbps";
+"%.1f Mbps" = "%.1f Mbps";
+"(unknown)" = "(bilinmiyor)";
+"All files deleted" = "Tüm dosyalar silindi";
+"Browsing" = "Göz atma";
+"By source" = "Kaynağa göre";
+"By type" = "Türe göre";
+"By user" = "Kullanıcıya göre";
+"Clear filters" = "Filtreleri temizle";
+"Comment" = "Yorum";
+"Create" = "Oluştur";
+"Create & Move" = "Oluştur ve Taşı";
+"Delete %@?" = "%@ silinsin mi?";
+"Delete all files" = "Tüm dosyaları sil";
+"Delete all images" = "Tüm görselleri sil";
+"Delete all videos" = "Tüm videoları sil";
+"Delete by user" = "Kullanıcıya göre sil";
+"Delete DM media" = "DM medyasını sil";
+"Delete feed posts" = "Akış gönderilerini sil";
+"Delete files" = "Dosyaları sil";
+"Delete Folder" = "Klasörü Sil";
+"Delete from Gallery?" = "Galeriden silinsin mi?";
+"Delete profile pictures" = "Profil fotoğraflarını sil";
+"Delete reels" = "Reels'i sil";
+"Delete selected" = "Seçilenleri sil";
+"Delete Selected Files?" = "Seçili Dosyalar Silinsin mi?";
+"Delete stories" = "Hikayeleri sil";
+"Delete thumbnails" = "Küçük resimleri sil";
+"Deleted from Gallery" = "Galeriden silindi";
+"Deleted selected files" = "Seçili dosyalar silindi";
+"Deselect All" = "Seçimi kaldır";
+"DM media deleted" = "DM medyası silindi";
+"DMs" = "DM'ler";
+"Each user appears as a folder next to your real folders." = "Her kullanıcı, gerçek klasörlerinizin yanında bir klasör olarak görünür.";
+"Each user gets a labelled section in the grid/list." = "Her kullanıcı, ızgara/listede etiketli bir bölüm alır.";
+"Enable gallery" = "Galeriyi etkinleştir";
+"Failed" = "Başarısız";
+"Failed to delete" = "Silinemedi";
+"Favorite" = "Favorilere ekle";
+"Favorite selected" = "Seçilenleri favorilere ekle";
+"Favorites only" = "Yalnızca favoriler";
+"Feed posts deleted" = "Akış gönderileri silindi";
+"Files deleted" = "Dosyalar silindi";
+"Flat list. No grouping." = "Düz liste. Gruplama yok.";
+"Folder name" = "Klasör adı";
+"Folders" = "Klasörler";
+"From RyukGram Gallery" = "Instagram X Galerisinden ses";
+"Gallery" = "Galeri";
+"Gallery only" = "Yalnızca Galeri";
+"Gallery save mode" = "Galeri kayıt modu";
+"Gallery Settings" = "Galeri Ayarları";
+"GIFs" = "GIF'ler";
+"Grid view" = "Izgara görünümü";
+"Group by user" = "Kullanıcıya göre grupla";
+"Hold DM tab to open gallery" = "Galeri için DM sekmesini basılı tutun";
+"Images" = "Görseller";
+"Images deleted" = "Görseller silindi";
+"Images first" = "Önce görseller";
+"item" = "öğe";
+"items" = "öğe";
+"Largest first" = "Önce en büyük";
+"List view" = "Liste görünümü";
+"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "Instagram X galerisini açmak için alt sekme çubuğundaki gelen kutusu düğmesine uzun basın";
+"Manage" = "Yönet";
+"More" = "Daha fazla";
+"Move selected" = "Seçilenleri taşı";
+"Move to Folder" = "Klasöre Taşı";
+"Name A-Z" = "Ad A-Z";
+"Name Z-A" = "Ad Z-A";
+"New Folder" = "Yeni Klasör";
+"New folder…" = "Yeni klasör…";
+"Newest first" = "Önce en yeni";
+"No files in Gallery" = "Galeride dosya yok";
+"No files to delete" = "Silinecek dosya yok";
+"No matching files" = "Eşleşen dosya yok";
+"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "Instagram X aracılığıyla indirilen medyanın cihazdaki kitaplığı. Kayıt modu, 'Fotoğraflar'a indir' işleminin gerçekte nereye yazacağını belirler.";
+"Open" = "Aç";
+"Open Original Post" = "Orijinal Gönderiyi Aç";
+"Options" = "Seçenekler";
+"Other" = "Diğer";
+"Photos + Gallery" = "Fotoğraflar + Galeri";
+"Photos only" = "Yalnızca Fotoğraflar";
+"Profile pictures deleted" = "Profil fotoğrafları silindi";
+"Reels deleted" = "Reels silindi";
+"Rename" = "Yeniden adlandır";
+"Rename Folder" = "Klasörü Yeniden Adlandır";
+"Root" = "Kök";
+"Save media from the preview screen\nto see it here." = "Burada görmek için medyayı önizleme\nekranından kaydedin.";
+"Saved %lu items to Gallery" = "Galeriye %lu öğe kaydedildi";
+"Saved to Gallery" = "Galeriye kaydedildi";
+"Saving to Gallery" = "Galeriye kaydediliyor...";
+"Search users" = "Kullanıcı ara";
+"Sections" = "Bölümler";
+"Select All" = "Tümünü seç";
+"Share" = "Paylaş";
+"Share selected" = "Seçilenleri paylaş";
+"Show favorites at top" = "Favorileri üstte göster";
+"Show gallery entries in download menus and unlock the gallery button" = "İndirme menülerinde galeri girişlerini göster ve galeri düğmesinin kilidini aç";
+"Smallest first" = "Önce en küçük";
+"Source" = "Kaynak";
+"Source user" = "Kaynak kullanıcı";
+"Storage" = "Depolama";
+"Stories deleted" = "Hikayeler silindi";
+"Story" = "Hikaye";
+"The original content may no longer exist." = "Orijinal içerik artık mevcut olmayabilir.";
+"This folder contains %ld file(s). They will be moved to the parent folder." = "Bu klasör %ld dosya içeriyor. Üst klasöre taşınacak.";
+"This folder is empty." = "Bu klasör boş.";
+"This will permanently remove %ld file%@ from the gallery." = "Bu işlem galeriden %ld dosya%@ kalıcı olarak kaldıracak.";
+"This will permanently remove %ld file(s)." = "Bu işlem, %ld dosyayı kalıcı olarak kaldırır.";
+"This will permanently remove this file from the gallery." = "Bu işlem, bu dosyayı galeriden kalıcı olarak kaldırır.";
+"Thumb" = "Küçük resim";
+"Thumbnails deleted" = "Küçük resimler silindi";
+"to Gallery" = "Galeriye";
+"Total files" = "Toplam dosya";
+"Total size" = "Toplam boyut";
+"Type" = "Tür";
+"Unable to open original post" = "Orijinal gönderi açılamadı";
+"Unable to open profile" = "Profil açılamadı";
+"Unfavorite" = "Favorilerden çıkar";
+"Unknown user" = "Bilinmeyen kullanıcı";
+"User files deleted" = "Kullanıcı dosyaları silindi";
+"Videos" = "Videolar";
+"Videos deleted" = "Videolar silindi";
+"Videos first" = "Önce videolar";
+"When enabled, favorites are pinned above other files inside the current sort and folder context." = "Etkinleştirildiğinde favoriler, geçerli sıralama ve klasör bağlamında diğer dosyaların üzerine sabitlenir.";
+"Where 'Download to Photos' actually writes when gallery is on" = "Galeri açıkken 'Fotoğraflar'a indir' işleminin gerçekte nereye yazacağı";
+"Yesterday" = "Dün";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              HOME SHORTCUT                               //
+// Extra button on the home top bar (right of the create-post +) — picks    //
+// between Gallery, Changelog, etc. Configure-screen and the row reorderer. //
+//////////////////////////////////////////////////////////////////////////////
+
+"Home shortcut button" = "Ana sayfa kısayol düğmesi";
+"Show the extra button on the home top bar" = "Ana sayfa üst çubuğundaki ek düğmeyi yapılandırın";
+"Auto" = "Otomatik";
+"Icon" = "Simge";
+"Drag the ≡ handle to reorder. Toggle actions off to hide them. With one action enabled, tapping fires it directly. With two or more, tapping opens a menu." = "Yeniden sıralamak için ≡ tutamacını sürükleyin. Bir satırı kapatarak o hedefi gizleyin. Bir eylem açıkken dokunma onu çalıştırır; iki veya daha fazlasıyla dokunma menü gösterir.";
+"Changelog" = "Değişiklik günlüğü";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              INTERFACE PAGE                              //
+// Settings → Interface (renamed Navigation tab)                            //
+//////////////////////////////////////////////////////////////////////////////
+
+"Adds an extra shortcut button beside the create-post + button on the home top bar." = "Ana ekran üst çubuğundaki gönderi oluştur + düğmesinin yanına ekstra bir kısayol düğmesi ekler.";
+"All buttons" = "Tüm düğmeler";
+"Choose icon, reorder actions, and enable menu items" = "Simge seçin, eylemleri yeniden sıralayın ve menü öğelerini etkinleştirin";
+"Choose the icon shown on the home top bar. Auto uses the selected action icon when only one action is enabled." = "Ana ekran üst çubuğunda gösterilen simgeyi seçin. Yalnızca bir eylem etkinken Otomatik, seçili eylem simgesini kullanır.";
+"Configure button" = "Düğmeyi yapılandır";
+"Global Action Icons" = "Genel Eylem Simgeleri";
+"Interface" = "Arayüz";
+"Override the icon for a specific button. Buttons left on Default follow the shared icon above." = "Belirli bir düğmenin simgesini geçersiz kıl. Varsayılan bırakılan düğmeler yukarıdaki paylaşılan simgeyi izler.";
+"Per button" = "Düğme başına";
+"Show home shortcut button" = "Ana ekran kısayol düğmesini göster";
+"Tab bar" = "Sekme çubuğu";
+"Universal in-app notifications. Pick style, position, per-action routing (custom pill / IG-native / off)." = "Uygulama içi evrensel bildirimler. Stil, konum, işlem başına yönlendirme seçin.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                              NOTIFICATIONS                               //
+// Settings → Interface → Notifications + the universal pill / toast system //
+//////////////////////////////////////////////////////////////////////////////
+
+"Notifications" = "Bildirimler";
+"Appearance" = "Görünüm";
+"Routing" = "Yönlendirme";
+"Style" = "Stil";
+"Position" = "Konum";
+"Stack size" = "Yığın boyutu";
+"Duration" = "Süre";
+"Default surface" = "Varsayılan yüzey";
+"System notifications" = "Sistem bildirimleri";
+"Mirror to notification centre" = "Bildirim merkezine yansıt";
+"While the app is in the background, toasts are delivered to the iOS notification centre instead so they aren't missed." = "Uygulama arka plandayken bildirimler kaçırılmamaları için iOS bildirim merkezine iletilir.";
+"Clear when app opens" = "Uygulama açılınca temizle";
+"Remove mirrored notifications from notification centre when you return to the app." = "Uygulamaya döndüğünüzde yansıtılan bildirimleri bildirim merkezinden kaldırır.";
+"Background mirror" = "Arka plan yansıtma";
+"Uses Instagram's notification permission. Per-action overrides live in each action's menu under Background mirror; actions set to Off never mirror." = "Instagram'ın bildirim iznini kullanır. Eylem bazlı ayarlar her eylemin menüsündeki Arka plan yansıtma altındadır; Kapalı olarak ayarlanan eylemler asla yansıtılmaz.";
+"Enable notifications" = "Bildirimleri etkinleştir";
+"Haptic feedback" = "Dokunsal geri bildirim";
+"Preview pill" = "Hap önizlemesi";
+"Preview download pill" = "İndirme hapı önizlemesi";
+"Preview loading pill" = "Yükleme hapı önizlemesi";
+"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "Ana anahtar. Kapalıyken hiçbir bildirim gösterilmez.";
+"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "Uygulama içi evrensel bildirimler. Tüm Instagram X geri bildirimleri buradan geçer.";
+"Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Minimal: düz blur. Colorful: ton renkli. Glow: renkli halka. Island: dinamik ada kapsülü.";
+"Top slides down, bottom slides up." = "Üst aşağı, alt yukarı kayar.";
+"How many pills can show at once before queueing." = "Sıraya alınmadan önce aynı anda kaç hap gösterilebilir.";
+"Multiplies how long toasts stay on screen." = "Bildirimlerin ekranda kalma süresini çarpar.";
+"Vibration on success/error pills." = "Başarı/hata haplarında titreşim.";
+"For toast-style actions you can choose between our pill and IG's native bottom toast. Per-action overrides live below." = "Uyarı tarzı işlemler için hap veya IG yerel uyarısı arasında seçim yapabilirsiniz. İşlem başına geçersiz kılmalar aşağıda.";
+"What to use when an action doesn't have its own override." = "Bir işlemin kendi geçersiz kılması yoksa ne kullanılacak.";
+"Tap to cycle: info → success → warning → error" = "Geçiş için dokun: bilgi → başarı → uyarı → hata";
+"Tap to cycle between success and failure" = "Başarı ve başarısızlık arasında geçiş için dokun";
+"Progress UI — pill or off only." = "İlerleme arayüzü — yalnızca hap veya kapalı.";
+"Minimal" = "Minimal";
+"Colorful" = "Renkli";
+"Glow" = "Parıltı";
+"Island" = "Ada";
+"Top" = "Üst";
+"Bottom" = "Alt";
+"Custom pill" = "Özel hap";
+"IG native toast" = "IG yerel uyarısı";
+"Short" = "Kısa";
+"Normal" = "Normal";
+"Long" = "Uzun";
+"Very long" = "Çok uzun";
+"Downloads & saving" = "İndirmeler ve kaydetme";
+"Copy to clipboard" = "Panoya kopyala";
+"Read receipts & seen" = "Okundu bilgileri";
+"Block, exclude & pin" = "Engelle, hariç tut ve sabitle";
+"Stories & messages" = "Hikayeler ve mesajlar";
+"Voice & audio" = "Ses ve audio";
+"Errors" = "Hatalar";
+"Download progress" = "İndirme ilerlemesi";
+"Bulk download progress" = "Toplu indirme ilerlemesi";
+"Repost progress" = "Yeniden paylaşım ilerlemesi";
+"Copied post / reel URL" = "Gönderi / reel URL'si kopyalandı";
+"Copied comment text" = "Yorum metni kopyalandı";
+"Copied GIF link" = "GIF bağlantısı kopyalandı";
+"Copied note text" = "Not metni kopyalandı";
+"Copied profile info" = "Profil bilgileri kopyalandı";
+"Copied audio URL" = "Ses URL'si kopyalandı";
+"Copied quality picker URL" = "Kalite seçici URL'si kopyalandı";
+"Copied unlocked password" = "Açılan şifre kopyalandı";
+"Copied description text" = "Açıklama metni kopyalandı";
+"DM seen / read receipts" = "DM görüldü / okundu";
+"Story seen / read receipts" = "Hikaye görüldü / okundu";
+"Someone read your message" = "Birisi mesajınızı okudu";
+"User blocked / unblocked" = "Kullanıcı engellendi / engel kaldırıldı";
+"Chat added / removed from exclude" = "Sohbet hariç tutulanlardan eklendi / çıkarıldı";
+"Story user added / removed from exclude" = "Hikaye kullanıcısı hariç tutulanlardan eklendi / çıkarıldı";
+"Share-sheet recipient pinned" = "Paylaşım sayfası alıcısı sabitlendi";
+"Unsent message detected" = "Geri çekilmiş mesaj algılandı";
+"Reaction removed detected" = "Tepki kaldırma algılandı";
+"%lu messages unsent" = "%lu mesaj geri alındı";
+"%lu reactions removed" = "%lu tepki kaldırıldı";
+"%lu chats marked seen" = "%lu sohbet görüldü olarak işaretlendi";
+"%lu stories marked seen" = "%lu hikaye görüldü olarak işaretlendi";
+"%lu of your messages read" = "%lu mesajınız okundu";
+"%lu notifications" = "%lu bildirim";
+"Live comments toggled" = "Canlı yorumlar değiştirildi";
+"Custom GIF sent" = "Özel GIF gönderildi";
+"GIF favorited / unfavorited" = "GIF favorilere eklendi / çıkarıldı";
+"Voice DM sent" = "Sesli DM gönderildi";
+"Audio extraction status" = "Ses çıkarma durumu";
+"Profile Analyzer complete" = "Profil Analizcisi tamamlandı";
+"Profile Analyzer progress" = "Profil Analizcisi ilerlemesi";
+"Media extraction failed" = "Medya çıkarma başarısız";
+"Permission denied" = "İzin reddedildi";
+"Validation error" = "Doğrulama hatası";
+"Network / API error" = "Ağ / API hatası";
+"Action error fallback" = "İşlem hata yedeği";
+"Unlock failed" = "Kilit açma başarısız";
+"Chat locked / unlocked" = "Sohbet kilitlendi / kilidi açıldı";
+"Invalid clipboard link" = "Geçersiz pano bağlantısı";
+"Experimental flag warning" = "Deneysel bayrak uyarısı";
+"Settings action confirmed" = "Ayar işlemi onaylandı";
+"Cache clearing progress" = "Önbellek temizleme ilerlemesi";
+"Backup export / import" = "Yedek dışa / içe aktarma";
+"Other / uncategorized" = "Diğer / kategorisiz";
+"Comment copied" = "Yorum kopyalandı";
+"FFmpeg log copied" = "FFmpeg günlüğü kopyalandı";
+"GIF inserted" = "GIF eklendi";
+"Story marked as seen" = "Hikaye görüldü olarak işaretlendi";
+"Saved" = "Kaydedildi";
+"Tap to retry" = "Yeniden denemek için dokun";
+"Looks great" = "Harika görünüyor";
+"Something broke" = "Bir şey bozuldu";
+"Just so you know" = "Bilginize";
+"Success preview" = "Başarı önizleme";
+"Error preview" = "Hata önizleme";
+"Warning preview" = "Uyarı önizleme";
+"Info preview" = "Bilgi önizleme";
+"Preview download…" = "İndirme önizleme…";
+"Colors" = "Renkler";
+"+ Add new language" = "+ Yeni dil ekle";
+"Each chat can override this in the list" = "Her sohbet bunu listede geçersiz kılabilir";
+"When on, Instagram location requests return your selected fake location. The map button adds a quick shortcut inside Friends Map." = "Açıkken, Instagram konum istekleri seçilen sahte konumu döndürür. Harita düğmesi Arkadaşlar Haritası içine bir kısayol ekler.";
+"Tap a preset to make it active. Swipe left to delete." = "Etkinleştirmek için bir ön ayara dokunun. Silmek için sola kaydırın.";
+"Override Instagram location reads." = "Instagram'ın konum okumalarını geçersiz kılar.";
+"Show the quick button in Friends Map." = "Hızlı düğmeyi Arkadaşlar Haritası içinde göster.";
+"Pick how absolute dates are written. “Default” leaves IG's own format untouched. Swipe a custom format to edit or delete it." = "Mutlak tarihlerin nasıl yazılacağını seçin. “Varsayılan”, IG'nin kendi biçimine dokunmaz. Özel bir biçimi düzenlemek veya silmek için kaydırın.";
+"Dates younger than the threshold show as relative time. Older dates fall back to the absolute format. “Combine with date” shows both — “Jan 5, 2026 (2h)” or “2h – Jan 5, 2026”." = "Eşikten yeni tarihler göreli zaman olarak gösterilir. Eski tarihler mutlak biçime döner. “Tarih ile birleştir” her ikisini de gösterir — “5 Oca 2026 (2s)” veya “2s – 5 Oca 2026”.";
+"Compact style" = "Sıkışık stil";
+"Example: “1h” instead of “1 hour ago”" = "Örnek: “1 saat önce” yerine “1h”";
+"Example: “Jan 5, 2026 (2h)”" = "Örnek: “Jan 5, 2026 (2h)”";
+"iOS audio APIs couldn't process this file%@%@\n\nYou can try sending it to Instagram as-is, or open a support issue." = "iOS ses API'leri bu dosyayı işleyemedi%@%@\n\nDosyayı Instagram'a olduğu gibi göndermeyi deneyebilir veya bir destek bildirimi açabilirsiniz.";
+"Combine with date" = "Tarih ile birleştir";
+"Absolute then relative" = "Önce mutlak, sonra göreli";
+"Relative – absolute" = "Göreli – mutlak";
+"Relative when young, absolute when older." = "Yeniyse göreli, eskiyse mutlak.";
+"Example: “2h – Jan 5, 2026”" = "Örnek: “2s – 5 Oca 2026”";
+"Catch view-once media unsent while you're away. ⚠️ May drain battery" = "Siz yokken geri alınan tek seferlik medyayı yakalar. ⚠️ Pili tüketebilir";
+"Disappearing (view-once) media" = "Kaybolan medya (tek seferlik)";
+"Disappearing media expired before it could be saved" = "Kaybolan medya kaydedilemeden süresi doldu";
+"Disappearing media — gone before it could be saved" = "Kaybolan medya — kaydedilemeden yok oldu";
+"Disappearing only" = "Yalnızca kaybolan";
+"Forces Instagram to keep running in the background so it can capture disappearing media that someone unsends while you're not in the app.\n\nMainly useful for view-once media — normal photos/videos are usually still recoverable without it. ⚠️ May significantly drain your battery, and can't capture anything if you force-quit Instagram from the app switcher.\n\nEnable it?" = "Birinin siz uygulamada değilken geri aldığı kaybolan medyayı yakalayabilmesi için Instagram'ı arka planda çalışmaya devam etmeye zorlar.\n\nÖzellikle tek seferlik medya için yararlıdır — normal fotoğraf/videolar bunsuz da genellikle kurtarılabilir. ⚠️ Pilinizi önemli ölçüde tüketebilir ve Instagram'ı uygulama değiştiriciden zorla kapatırsanız hiçbir şeyi yakalayamaz.\n\nEtkinleştirilsin mi?";
+"Keep Instagram active in background" = "Instagram'ı arka planda etkin tut";
+"Media couldn’t be downloaded — the link expired" = "Medya indirilemedi — bağlantının süresi doldu";
+"Media wasn’t available to save" = "Medya kaydetmek için kullanılamadı";
+"Retrying download…" = "İndirme yeniden deneniyor…";
+"Try to download again" = "Yeniden indirmeyi dene";
+"%lu followers removed" = "%lu takipçi kaldırıldı";
+"Batch remove followers" = "Toplu takipçi kaldırma";
+"Batch remove followers finished" = "Toplu takipçi kaldırma tamamlandı";
+"Follow back" = "Geri takip et";
+"Remove @%@ as a follower?" = "@%@ takipçilerden kaldırılsın mı?";
+"Remove follower" = "Takipçiyi kaldır";
+"Removing… %lu / %lu" = "Kaldırılıyor… %lu / %lu";
+
+//////////////////////////////////////////////////////////////////////////
+//                            READ RECEIPTS                              //
+//////////////////////////////////////////////////////////////////////////
+
+"Read receipts log" = "Okundu bilgisi kaydı";
+"Date" = "Tarih";
+"Reads" = "Okumalar";
+"Person" = "Kişi";
+"Chat" = "Sohbet";
+"%@ · on @%@" = "%@ · @%@ hesabında";
+"%lu read · %@" = "%lu okuma · %@";
+"%lu reads · %@" = "%lu okuma · %@";
+"%lu reads · %lu reader · %@" = "%lu okuma · %lu okuyan · %@";
+"%lu reads · %lu readers · %@" = "%lu okuma · %lu okuyan · %@";
+"Browse who read your messages, grouped by person" = "Mesajlarınızı okuyanları kişiye göre görün";
+"Clear all" = "Tümünü temizle";
+"Clear all records" = "Tüm kayıtları temizle";
+"Clear read receipts?" = "Okundu bilgileri temizlensin mi?";
+"Detects when others read your messages and notifies you" = "Başkaları mesajlarınızı okuduğunda algılar ve bildirir";
+"Ignored people & chats" = "Yoksayılan kişiler ve sohbetler";
+"Ignored" = "Yoksayıldı";
+"Log group chats" = "Grup sohbetlerini kaydet";
+"Most reads" = "En çok okuma";
+"No read receipts yet.\nWhen someone reads a message you sent, it shows up here." = "Henüz okundu bilgisi yok.\nGönderdiğiniz bir mesajı biri okuduğunda burada görünür.";
+"Notifies and records when someone reads a message you sent" = "Gönderdiğiniz mesajı biri okuduğunda bildirir ve kaydeder";
+"Nothing is ignored. Long-press someone in the log to stop logging them." = "Yoksayılan yok. Kaydı durdurmak için kayıttaki kişiye uzun basın.";
+"Nothing matches your filters." = "Filtrelerinizle eşleşen yok.";
+"Read %@ · %@" = "Okundu %@ · %@";
+"Record reads on this device. Off = notifications only, nothing stored" = "Okumaları bu cihazda kaydeder. Kapalı = yalnızca bildirim, kayıt yok";
+"Resume logging" = "Kaydı sürdür";
+"Save to log" = "Kayda kaydet";
+"Search by username" = "Kullanıcı adına göre ara";
+"Stop logging %@" = "%@ kaydını durdur";
+"Delete records" = "Kayıtları sil";
+"When enabled, a notification fires when someone reads your message. Turn off \"Save to log\" for toast-only mode. Long-press a person in the log to stop logging them." = "Etkinleştirildiğinde, birisi mesajınızı okuduğunda bildirim alırsınız. Yalnızca bildirim modu için \"Kayda kaydet\"i kapatın. Kayıtta bir kişiye uzun basarak kaydı durdurabilirsiniz.";
+"Swipe to remove. Removing resumes logging for that person or chat." = "Kaldırmak için kaydırın. Kaldırmak o kişinin veya sohbetin kaydını sürdürür.";
+"This removes all recorded reads on this device." = "Bu, bu cihazdaki tüm kayıtlı okumaları kaldırır.";
+"Updating names and photos" = "Adlar ve fotoğraflar güncelleniyor";
+"Your message" = "Mesajınız";
+"read your message in %@" = "%@ içinde mesajınızı okudu";
+"read your message" = "mesajınızı okudu";
+"Also track reads in group chats. Off by default — groups can be noisy" = "Grup sohbetlerindeki okumaları da izle. Varsayılan kapalı — gruplar yoğun olabilir";
+"Refreshing…" = "Yenileniyor…";
+"Pinned" = "Sabitlenenler";
+"Liked the story" = "Hikâyeyi beğenenler";
+"Default (recent first)" = "Varsayılan (önce en yeni)";
+"Liked first" = "Önce beğenenler";
+"Load all viewers" = "Tüm görüntüleyenleri yükle";
+"%lu viewers" = "%lu görüntüleyen";
+"Viewer pinned" = "Görüntüleyen sabitlendi";
+"Viewer unpinned" = "Görüntüleyenin sabitlemesi kaldırıldı";
+"Pin a viewer" = "Bir görüntüleyeni sabitle";
+"Pin order" = "Sabitleme sırası";
+"Pin this viewer?" = "Bu görüntüleyen sabitlensin mi?";
+"Filter, sort & pin viewers" = "Görüntüleyenleri filtrele, sırala ve sabitle";
+"Adds controls to your story viewers list" = "Hikâye görüntüleyenler listenize denetimler ekler";
+"Add by username, remove, reorder" = "Kullanıcı adıyla ekle, kaldır, yeniden sırala";
+"Pinned viewers (%lu)" = "Sabitlenen görüntüleyenler (%lu)";
+"Viewers list" = "Görüntüleyenler listesi";
+"Settings are saved and reused next time." = "Ayarlar kaydedilir ve bir sonraki sefer yeniden kullanılır.";
+"Tick several to combine them. Pinned viewers always stay on top and ignore these filters." = "Birden fazlasını seçerek birleştirin. Sabitlenen görüntüleyenler her zaman en üstte kalır ve bu filtreleri yok sayar.";
+"Pinned viewers" = "Sabitlenen görüntüleyenler";
+"Pin" = "Sabitle";
+"On the 'who viewed my story' list, adds a filter/sort button (bottom-right) with sticky settings. Long-press a viewer to pin them. Pinned viewers always show at the top — even before they view your story." = "\"Hikâyemi kim gördü\" listesine, ayarları kaydedilen bir filtre/sıralama düğmesi (sağ altta) ekler. Sabitlemek için bir görüntüleyene uzun basın. Sabitlenen görüntüleyenler, hikâyenizi görmeden önce bile her zaman en üstte gösterilir.";
+"Username or raw user PK. Pinned users always show at the top of your story viewers, even before they view it." = "Kullanıcı adı veya ham kullanıcı PK'si. Sabitlenen kullanıcılar, hikâyenizi görmeden önce bile görüntüleyenlerin en üstünde gösterilir.";
+
+//////////////////////////////////////////////////////////////////////////////
+//                               DEVICE ID                                  //
+// Settings -> Advanced -> Device ID, and the login-screen Device ID button //
+//////////////////////////////////////////////////////////////////////////////
+"Roll a new fingerprint" = "Yeni bir parmak izi oluştur";
+"New device fingerprint" = "Yeni cihaz parmak izi";
+"New ID only" = "Yalnızca yeni kimlik";
+"New ID + clear IG data" = "Yeni kimlik + IG verilerini temizle";
+"Fresh random device ID + FDID" = "Yeni rastgele cihaz kimliği + FDID";
+"Enter ID manually…" = "Kimliği elle gir…";
+"Manual device ID" = "Elle cihaz kimliği";
+"Paste or type the UUID this device should report." = "Bu cihazın bildirmesi gereken UUID'yi yapıştırın veya yazın.";
+"Device ID set" = "Cihaz kimliği ayarlandı";
+"Identity masked" = "Kimlik maskelendi";
+"Copy current ID" = "Geçerli kimliği kopyala";
+"Revert to my real device ID" = "Gerçek cihaz kimliğime dön";
+"Restore the original, stop masking" = "Orijinali geri yükle, maskelemeyi durdur";
+"Spoofing off" = "Sahteleme kapalı";
+"Relaunch now" = "Şimdi yeniden başlat";
+"Relaunch to apply" = "Uygulamak için yeniden başlatın";
+"Clear device & relaunch" = "Cihazı temizle ve yeniden başlat";
+"Clear device & relaunch?" = "Cihaz temizlensin ve yeniden başlatılsın mı?";
+"Clear & relaunch" = "Temizle ve yeniden başlat";
+"Strongest — full device reset" = "En güçlü — tam cihaz sıfırlama";
+"Device ID" = "Cihaz kimliği";
+"Device identity" = "Cihaz kimliği";
+"Masked" = "Maskeli";
+"Real" = "Gerçek";
+"Show button on login screen" = "Giriş ekranında düğmeyi göster";
+"Floating Device ID button while signed out" = "Oturum kapalıyken yüzen Cihaz Kimliği düğmesi";
+"Masks the device fingerprint Instagram sends (device ID + family device ID). Changes take effect after a relaunch. The same button also appears on the login screen." = "Instagram'ın gönderdiği cihaz parmak izini (cihaz kimliği + aile cihaz kimliği) maskeler. Değişiklikler yeniden başlatmadan sonra etkili olur. Aynı düğme giriş ekranında da görünür.";
+"Also clear Instagram's saved logins and stored device IDs? This logs you out and relaunches as a fresh device." = "Instagram'ın kayıtlı oturumları ve saklanan cihaz kimlikleri de temizlensin mi? Bu, oturumunuzu kapatır ve yeni bir cihaz olarak yeniden başlatır.";
+"Forgets every saved login, cookie and the stored device identity, then relaunches so Instagram starts as a brand-new device. You'll sign in again afterwards." = "Kayıtlı tüm oturumları, çerezleri ve saklanan cihaz kimliğini unutur, ardından Instagram'ı yepyeni bir cihaz olarak başlatmak için yeniden başlatır. Sonrasında tekrar giriş yapmanız gerekir.";
+
+//////////////////////////////////////////////////////////////////////////
+//                         FOLLOW REQUESTS TRACKER                        //
+// Settings → Follow Requests Tracker                                     //
+//////////////////////////////////////////////////////////////////////////
+"Follow Requests Tracker" = "Takip isteği izleyici";
+"Follow Requests" = "Takip istekleri";
+"Show follow requests" = "Takip isteklerini göster";
+"Check now" = "Şimdi kontrol et";
+"Reset tracked data" = "İzlenen verileri sıfırla";
+"Enable tracker" = "İzleyiciyi etkinleştir";
+"Log requests and check outcomes" = "İstekleri kaydet ve sonuçları kontrol et";
+"Logs follow requests you send and receive, and catches who cancels a request before you answer. All on-device." = "Gönderdiğin ve aldığın takip isteklerini kaydeder ve sen yanıtlamadan isteği iptal edenleri yakalar. Tümü cihazda.";
+"What to track" = "Ne izlenecek";
+"Requests I send" = "Gönderdiğim istekler";
+"To private accounts" = "Gizli hesaplara";
+"Requests I receive" = "Aldığım istekler";
+"From people who want to follow you" = "Seni takip etmek isteyenlerden";
+"Background check" = "Arka planda kontrol";
+"Check interval" = "Kontrol aralığı";
+"How often to check for outcomes while the app is open. Also checks on launch and when you open the list." = "Uygulama açıkken sonuçların ne sıklıkta kontrol edileceği. Ayrıca açılışta ve listeyi açtığında da kontrol eder.";
+"Off (manual only)" = "Kapalı (yalnızca manuel)";
+"Every 15 minutes" = "Her 15 dakikada";
+"Every 30 minutes" = "Her 30 dakikada";
+"Every hour" = "Her saat";
+"Every 6 hours" = "Her 6 saatte";
+"My request accepted" = "İsteğim kabul edildi";
+"A private account accepted you" = "Gizli bir hesap seni kabul etti";
+"My request declined" = "İsteğim reddedildi";
+"No longer pending" = "Artık beklemede değil";
+"New request received" = "Yeni istek alındı";
+"Someone asked to follow you" = "Biri seni takip etmek istedi";
+"Request withdrawn" = "İstek geri çekildi";
+"Someone cancelled their request" = "Biri isteğini iptal etti";
+"Sent by me" = "Gönderdiklerim";
+"Received" = "Alındı";
+"Sent" = "Gönderildi";
+"Accepted" = "Kabul edildi";
+"Rejected" = "Reddedildi";
+"Requested" = "İstendi";
+"Approved" = "Onaylandı";
+"Withdrawn" = "Geri çekildi";
+"No follow requests tracked yet" = "Henüz izlenen takip isteği yok";
+"Cancel requests" = "İstekleri iptal et";
+"Delete %lu record(s) from history?" = "Geçmişten %lu kayıt silinsin mi?";
+"Cancel %lu pending request(s)?" = "%lu bekleyen istek iptal edilsin mi?";
+"Follow back %lu account(s)?" = "%lu hesabı geri takip et?";
+"Clear all tracked follow requests?" = "İzlenen tüm takip istekleri temizlensin mi?";
+"Reset tracked follow requests for this account?" = "Bu hesap için izlenen takip istekleri sıfırlansın mı?";
+"Enable the tracker first" = "Önce izleyiciyi etkinleştir";
+"Checking…" = "Kontrol ediliyor…";
+"%ld request(s) updated" = "%ld istek güncellendi";
+"No changes" = "Değişiklik yok";
+"Working…" = "İşleniyor…";
+"Follow request accepted" = "Takip isteği kabul edildi";
+"%@ accepted your request" = "%@ isteğini kabul etti";
+"Follow request declined" = "Takip isteği reddedildi";
+"%@ is no longer pending" = "%@ artık beklemede değil";
+"New follow request" = "Yeni takip isteği";
+"%@ asked to follow you" = "%@ seni takip etmek istedi";
+"Follow request withdrawn" = "Takip isteği geri çekildi";
+"%@ withdrew their request" = "%@ isteğini geri çekti";
+"Follow requests log" = "Takip istekleri günlüğü";
