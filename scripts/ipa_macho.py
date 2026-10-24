@@ -204,6 +204,26 @@ def dylib_loads(path: Path) -> list[tuple[str, str]]:
     return loads
 
 
+def constructors_follow_framework(paths: list[str]) -> bool:
+    """True when both tweak constructors run after FBSharedFramework.
+
+    dyld runs initializers in load-command order. 2.4.9 moved
+    zxPluginsInject and SCInsta ahead of FBSharedFramework, so those
+    constructors walked classes and redirected suites before the image
+    existed and the process crashed on launch. 2.4.8 loaded the framework
+    first and launched.
+    """
+
+    names = [path.rsplit("/", 1)[-1] for path in paths]
+    try:
+        framework = names.index("FBSharedFramework")
+        tweak = names.index("SCInsta.dylib")
+        injector = names.index("zxPluginsInject.dylib")
+    except ValueError:
+        return False
+    return framework < tweak and framework < injector
+
+
 def strip_dylibs(path: Path, basenames: set[str]) -> list[str]:
     """Remove load commands whose dylib path ends with one of `basenames`.
 

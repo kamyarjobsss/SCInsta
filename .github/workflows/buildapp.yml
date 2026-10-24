@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.9"
+                description: "Publish a prerelease tagged instagram-x-v2.4.10"
                 default: true
                 required: false
                 type: boolean
@@ -178,9 +178,19 @@ jobs:
                 /tmp/ix-keychain-test
                 clang \
                   tests/IXSessionPersistTest.c src/Launch/IXSessionPersist.c \
+                  src/Launch/IXSessionLaunch.c \
                   -o /tmp/ix-session-test
                 /tmp/ix-session-test
                 python3 tests/test_dylib_order.py
+                clang -shared -fPIC \
+                  tests/IXLaunchInject.c src/Launch/IXSessionLaunch.c \
+                  src/Launch/IXSessionPersist.c \
+                  -o /tmp/ix_launch_inject.so
+                clang \
+                  tests/IXLaunchSmoke.c src/Launch/IXSessionPersist.c \
+                  -ldl \
+                  -o /tmp/ix-launch-smoke
+                IX_INJECT=/tmp/ix_launch_inject.so /tmp/ix-launch-smoke
                 clang \
                   tests/IXFollowBackTest.c src/Features/ProfileAnalyzer/IXFollowBack.c \
                   -o /tmp/ix-follow-test
@@ -266,15 +276,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.9 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.10 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.9
+                tag_name: instagram-x-v2.4.10
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.9
+                name: Instagram X 2.4.10
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -300,6 +310,8 @@ jobs:
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
 
+                  v2.4.10 keeps the 2.4.9 session files and the Los Angeles default, and it launches. 2.4.9 initialized zxPluginsInject and SCInsta before FBSharedFramework, then walked every class and rebound SecItem from that constructor, so the process crashed before the first screen. Those dylibs load after the framework again, the same order as 2.4.8. Group suites and the group cookie jar still redirect into Documents, and only after that image is mapped. The class walk waits until willFinishLaunching. One login can be required. Not tested on a device.
+
                   v2.4.9 keeps the login that 2.4.8 still dropped. The sideload has no app-group entitlement, so the group.com.burbn.instagram and group.com.facebook.family preference suites and the group cookie jar never reached a stable file. Instagram then started with no user session and IGSessionManagerServiceInitOnStartup cleared every user. Those suites and the group cookie storage now persist in the app container, and the hooks are installed from the tweak constructor before that startup read. clearAllUsers logs its logout entry point. Fake location defaults on, centered on Los Angeles. The panel stays https://zovidar.duckdns.org/api/v1. One login can be required. Not tested on a device.
 
                   v2.4.8 keeps the login that 2.4.7 still dropped. Every launch Instagram ran onFirstAppInstall because getIsFirstUserEnterSession is true when the user-id string is empty. instagram.activeaccount is stored in group.com.facebook.family, and the sideload entitlement is only the team prefix, so that read misses and the user id stays empty. Add, copy, update, and delete now use the access group SecItem assigned to the base helper's probe item, the same group on every path. Documents/mobileconfig is copied aside before Instagram deletes it and put back before the next launch. The panel sends the account count after login, including when the app backgrounds. One login can be required. Not tested on a device.
@@ -321,4 +333,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.9"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.10"

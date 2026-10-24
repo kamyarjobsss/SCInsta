@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../src/Launch/IXSessionLaunch.h"
 #include "../src/Launch/IXSessionPersist.h"
 
 static int g_failed = 0;
@@ -119,6 +120,21 @@ int main(void) {
     expect(IXSessionPersistSuite("") == 0, "empty suite is not persisted");
     expect(IXSessionPersistSuite("group.com.burbn.instagram/../x") == 0, "suite slash is rejected");
     expect(IXSessionPersistSuite("group.com/..") == 0, "suite dotdot is rejected");
+    expect(IXSessionSuitePlist("/docs", "group.com.burbn.instagram", out, sizeof out) == 1, "suite plist path");
+    expect_str(out, "/docs/group.com.burbn.instagram/Library/Preferences/group.com.burbn.instagram.plist", "suite plist value");
+    expect(IXSessionSuitePlist("/docs", "group.com.facebook.family", out, sizeof out) == 1, "family plist path");
+    expect(IXSessionSuitePlist("/docs", "com.burbn.instagram", out, sizeof out) == 0, "app domain has no suite plist");
+    expect(IXSessionSuitePlist(NULL, "group.com.burbn.instagram", out, sizeof out) == 0, "null docs");
+    expect(IXSessionSuitePlist("/docs", "group.com.burbn.instagram", out, 8) == 0, "short suite plist");
+    IXSessionLaunchReset();
+    IXSessionLaunchNoteImage("/usr/lib/libSystem.B.dylib");
+    expect(IXSessionLaunchMayWalkClasses() == 0, "class walk waits for the framework");
+    IXSessionLaunchNoteImage("Payload/Instagram.app/Frameworks/FBSharedFramework");
+    expect(IXSessionLaunchMayWalkClasses() == 1, "class walk after framework");
+    IXSessionLaunchNoteImage("libobjc.A.dylib");
+    expect(IXSessionLaunchMayWalkClasses() == 1, "later images stay ready");
+    IXSessionLaunchReset();
+    expect(IXSessionLaunchMayWalkClasses() == 0, "reset refuses the class walk");
     expect(IXSessionContainerLeaf("a\\b", out, sizeof out) == 0, "base leaf rejects a backslash");
     expect(IXSessionSensitiveName("sessionid") == 1, "session name");
     expect(IXSessionSensitiveName("Library/Cookies/Cookies.binarycookies") == 1, "cookie path");

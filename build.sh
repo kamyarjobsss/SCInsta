@@ -229,10 +229,8 @@ then
     # Patch IPA for sideloading
     ipapatch --input "$IPA_OUT" --inplace --noconfirm
 
-    # dyld runs initializers in load-command order. The group-suite and cookie
-    # hooks have to be installed before FBSharedFramework reads the session.
-    # ipapatch adds zxPluginsInject, so the reorder has to run after it.
-    python3 scripts/prioritize_launch_dylibs.py "$IPA_OUT"
+    # Leave zxPluginsInject and SCInsta after FBSharedFramework. 2.4.9 moved
+    # them earlier so their constructors ran first, and the app crashed on launch.
 
     # Full builds only. No LC_LOAD: the tweak dlopens this after the VPN is on.
     if [[ "${IX_LITE:-}" != "1" && -f vendor/ixray/IXRayCore.dylib ]]; then
