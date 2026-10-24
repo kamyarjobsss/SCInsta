@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ipa_macho import MachOError, dylib_loads  # noqa: E402
+from ipa_macho import MachOError, constructors_follow_framework, dylib_loads  # noqa: E402
 
 
 def fail(message: str) -> int:
@@ -145,21 +145,10 @@ def main() -> int:
         if got != expect:
             return fail(f"main binary loads {name} {got} times, expected {expect}")
 
-    def load_pos(name: str) -> int:
-        for index, (_kind, path) in enumerate(loads):
-            if path.rsplit("/", 1)[-1] == name:
-                return index
-        return -1
-
-    zx_at = load_pos("zxPluginsInject.dylib")
-    sc_at = load_pos("SCInsta.dylib")
-    fb_at = load_pos("FBSharedFramework")
-    if fb_at < 0:
-        return fail("main binary does not load FBSharedFramework")
-    if not (0 <= zx_at < sc_at < fb_at):
+    if not constructors_follow_framework([path for _kind, path in loads]):
         return fail(
-            "zxPluginsInject and SCInsta must initialize before FBSharedFramework "
-            f"(zx={zx_at} sc={sc_at} fb={fb_at})"
+            "SCInsta and zxPluginsInject must load after FBSharedFramework; "
+            "initializing them first crashed 2.4.9 at launch"
         )
     if counts.get("IXRayCore.dylib", 0):
         return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")

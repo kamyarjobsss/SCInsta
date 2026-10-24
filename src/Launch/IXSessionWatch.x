@@ -1,12 +1,15 @@
 #import "IXSessionWatch.h"
 #import "IXSessionDiag.h"
+#import "IXSessionLaunch.h"
 #import "IXSessionPersist.h"
 #import "../Backend/IXCrypto.h"
 #import "../Proxy/IXSymbolRebind.h"
 
 #import <Security/Security.h>
 #import <UIKit/UIKit.h>
+#import <dispatch/dispatch.h>
 #import <dlfcn.h>
+#import <mach-o/dyld.h>
 #import <execinfo.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -952,14 +955,16 @@ static void IXNoteFile(NSString *path) {
 %hook NSHTTPCookieStorage
 + (NSHTTPCookieStorage *)sharedCookieStorageForGroupContainerIdentifier:(NSString *)identifier {
     static int logs = 0;
-    if (IXSessionPersistSuite(identifier.UTF8String)) {
-        if (logs < 8) {
-            logs++;
-            IXSessionDiagLine([NSString stringWithFormat:@"cookie_redirect suite=%@", identifier.length > 80 ? [identifier substringToIndex:80] : identifier]);
-        }
-        return [self sharedHTTPCookieStorage];
+    NSHTTPCookieStorage *shared = nil;
+    if (![identifier isKindOfClass:[NSString class]] || !IXSessionPersistSuite(identifier.UTF8String)) return %orig;
+    @try { shared = [self sharedHTTPCookieStorage]; }
+    @catch (__unused NSException *exception) { shared = nil; }
+    if (!shared) return %orig;
+    if (logs < 8) {
+        logs++;
+        IXSessionDiagLine([NSString stringWithFormat:@"cookie_redirect suite=%@", identifier.length > 80 ? [identifier substringToIndex:80] : identifier]);
     }
-    return %orig;
+    return shared;
 }
 - (void)deleteCookie:(NSHTTPCookie *)cookie {
     int room = 0;
@@ -1077,13 +1082,36 @@ static void IXNoteFile(NSString *path) {
 }
 %end
 
-%ctor {
+static void IXNoteLoadedImages(void) {
+    uint32_t count = _dyld_image_count();
+    for (uint32_t i = 0; i < count; i++) IXSessionLaunchNoteImage(_dyld_get_image_name(i));
+}
+
+static void IXEnableCookieHooks(void) {
+    static int once = 0;
+    if (once || !IXSessionLaunchMayWalkClasses()) return;
+    once = 1;
     %init;
     pthread_mutex_lock(&ix_watch_mu);
     if (ix_watch_clock == 0) ix_watch_clock = CFAbsoluteTimeGetCurrent();
     pthread_mutex_unlock(&ix_watch_mu);
     IXMobileconfigSync(@"ctor");
-    IXArmSec(0);
-    IXInstallLogoutHooks();
     IXSessionDiagLine(@"cookie_hook ctor=1");
+}
+
+static void IXCookieImageAdded(const struct mach_header *header, intptr_t slide) {
+    (void)header;
+    (void)slide;
+    IXNoteLoadedImages();
+    if (!IXSessionLaunchMayWalkClasses()) return;
+    dispatch_async(dispatch_get_main_queue(), ^{ IXEnableCookieHooks(); });
+}
+
+%ctor {
+    IXNoteLoadedImages();
+    if (IXSessionLaunchMayWalkClasses()) {
+        IXEnableCookieHooks();
+        return;
+    }
+    _dyld_register_func_for_add_image(&IXCookieImageAdded);
 }

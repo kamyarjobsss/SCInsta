@@ -110,6 +110,12 @@ int IXSessionRewriteGroup(const char *group, const char *entitled);
    A slash, backslash, or ".." is rejected. The app's own domain is not. */
 int IXSessionPersistSuite(const char *suite);
 
+/* Absolute plist path for a redirected group suite:
+   <docs>/<suite>/Library/Preferences/<suite>.plist
+   Returns 0 for a suite IXSessionPersistSuite rejects, or when the
+   buffer is too small. docs is the app Documents directory. */
+int IXSessionSuitePlist(const char *docs, const char *suite, char *out, size_t outLen);
+
 /* 1 when a defaults key or a filesystem path is an auth/session store.
    Used to decide which deletions to record. Password values are never logged. */
 int IXSessionSensitiveName(const char *name);

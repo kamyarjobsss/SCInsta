@@ -1,5 +1,6 @@
 #include "IXSessionPersist.h"
 
+#include <stdio.h>
 #include <string.h>
 
 static int ix_copy(char *out, size_t outLen, const char *value) {
@@ -135,6 +136,19 @@ int IXSessionPersistSuite(const char *suite) {
     if (!suite || strncmp(suite, "group.", 6) != 0) return 0;
     if (strlen(suite) > 180) return 0;
     if (strchr(suite, '/') || strchr(suite, '\\') || strstr(suite, "..")) return 0;
+    return 1;
+}
+
+int IXSessionSuitePlist(const char *docs, const char *suite, char *out, size_t outLen) {
+    int wrote;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!docs || !docs[0] || strchr(docs, '\\') || !IXSessionPersistSuite(suite)) return 0;
+    wrote = snprintf(out, outLen, "%s/%s/Library/Preferences/%s.plist", docs, suite, suite);
+    if (wrote < 0 || (size_t)wrote >= outLen) {
+        out[0] = 0;
+        return 0;
+    }
     return 1;
 }
 

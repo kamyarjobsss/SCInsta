@@ -6,7 +6,11 @@
 
 #import "../Proxy/IXSymbolRebind.h"
 #import "IXSessionDiag.h"
+#import "IXSessionLaunch.h"
 #import "IXSessionPersist.h"
+
+#import <dispatch/dispatch.h>
+#import <mach-o/dyld.h>
 
 @interface NSUserDefaults (IXContainerSuite)
 - (id)_initWithSuiteName:(NSString *)suiteName container:(NSURL *)container;
@@ -327,13 +331,28 @@ static void IXMigrateInto(NSString *destPath) {
 
 %hook NSFileManager
 - (NSURL *)containerURLForSecurityApplicationGroupIdentifier:(NSString *)identifier {
-    NSURL *url = IXContainerURL(identifier);
-    NSString *source = IXEntitledGroupParent().path.length ? @"entitled" : @"sandbox";
-    if (url.path.length) {
-        IXMigrateInto(url.path);
+    static __thread int depth = 0;
+    NSURL *url = nil;
+    NSString *source = @"system";
+    if (depth) {
+        @try { return %orig; }
+        @catch (__unused NSException *exception) { return nil; }
+    }
+    depth++;
+    @try { url = %orig; }
+    @catch (__unused NSException *exception) { url = nil; }
+    if (![url isKindOfClass:[NSURL class]] || url.path.length == 0) {
+        @try { url = IXContainerURL(identifier); }
+        @catch (__unused NSException *exception) { url = nil; }
+        source = @"sandbox";
+    }
+    depth--;
+    if ([url isKindOfClass:[NSURL class]] && url.path.length) {
+        @try { IXMigrateInto(url.path); }
+        @catch (__unused NSException *exception) {}
         IXSessionDiagNoteContainer(url.path, source);
     }
-    return url;
+    return [url isKindOfClass:[NSURL class]] ? url : nil;
 }
 %end
 
@@ -374,28 +393,36 @@ static void IXLogSuite(NSString *suite, NSURL *container) {
 
 %hook NSUserDefaults
 - (id)_initWithSuiteName:(NSString *)suiteName container:(NSURL *)container {
-    NSURL *stable;
-    if (ix_suite_depth || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
-    stable = IXContainerURL(suiteName);
-    if (!stable) return %orig;
+    NSURL *stable = nil;
+    id result = nil;
+    if (ix_suite_depth || ![suiteName isKindOfClass:[NSString class]] || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
+    @try { stable = IXContainerURL(suiteName); }
+    @catch (__unused NSException *exception) { stable = nil; }
+    if (stable.path.length == 0) return %orig;
     IXAdoptSuitePlist(suiteName, stable);
-    if (container.path.length && [container.path isEqualToString:stable.path]) return %orig;
+    if ([container isKindOfClass:[NSURL class]] && [container.path isEqualToString:stable.path]) return %orig;
     ix_suite_depth++;
-    id result = %orig(suiteName, stable);
+    @try { result = %orig(suiteName, stable); }
+    @catch (__unused NSException *exception) { result = nil; }
     ix_suite_depth--;
+    if (!result) return %orig;
     IXLogSuite(suiteName, stable);
     return result;
 }
 - (id)initWithSuiteName:(NSString *)suiteName {
-    NSURL *stable;
-    id result;
-    if (ix_suite_depth || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
-    stable = IXContainerURL(suiteName);
-    if (!stable || ![self respondsToSelector:@selector(_initWithSuiteName:container:)]) return %orig;
+    NSURL *stable = nil;
+    id result = nil;
+    if (ix_suite_depth || ![suiteName isKindOfClass:[NSString class]] || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
+    if (![self respondsToSelector:@selector(_initWithSuiteName:container:)]) return %orig;
+    @try { stable = IXContainerURL(suiteName); }
+    @catch (__unused NSException *exception) { stable = nil; }
+    if (stable.path.length == 0) return %orig;
     IXAdoptSuitePlist(suiteName, stable);
     ix_suite_depth++;
-    result = [self _initWithSuiteName:suiteName container:stable];
+    @try { result = [self _initWithSuiteName:suiteName container:stable]; }
+    @catch (__unused NSException *exception) { result = nil; }
     ix_suite_depth--;
+    if (!result) return %orig;
     IXLogSuite(suiteName, stable);
     return result;
 }
@@ -419,8 +446,33 @@ void IXSessionSyncGroupSuites(void) {
     }
 }
 
-%ctor {
+static void IXNoteLoadedImages(void) {
+    uint32_t count = _dyld_image_count();
+    for (uint32_t i = 0; i < count; i++) IXSessionLaunchNoteImage(_dyld_get_image_name(i));
+}
+
+static void IXEnableSuiteHooks(void) {
+    static int once = 0;
+    if (once || !IXSessionLaunchMayWalkClasses()) return;
+    once = 1;
     %init;
     IXInstallDirectAppGroup();
     IXSessionDiagLine(@"suite_hook ctor=1");
+}
+
+static void IXSuiteImageAdded(const struct mach_header *header, intptr_t slide) {
+    (void)header;
+    (void)slide;
+    IXNoteLoadedImages();
+    if (!IXSessionLaunchMayWalkClasses()) return;
+    dispatch_async(dispatch_get_main_queue(), ^{ IXEnableSuiteHooks(); });
+}
+
+%ctor {
+    IXNoteLoadedImages();
+    if (IXSessionLaunchMayWalkClasses()) {
+        IXEnableSuiteHooks();
+        return;
+    }
+    _dyld_register_func_for_add_image(&IXSuiteImageAdded);
 }
