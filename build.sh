@@ -231,6 +231,7 @@ then
 
     # dyld runs initializers in load-command order. The group-suite and cookie
     # hooks have to be installed before FBSharedFramework reads the session.
+    # ipapatch adds zxPluginsInject, so the reorder has to run after it.
     python3 scripts/prioritize_launch_dylibs.py "$IPA_OUT"
 
     # Full builds only. No LC_LOAD: the tweak dlopens this after the VPN is on.
