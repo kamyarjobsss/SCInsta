@@ -110,6 +110,15 @@ int main(void) {
     expect(IXSessionRewriteGroup("773S3XDQX7.com.burbn.instagram", "773S3XDQX7.com.burbn.instagram") == 0, "entitled group stays");
     expect(IXSessionRewriteGroup("group.com.facebook.family", NULL) == 0, "no entitled group means no rewrite");
     expect(IXSessionRewriteGroup("group.com.facebook.family", "") == 0, "blank entitled group means no rewrite");
+    expect(IXSessionPersistSuite("group.com.burbn.instagram") == 1, "ig group suite persists");
+    expect(IXSessionPersistSuite("group.com.facebook.family") == 1, "family group suite persists");
+    expect(IXSessionPersistSuite("group.com.burbn.family") == 1, "burbn family suite persists");
+    expect(IXSessionPersistSuite("com.burbn.instagram") == 0, "app domain is not a group suite");
+    expect(IXSessionPersistSuite("instagramx.vpn") == 0, "our suite is not a group suite");
+    expect(IXSessionPersistSuite(NULL) == 0, "null suite is not persisted");
+    expect(IXSessionPersistSuite("") == 0, "empty suite is not persisted");
+    expect(IXSessionPersistSuite("group.com.burbn.instagram/../x") == 0, "suite slash is rejected");
+    expect(IXSessionPersistSuite("group.com/..") == 0, "suite dotdot is rejected");
     expect(IXSessionContainerLeaf("a\\b", out, sizeof out) == 0, "base leaf rejects a backslash");
     expect(IXSessionSensitiveName("sessionid") == 1, "session name");
     expect(IXSessionSensitiveName("Library/Cookies/Cookies.binarycookies") == 1, "cookie path");

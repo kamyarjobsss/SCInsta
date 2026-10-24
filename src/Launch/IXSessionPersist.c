@@ -131,6 +131,13 @@ int IXSessionRewriteGroup(const char *group, const char *entitled) {
     return 1;
 }
 
+int IXSessionPersistSuite(const char *suite) {
+    if (!suite || strncmp(suite, "group.", 6) != 0) return 0;
+    if (strlen(suite) > 180) return 0;
+    if (strchr(suite, '/') || strchr(suite, '\\') || strstr(suite, "..")) return 0;
+    return 1;
+}
+
 int IXSessionSensitiveName(const char *name) {
     if (!name || !name[0]) return 0;
     if (ix_has(name, "password")) return 0;

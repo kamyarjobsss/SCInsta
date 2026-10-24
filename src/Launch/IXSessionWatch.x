@@ -53,7 +53,7 @@ typedef struct {
     int arity;
 } IXLogoutSlot;
 
-static IXLogoutSlot ix_logout_slots[48];
+static IXLogoutSlot ix_logout_slots[64];
 static int ix_logout_count = 0;
 
 static NSString *IXClipC(const char *text, NSUInteger max) {
@@ -315,42 +315,93 @@ static void IXLogGroup(const char *op, CFDictionaryRef original, OSStatus status
     if (frames) IXFrames(@"secdelete");
 }
 
+static void IXEnsureGroup(void);
+static void IXProbeEntitledGroup(void);
+static OSStatus ix_sec_add(CFDictionaryRef attributes, CFTypeRef *result);
+static OSStatus ix_sec_copy(CFDictionaryRef queryIn, CFTypeRef *result);
+static OSStatus ix_sec_update(CFDictionaryRef queryIn, CFDictionaryRef attributesToUpdate);
+static OSStatus ix_sec_delete(CFDictionaryRef queryIn);
+
+static IXSecAddFn IXRawAdd(void) {
+    IXSecAddFn next = ix_raw_add;
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_add)) next = (IXSecAddFn)dlsym(RTLD_DEFAULT, "SecItemAdd");
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_add)) return NULL;
+    return next;
+}
+
+static IXSecCopyFn IXRawCopy(void) {
+    IXSecCopyFn next = ix_raw_copy;
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_copy)) next = (IXSecCopyFn)dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_copy)) return NULL;
+    return next;
+}
+
+static IXSecUpdateFn IXRawUpdate(void) {
+    IXSecUpdateFn next = ix_raw_update;
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_update)) next = (IXSecUpdateFn)dlsym(RTLD_DEFAULT, "SecItemUpdate");
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_update)) return NULL;
+    return next;
+}
+
+static IXSecDeleteFn IXRawDelete(void) {
+    IXSecDeleteFn next = ix_raw_delete;
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_delete)) next = (IXSecDeleteFn)dlsym(RTLD_DEFAULT, "SecItemDelete");
+    if (!next || IXStripPtr((void *)next) == IXStripPtr((void *)ix_sec_delete)) return NULL;
+    return next;
+}
+
 static OSStatus ix_sec_add(CFDictionaryRef attributes, CFTypeRef *result) {
     int rewrote = 0;
-    CFDictionaryRef query = IXPreparedQuery(attributes, &rewrote);
-    IXSecAddFn next = ix_real_add ? ix_real_add : ix_raw_add;
-    OSStatus status = next ? next(query, result) : errSecUnimplemented;
-    IXLogGroup("add", attributes, status, rewrote, IXChainName(next, "SecItemAdd"));
+    CFDictionaryRef query;
+    IXSecAddFn next;
+    OSStatus status;
+    IXEnsureGroup();
+    query = IXPreparedQuery(attributes, &rewrote);
+    next = IXRawAdd();
+    status = next ? next(query, result) : errSecUnimplemented;
+    IXLogGroup("add", attributes, status, rewrote, "real");
     if (rewrote && query) CFRelease(query);
     return status;
 }
 
 static OSStatus ix_sec_copy(CFDictionaryRef queryIn, CFTypeRef *result) {
     int rewrote = 0;
-    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
-    IXSecCopyFn next = ix_real_copy ? ix_real_copy : ix_raw_copy;
-    OSStatus status = next ? next(query, result) : errSecUnimplemented;
-    IXLogGroup("copy", queryIn, status, rewrote, IXChainName(next, "SecItemCopyMatching"));
+    CFDictionaryRef query;
+    IXSecCopyFn next;
+    OSStatus status;
+    IXEnsureGroup();
+    query = IXPreparedQuery(queryIn, &rewrote);
+    next = IXRawCopy();
+    status = next ? next(query, result) : errSecUnimplemented;
+    IXLogGroup("copy", queryIn, status, rewrote, "real");
     if (rewrote && query) CFRelease(query);
     return status;
 }
 
 static OSStatus ix_sec_update(CFDictionaryRef queryIn, CFDictionaryRef attributesToUpdate) {
     int rewrote = 0;
-    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
-    IXSecUpdateFn next = ix_real_update ? ix_real_update : ix_raw_update;
-    OSStatus status = next ? next(query, attributesToUpdate) : errSecUnimplemented;
-    IXLogGroup("update", queryIn, status, rewrote, IXChainName(next, "SecItemUpdate"));
+    CFDictionaryRef query;
+    IXSecUpdateFn next;
+    OSStatus status;
+    IXEnsureGroup();
+    query = IXPreparedQuery(queryIn, &rewrote);
+    next = IXRawUpdate();
+    status = next ? next(query, attributesToUpdate) : errSecUnimplemented;
+    IXLogGroup("update", queryIn, status, rewrote, "real");
     if (rewrote && query) CFRelease(query);
     return status;
 }
 
 static OSStatus ix_sec_delete(CFDictionaryRef queryIn) {
     int rewrote = 0;
-    CFDictionaryRef query = IXPreparedQuery(queryIn, &rewrote);
-    IXSecDeleteFn next = ix_real_delete ? ix_real_delete : ix_raw_delete;
-    OSStatus status = next ? next(query) : errSecUnimplemented;
-    IXLogGroup("delete", queryIn, status, rewrote, IXChainName(next, "SecItemDelete"));
+    CFDictionaryRef query;
+    IXSecDeleteFn next;
+    OSStatus status;
+    IXEnsureGroup();
+    query = IXPreparedQuery(queryIn, &rewrote);
+    next = IXRawDelete();
+    status = next ? next(query) : errSecUnimplemented;
+    IXLogGroup("delete", queryIn, status, rewrote, "real");
     if (rewrote && query) CFRelease(query);
     return status;
 }
@@ -360,10 +411,19 @@ static void IXCaptureRaw(void) {
     void *copy = dlsym(RTLD_DEFAULT, "SecItemCopyMatching");
     void *update = dlsym(RTLD_DEFAULT, "SecItemUpdate");
     void *del = dlsym(RTLD_DEFAULT, "SecItemDelete");
-    if (add && add != (void *)ix_sec_add) ix_raw_add = (IXSecAddFn)add;
-    if (copy && copy != (void *)ix_sec_copy) ix_raw_copy = (IXSecCopyFn)copy;
-    if (update && update != (void *)ix_sec_update) ix_raw_update = (IXSecUpdateFn)update;
-    if (del && del != (void *)ix_sec_delete) ix_raw_delete = (IXSecDeleteFn)del;
+    if (add && IXStripPtr(add) != IXStripPtr((void *)ix_sec_add)) ix_raw_add = (IXSecAddFn)add;
+    if (copy && IXStripPtr(copy) != IXStripPtr((void *)ix_sec_copy)) ix_raw_copy = (IXSecCopyFn)copy;
+    if (update && IXStripPtr(update) != IXStripPtr((void *)ix_sec_update)) ix_raw_update = (IXSecUpdateFn)update;
+    if (del && IXStripPtr(del) != IXStripPtr((void *)ix_sec_delete)) ix_raw_delete = (IXSecDeleteFn)del;
+}
+
+static void IXEnsureGroup(void) {
+    static __thread int depth = 0;
+    if (ix_entitled_group.length || depth) return;
+    depth++;
+    IXCaptureRaw();
+    IXProbeEntitledGroup();
+    depth--;
 }
 
 static void IXResolvePrev(void) {
@@ -517,17 +577,24 @@ static int IXLiveMobileconfig(NSString *path) {
            [path.lastPathComponent isEqualToString:@"mobileconfig"];
 }
 
-static void IXNoteLogout(id object, SEL sel) {
+static void IXNoteLogout(id object, SEL sel, long long entry, int hasEntry) {
     int room;
     const char *name = sel ? sel_getName(sel) : NULL;
     pthread_mutex_lock(&ix_watch_mu);
-    room = ix_logout_logs < 20;
+    room = ix_logout_logs < 24;
     if (room) ix_logout_logs++;
     pthread_mutex_unlock(&ix_watch_mu);
     if (!room) return;
-    IXSessionDiagLine([NSString stringWithFormat:@"logout class=%s sel=%s",
-                       object_getClassName(object) ?: "?",
-                       name ?: "?"]);
+    if (hasEntry) {
+        IXSessionDiagLine([NSString stringWithFormat:@"logout_reason class=%s sel=%s entry=%lld",
+                           object_getClassName(object) ?: "?",
+                           name ?: "?",
+                           entry]);
+    } else {
+        IXSessionDiagLine([NSString stringWithFormat:@"logout_reason class=%s sel=%s entry=none",
+                           object_getClassName(object) ?: "?",
+                           name ?: "?"]);
+    }
     IXFrames(@"logout");
 }
 
@@ -544,67 +611,127 @@ static IMP IXLogoutOrig(id object, SEL sel) {
 
 static void ix_logout0(id self, SEL _cmd) {
     IMP orig;
-    IXNoteLogout(self, _cmd);
+    IXNoteLogout(self, _cmd, 0, 0);
     orig = IXLogoutOrig(self, _cmd);
     if (orig) ((void (*)(id, SEL))orig)(self, _cmd);
 }
 
 static void ix_logout1(id self, SEL _cmd, id arg) {
     IMP orig;
-    IXNoteLogout(self, _cmd);
+    (void)arg;
+    IXNoteLogout(self, _cmd, 0, 0);
     orig = IXLogoutOrig(self, _cmd);
     if (orig) ((void (*)(id, SEL, id))orig)(self, _cmd, arg);
+}
+
+static void ix_logout_q(id self, SEL _cmd, long long entry) {
+    IMP orig;
+    IXNoteLogout(self, _cmd, entry, 1);
+    orig = IXLogoutOrig(self, _cmd);
+    if (orig) ((void (*)(id, SEL, long long))orig)(self, _cmd, entry);
+}
+
+static void ix_logout_i(id self, SEL _cmd, int entry) {
+    IMP orig;
+    IXNoteLogout(self, _cmd, entry, 1);
+    orig = IXLogoutOrig(self, _cmd);
+    if (orig) ((void (*)(id, SEL, int))orig)(self, _cmd, entry);
+}
+
+static void ix_logout_q_obj(id self, SEL _cmd, long long entry, id arg) {
+    IMP orig;
+    (void)arg;
+    IXNoteLogout(self, _cmd, entry, 1);
+    orig = IXLogoutOrig(self, _cmd);
+    if (orig) ((void (*)(id, SEL, long long, id))orig)(self, _cmd, entry, arg);
 }
 
 static int IXLogoutClassName(const char *name) {
     if (!name) return 0;
     return strcmp(name, "IGUserAuthManager") == 0 || strcmp(name, "IGAuthService") == 0 ||
-           strcmp(name, "IGUserSession") == 0 || strcmp(name, "IGAccountStore") == 0 ||
-           strcmp(name, "IGAccountLogoutManager") == 0 || strstr(name, "Logout") != NULL;
+           strcmp(name, "IGAuthHelper") == 0 || strcmp(name, "IGUserSession") == 0 ||
+           strcmp(name, "IGAccountStore") == 0 || strcmp(name, "IGAccountLogoutManager") == 0 ||
+           strstr(name, "Logout") != NULL || strstr(name, "SessionManager") != NULL ||
+           strstr(name, "AuthHelper") != NULL;
 }
 
 static int IXLogoutSelector(SEL sel) {
     const char *name = sel ? sel_getName(sel) : NULL;
     if (!name) return 0;
-    return strstr(name, "logout") || strstr(name, "logOut") || strstr(name, "logoff") ||
-           strstr(name, "LogOff") || strstr(name, "invalidateSession") || strstr(name, "clearSession");
+    return strstr(name, "logout") || strstr(name, "logOut") || strstr(name, "Logout") ||
+           strstr(name, "logoff") || strstr(name, "LogOff") || strstr(name, "invalidateSession") ||
+           strstr(name, "clearSession") || strstr(name, "clearAllUsers") || strstr(name, "removeUser");
+}
+
+static void IXConsiderLogout(Class cls, Method method, int forcedOnly) {
+    SEL sel;
+    const char *selName;
+    const char *types;
+    const char *className;
+    IMP current;
+    IMP repl;
+    int arity;
+    int forced;
+    if (!cls || !method || ix_logout_count >= 64) return;
+    sel = method_getName(method);
+    selName = sel ? sel_getName(sel) : NULL;
+    forced = selName && strstr(selName, "clearAllUsers");
+    if (forcedOnly && !forced) return;
+    className = class_getName(cls);
+    if (!forced && !IXLogoutClassName(className)) return;
+    if (!IXLogoutSelector(sel)) return;
+    types = method_getTypeEncoding(method);
+    if (!types) return;
+    if (strcmp(types, "v16@0:8") == 0) {
+        arity = 0;
+        repl = (IMP)ix_logout0;
+    } else if (strcmp(types, "v24@0:8@16") == 0) {
+        arity = 1;
+        repl = (IMP)ix_logout1;
+    } else if (strcmp(types, "v24@0:8q16") == 0 || strcmp(types, "v24@0:8Q16") == 0) {
+        arity = 2;
+        repl = (IMP)ix_logout_q;
+    } else if (strcmp(types, "v20@0:8i16") == 0) {
+        arity = 2;
+        repl = (IMP)ix_logout_i;
+    } else if (strcmp(types, "v32@0:8q16@24") == 0 || strcmp(types, "v32@0:8Q16@24") == 0) {
+        arity = 3;
+        repl = (IMP)ix_logout_q_obj;
+    } else {
+        if (forced) {
+            static int logs = 0;
+            if (logs < 8) {
+                logs++;
+                IXSessionDiagLine([NSString stringWithFormat:@"logout_unhooked class=%s sel=%s types=%s",
+                                   className ?: "?", selName ?: "?", types]);
+            }
+        }
+        return;
+    }
+    current = method_getImplementation(method);
+    if (current == (IMP)ix_logout0 || current == (IMP)ix_logout1 || current == (IMP)ix_logout_q ||
+        current == (IMP)ix_logout_i || current == (IMP)ix_logout_q_obj) return;
+    ix_logout_slots[ix_logout_count].cls = cls;
+    ix_logout_slots[ix_logout_count].sel = sel;
+    ix_logout_slots[ix_logout_count].arity = arity;
+    ix_logout_slots[ix_logout_count].orig = method_setImplementation(method, repl);
+    ix_logout_count++;
 }
 
 static void IXInstallLogoutHooks(void) {
     unsigned int classCount = 0;
     Class *classes = objc_copyClassList(&classCount);
+    int pass;
     if (!classes) return;
-    for (unsigned int i = 0; i < classCount && ix_logout_count < 48; i++) {
-        unsigned int methodCount = 0;
-        Method *methods;
-        const char *name = class_getName(classes[i]);
-        if (!IXLogoutClassName(name)) continue;
-        methods = class_copyMethodList(classes[i], &methodCount);
-        for (unsigned int m = 0; m < methodCount && ix_logout_count < 48; m++) {
-            SEL sel = method_getName(methods[m]);
-            const char *types;
-            IMP current;
-            IMP repl;
-            int arity;
-            if (!IXLogoutSelector(sel)) continue;
-            types = method_getTypeEncoding(methods[m]);
-            if (!types) continue;
-            if (strcmp(types, "v16@0:8") == 0) {
-                arity = 0;
-                repl = (IMP)ix_logout0;
-            } else if (strcmp(types, "v24@0:8@16") == 0) {
-                arity = 1;
-                repl = (IMP)ix_logout1;
-            } else continue;
-            current = method_getImplementation(methods[m]);
-            if (current == (IMP)ix_logout0 || current == (IMP)ix_logout1) continue;
-            ix_logout_slots[ix_logout_count].cls = classes[i];
-            ix_logout_slots[ix_logout_count].sel = sel;
-            ix_logout_slots[ix_logout_count].arity = arity;
-            ix_logout_slots[ix_logout_count].orig = method_setImplementation(methods[m], repl);
-            ix_logout_count++;
+    for (pass = 0; pass < 2; pass++) {
+        for (unsigned int i = 0; i < classCount && ix_logout_count < 64; i++) {
+            unsigned int methodCount = 0;
+            Method *methods = class_copyMethodList(classes[i], &methodCount);
+            for (unsigned int m = 0; m < methodCount && ix_logout_count < 64; m++) {
+                IXConsiderLogout(classes[i], methods[m], pass == 0);
+            }
+            if (methods) free(methods);
         }
-        if (methods) free(methods);
     }
     free(classes);
 }
@@ -671,6 +798,32 @@ static NSString *IXIdStatePath(void) {
     NSString *dir = [docs stringByAppendingPathComponent:@"InstagramX"];
     [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
     return [dir stringByAppendingPathComponent:@"ix_id_hash.plist"];
+}
+
+static unsigned long long IXFileBytes(NSString *path) {
+    NSDictionary *attr;
+    NSNumber *size;
+    if (path.length == 0) return 0;
+    attr = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+    size = [attr isKindOfClass:[NSDictionary class]] ? attr[NSFileSize] : nil;
+    return [size isKindOfClass:[NSNumber class]] ? size.unsignedLongLongValue : 0;
+}
+
+static void IXPersistProof(NSString *phase) {
+    NSString *home = NSHomeDirectory() ?: @"";
+    NSString *docs = IXDocsDir();
+    NSString *ig = @"group.com.burbn.instagram";
+    NSString *family = @"group.com.facebook.family";
+    NSString *igSandbox = [[docs stringByAppendingPathComponent:ig] stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", ig]];
+    NSString *familySandbox = [[docs stringByAppendingPathComponent:family] stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", family]];
+    IXSessionDiagLine([NSString stringWithFormat:@"persist_proof phase=%@ ig_sandbox=%llu ig_home=%llu family_sandbox=%llu family_home=%llu cookie_home=%llu cookie_group=%llu",
+                       phase ?: @"?",
+                       IXFileBytes(igSandbox),
+                       IXFileBytes([home stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", ig]]),
+                       IXFileBytes(familySandbox),
+                       IXFileBytes([home stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", family]]),
+                       IXFileBytes([home stringByAppendingPathComponent:@"Library/Cookies/Cookies.binarycookies"]),
+                       IXFileBytes([[docs stringByAppendingPathComponent:ig] stringByAppendingPathComponent:@"Library/Cookies/Cookies.binarycookies"])]);
 }
 
 void IXSessionWatchSnapshot(NSString *phase) {
@@ -751,13 +904,14 @@ void IXSessionWatchSnapshot(NSString *phase) {
                        [NSLocale.currentLocale objectForKey:NSLocaleCountryCode] ?: @"-"]);
     IXMobileconfigSync(phase);
     IXKeychainProof(phase);
+    IXPersistProof(phase);
 }
 
-static void IXArmSec(void) {
+static void IXArmSec(int probeNow) {
     const char *names[4] = { "SecItemAdd", "SecItemCopyMatching", "SecItemUpdate", "SecItemDelete" };
     void *repl[4] = { (void *)ix_sec_add, (void *)ix_sec_copy, (void *)ix_sec_update, (void *)ix_sec_delete };
     IXCaptureRaw();
-    IXProbeEntitledGroup();
+    if (probeNow) IXProbeEntitledGroup();
     IXSymbolRebindPermanent(names, repl, 4);
     IXResolvePrev();
 }
@@ -768,11 +922,11 @@ void IXSessionWatchArm(void) {
     if (ix_watch_clock == 0) ix_watch_clock = CFAbsoluteTimeGetCurrent();
     pthread_mutex_unlock(&ix_watch_mu);
     IXMobileconfigSync(@"arm");
-    IXArmSec();
+    IXArmSec(1);
     IXInstallLogoutHooks();
     if (!announced) {
         announced = 1;
-        IXSessionDiagLine([NSString stringWithFormat:@"kc_chain hooked=%d group=%@",
+        IXSessionDiagLine([NSString stringWithFormat:@"kc_chain hooked=%d call=real group=%@",
                            ix_chain_hooked, ix_entitled_group.length ? ix_entitled_group : @"-"]);
         IXSessionDiagLine(@"watch secitem_rewrite=on rewrite=1");
     }
@@ -796,6 +950,17 @@ static void IXNoteFile(NSString *path) {
 }
 
 %hook NSHTTPCookieStorage
++ (NSHTTPCookieStorage *)sharedCookieStorageForGroupContainerIdentifier:(NSString *)identifier {
+    static int logs = 0;
+    if (IXSessionPersistSuite(identifier.UTF8String)) {
+        if (logs < 8) {
+            logs++;
+            IXSessionDiagLine([NSString stringWithFormat:@"cookie_redirect suite=%@", identifier.length > 80 ? [identifier substringToIndex:80] : identifier]);
+        }
+        return [self sharedHTTPCookieStorage];
+    }
+    return %orig;
+}
 - (void)deleteCookie:(NSHTTPCookie *)cookie {
     int room = 0;
     if ([cookie isKindOfClass:[NSHTTPCookie class]] && (IXSessionSensitiveName(cookie.name.UTF8String) ||
@@ -911,3 +1076,14 @@ static void IXNoteFile(NSString *path) {
     return object;
 }
 %end
+
+%ctor {
+    %init;
+    pthread_mutex_lock(&ix_watch_mu);
+    if (ix_watch_clock == 0) ix_watch_clock = CFAbsoluteTimeGetCurrent();
+    pthread_mutex_unlock(&ix_watch_mu);
+    IXMobileconfigSync(@"ctor");
+    IXArmSec(0);
+    IXInstallLogoutHooks();
+    IXSessionDiagLine(@"cookie_hook ctor=1");
+}

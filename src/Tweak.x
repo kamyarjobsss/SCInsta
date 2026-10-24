@@ -26,7 +26,7 @@ extern void IXSessionWatchSnapshot(NSString *phase);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.8";
+NSString *SCIVersionString = @"v2.4.9";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -96,7 +96,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         @"disable_disappearing_mode_swipe": @(NO),
         @"hide_voice_call_button": @(NO),
         @"hide_video_call_button": @(NO),
-        @"fake_location_enabled": @(NO),
+        @"fake_location_enabled": @(YES),
         @"show_fake_location_map_button": @(NO),
         @"fake_location_lat": @(34.0522),
         @"fake_location_lon": @(-118.2437),
@@ -230,6 +230,20 @@ static void IXEngageLaunchBypass(UIWindow *window) {
     };
     [[NSUserDefaults standardUserDefaults] registerDefaults:sciDefaults];
     [SCIUtils setSciRegisteredDefaults:sciDefaults];
+    {
+        NSUserDefaults *loc = [NSUserDefaults standardUserDefaults];
+        NSString *domain = NSBundle.mainBundle.bundleIdentifier;
+        NSDictionary *stored = domain.length ? [loc persistentDomainForName:domain] : nil;
+        NSString *city = [stored isKindOfClass:[NSDictionary class]] ? stored[@"fake_location_name"] : nil;
+        if (![stored isKindOfClass:[NSDictionary class]] || stored[@"fake_location_enabled"] == nil) {
+            [loc setBool:YES forKey:@"fake_location_enabled"];
+        }
+        if (![city isKindOfClass:[NSString class]] || city.length == 0 || [city caseInsensitiveCompare:@"Paris"] == NSOrderedSame) {
+            [loc setObject:@"Los Angeles" forKey:@"fake_location_name"];
+            [loc setObject:@(34.0522) forKey:@"fake_location_lat"];
+            [loc setObject:@(-118.2437) forKey:@"fake_location_lon"];
+        }
+    }
     
     // Override instagram defaults
     if ([SCIUtils getBoolPref:@"liquid_glass_buttons"]) {
@@ -311,6 +325,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 
 - (void)applicationDidEnterBackground:(id)arg1 {
     %orig;
+    IXSessionSyncGroupSuites();
     IXSessionDiagAccounts(@"background");
     // Cache housekeeping while backgrounded — never competes with IG's foreground I/O.
     [SCICacheManager runAutoClearIfDue];

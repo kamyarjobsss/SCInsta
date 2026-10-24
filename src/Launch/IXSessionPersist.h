@@ -103,6 +103,13 @@ int IXSessionReportAccounts(int harvested, int saved, int cookie_present, int wi
    A missing entitled group returns 0. */
 int IXSessionRewriteGroup(const char *group, const char *entitled);
 
+/* 1 when an NSUserDefaults suite must be stored in the app sandbox.
+   The original IPA is entitled to group.com.burbn.instagram and
+   group.com.facebook.family. A sideload profile is not, and those suites
+   then do not survive a relaunch. Only a group.* name is redirected.
+   A slash, backslash, or ".." is rejected. The app's own domain is not. */
+int IXSessionPersistSuite(const char *suite);
+
 /* 1 when a defaults key or a filesystem path is an auth/session store.
    Used to decide which deletions to record. Password values are never logged. */
 int IXSessionSensitiveName(const char *name);

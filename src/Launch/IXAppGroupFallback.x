@@ -14,20 +14,19 @@
 
 static __thread int ix_suite_depth;
 
-// The base sideload helper (zxPluginsInject SideloadFix) never calls through
-// for containerURLForSecurityApplicationGroupIdentifier:. It returns the
-// entitled app-group parent plus the group identifier, or
-// Documents/<groupIdentifier> when that parent is missing. v2.4.5 and v2.4.6
-// returned Library/Application Support/IXAppGroup instead, and v2.4.6 also
-// wrote fresh-install markers into Instagram's defaults before launch.
-// Device logs showed that IXAppGroup path, then the account was gone on the
-// next open. A missing container is now the base path. Files already written
-// under IXAppGroup are copied across, not deleted.
-// A nil METAAppGroup identifier is filled from the SecItem probe. An
-// identifier Instagram already set is not replaced. Nil defaults and a nil
-// container are filled on this same path so the direct METAAppGroup call does
-// not crash. Suites are not redirected in the main process, and no preference
-// key is written at launch. SecItem queries are not rewritten.
+static void IXAdoptSuitePlist(NSString *suite, NSURL *container);
+
+// The original IPA is entitled to group.com.burbn.instagram and
+// group.com.facebook.family. A sideload profile is not, so those
+// NSUserDefaults suites and the group cookie jar do not survive a relaunch.
+// Instagram then starts with no user session and clears the account.
+// containerURLForSecurityApplicationGroupIdentifier: returns
+// Documents/<group id> (or the entitled parent when the profile has one).
+// group.* suites are opened on that same directory. The app's own domain is
+// not redirected. No preference key is written here. Files already stored
+// under IXAppGroup are copied across, not deleted. A nil METAAppGroup
+// identifier is filled from the SecItem probe. An identifier Instagram
+// already set is not replaced.
 
 static NSString *IXText(const char *value, NSString *fallback) {
     NSString *text = value ? [NSString stringWithUTF8String:value] : nil;
@@ -147,13 +146,14 @@ static NSString *IXDefaultsSuite(void) {
 }
 
 // Only used when METAAppGroup's defaults ivar is nil. A nil defaults object
-// crashes the direct call. The container is the base group directory. This
-// does not redirect every suite in the process and it does not write keys.
+// crashes the direct call. The container is the same directory the group.*
+// suite hook uses. This fill does not write preference keys.
 static NSUserDefaults *IXGroupDefaults(NSString *suite) {
     NSURL *container;
     NSUserDefaults *defaults = nil;
     if (suite.length == 0 || ix_suite_depth) return nil;
     container = IXContainerURL(suite);
+    IXAdoptSuitePlist(suite, container);
     ix_suite_depth++;
     if (container && [NSUserDefaults instancesRespondToSelector:@selector(_initWithSuiteName:container:)]) {
         @try { defaults = [[NSUserDefaults alloc] _initWithSuiteName:suite container:container]; }
@@ -327,21 +327,8 @@ static void IXMigrateInto(NSString *destPath) {
 
 %hook NSFileManager
 - (NSURL *)containerURLForSecurityApplicationGroupIdentifier:(NSString *)identifier {
-    static __thread int depth = 0;
-    NSURL *url = nil;
-    if (depth) {
-        @try { return %orig; }
-        @catch (__unused NSException *exception) { return nil; }
-    }
-    depth++;
-    @try { url = %orig; }
-    @catch (__unused NSException *exception) { url = nil; }
-    NSString *source = @"system";
-    if (![url isKindOfClass:[NSURL class]] || url.path.length == 0) {
-        url = IXContainerURL(identifier);
-        source = @"fallback";
-    }
-    depth--;
+    NSURL *url = IXContainerURL(identifier);
+    NSString *source = IXEntitledGroupParent().path.length ? @"entitled" : @"sandbox";
     if (url.path.length) {
         IXMigrateInto(url.path);
         IXSessionDiagNoteContainer(url.path, source);
@@ -350,7 +337,90 @@ static void IXMigrateInto(NSString *destPath) {
 }
 %end
 
+static void IXAdoptSuitePlist(NSString *suite, NSURL *container) {
+    NSFileManager *fm;
+    NSString *home;
+    NSString *destDir;
+    NSString *dest;
+    if (suite.length == 0 || container.path.length == 0) return;
+    if (!IXSessionPersistSuite(suite.UTF8String)) return;
+    fm = [NSFileManager defaultManager];
+    home = [[NSHomeDirectory() stringByAppendingPathComponent:@"Library/Preferences"] stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.plist", suite]];
+    destDir = [container.path stringByAppendingPathComponent:@"Library/Preferences"];
+    dest = [destDir stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.plist", suite]];
+    if (![fm fileExistsAtPath:home] || [fm fileExistsAtPath:dest]) return;
+    [fm createDirectoryAtPath:destDir withIntermediateDirectories:YES attributes:nil error:nil];
+    [fm copyItemAtPath:home toPath:dest error:nil];
+}
+
+static void IXLogSuite(NSString *suite, NSURL *container) {
+    static int logs = 0;
+    NSString *plist;
+    NSString *tail;
+    NSDictionary *attr;
+    NSNumber *size;
+    if (logs >= 16 || suite.length == 0 || container.path.length == 0) return;
+    logs++;
+    plist = [container.path stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", suite]];
+    attr = [[NSFileManager defaultManager] attributesOfItemAtPath:plist error:nil];
+    size = [attr isKindOfClass:[NSDictionary class]] ? attr[NSFileSize] : nil;
+    tail = container.path;
+    if (tail.length > 80) tail = [tail substringFromIndex:tail.length - 80];
+    IXSessionDiagLine([NSString stringWithFormat:@"suite_open name=%@ plist_bytes=%llu path=%@",
+                       suite.length > 80 ? [suite substringToIndex:80] : suite,
+                       [size isKindOfClass:[NSNumber class]] ? size.unsignedLongLongValue : 0,
+                       tail]);
+}
+
+%hook NSUserDefaults
+- (id)_initWithSuiteName:(NSString *)suiteName container:(NSURL *)container {
+    NSURL *stable;
+    if (ix_suite_depth || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
+    stable = IXContainerURL(suiteName);
+    if (!stable) return %orig;
+    IXAdoptSuitePlist(suiteName, stable);
+    if (container.path.length && [container.path isEqualToString:stable.path]) return %orig;
+    ix_suite_depth++;
+    id result = %orig(suiteName, stable);
+    ix_suite_depth--;
+    IXLogSuite(suiteName, stable);
+    return result;
+}
+- (id)initWithSuiteName:(NSString *)suiteName {
+    NSURL *stable;
+    id result;
+    if (ix_suite_depth || !IXSessionPersistSuite(suiteName.UTF8String)) return %orig;
+    stable = IXContainerURL(suiteName);
+    if (!stable || ![self respondsToSelector:@selector(_initWithSuiteName:container:)]) return %orig;
+    IXAdoptSuitePlist(suiteName, stable);
+    ix_suite_depth++;
+    result = [self _initWithSuiteName:suiteName container:stable];
+    ix_suite_depth--;
+    IXLogSuite(suiteName, stable);
+    return result;
+}
+%end
+
+void IXSessionSyncGroupSuites(void) {
+    NSArray *names = @[@"group.com.burbn.instagram", @"group.com.facebook.family", @"group.com.burbn.family"];
+    @try { [[NSUserDefaults standardUserDefaults] synchronize]; }
+    @catch (__unused NSException *exception) {}
+    for (NSString *name in names) {
+        NSURL *url = IXContainerURL(name);
+        NSUserDefaults *defaults = nil;
+        if (!url || ix_suite_depth) continue;
+        IXAdoptSuitePlist(name, url);
+        ix_suite_depth++;
+        @try { defaults = [[NSUserDefaults alloc] _initWithSuiteName:name container:url]; }
+        @catch (__unused NSException *exception) { defaults = nil; }
+        ix_suite_depth--;
+        @try { [defaults synchronize]; }
+        @catch (__unused NSException *exception) {}
+    }
+}
+
 %ctor {
     %init;
     IXInstallDirectAppGroup();
+    IXSessionDiagLine(@"suite_hook ctor=1");
 }

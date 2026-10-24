@@ -9,5 +9,6 @@ void IXSessionDiagKeychain(const char *op, int status, NSString *group, int call
 void IXSessionDiagAccounts(NSString *phase);
 void IXSessionDiagNoteContainer(NSString *path, NSString *source);
 void IXSessionDiagBoot(void);
+void IXSessionSyncGroupSuites(void);
 NSString *IXSessionDiagReport(void);
 void IXSessionDiagPresentCopy(void);

@@ -229,6 +229,10 @@ then
     # Patch IPA for sideloading
     ipapatch --input "$IPA_OUT" --inplace --noconfirm
 
+    # dyld runs initializers in load-command order. The group-suite and cookie
+    # hooks have to be installed before FBSharedFramework reads the session.
+    python3 scripts/prioritize_launch_dylibs.py "$IPA_OUT"
+
     # Full builds only. No LC_LOAD: the tweak dlopens this after the VPN is on.
     if [[ "${IX_LITE:-}" != "1" && -f vendor/ixray/IXRayCore.dylib ]]; then
         python3 scripts/embed_ixray.py "$IPA_OUT" vendor/ixray/IXRayCore.dylib

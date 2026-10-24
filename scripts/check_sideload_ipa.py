@@ -144,6 +144,23 @@ def main() -> int:
         got = counts.get(name, 0)
         if got != expect:
             return fail(f"main binary loads {name} {got} times, expected {expect}")
+
+    def load_pos(name: str) -> int:
+        for index, (_kind, path) in enumerate(loads):
+            if path.rsplit("/", 1)[-1] == name:
+                return index
+        return -1
+
+    zx_at = load_pos("zxPluginsInject.dylib")
+    sc_at = load_pos("SCInsta.dylib")
+    fb_at = load_pos("FBSharedFramework")
+    if fb_at < 0:
+        return fail("main binary does not load FBSharedFramework")
+    if not (0 <= zx_at < sc_at < fb_at):
+        return fail(
+            "zxPluginsInject and SCInsta must initialize before FBSharedFramework "
+            f"(zx={zx_at} sc={sc_at} fb={fb_at})"
+        )
     if counts.get("IXRayCore.dylib", 0):
         return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")
     if counts.get("CydiaSubstrate", 0) > 1:
