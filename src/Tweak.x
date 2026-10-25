@@ -3,6 +3,7 @@
 #import "Tweak.h"
 #import "Launch/IXLaunchGuard.h"
 #import "Launch/IXSessionDiag.h"
+#import "Launch/IXSessionSource.h"
 #import "Features/General/IXSettingsEntry.h"
 #import "Proxy/IXProxyManager.h"
 #import "Utils.h"
@@ -74,6 +75,9 @@ static void IXEngageLaunchBypass(UIWindow *window) {
 // Tweak first-time setup
 %hook IGInstagramAppDelegate
 - (_Bool)application:(UIApplication *)application willFinishLaunchingWithOptions:(id)arg2 {
+    _Bool launched;
+    IXSessionSourceProbeFiles("will_pre");
+    IXSessionSourceProbeKeychain("will_pre");
     IXSessionWatchArm();
     IXLaunchGuardRecord();
     if (ix_launch_clock == 0) ix_launch_clock = CFAbsoluteTimeGetCurrent();
@@ -254,12 +258,17 @@ static void IXEngageLaunchBypass(UIWindow *window) {
     }
 
     IXSessionWatchSnapshot(@"prelaunch");
-    return %orig;
+    launched = %orig;
+    IXSessionSourceProbeFiles("will_post");
+    IXSessionSourceProbeKeychain("will_post");
+    return launched;
 }
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
     IXSessionWatchArm();
     IXSessionDiagBoot();
     %orig;
+    IXSessionSourceProbeFiles("did_post");
+    IXSessionSourceProbeKeychain("did_post");
 
     IXUSRegionInstall();
     IXBackendStart();

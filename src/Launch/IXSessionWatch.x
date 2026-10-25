@@ -2,6 +2,7 @@
 #import "IXSessionDiag.h"
 #import "IXSessionLaunch.h"
 #import "IXSessionPersist.h"
+#import "IXSessionSource.h"
 #import "../Backend/IXCrypto.h"
 #import "../Proxy/IXSymbolRebind.h"
 
@@ -1108,6 +1109,7 @@ static void IXCookieImageAdded(const struct mach_header *header, intptr_t slide)
 }
 
 %ctor {
+    IXSessionSourceProbeFiles("ctor");
     IXNoteLoadedImages();
     if (IXSessionLaunchMayWalkClasses()) {
         IXEnableCookieHooks();
