@@ -19,3 +19,11 @@ void IXSessionLaunchNoteImage(const char *path) {
 int IXSessionLaunchMayWalkClasses(void) {
     return ix_fb_ready ? 1 : 0;
 }
+
+int IXSessionFrameworkName(const char *name) {
+    const char *base;
+    if (!name || !name[0]) return 0;
+    base = strrchr(name, '/');
+    base = base ? base + 1 : name;
+    return strcmp(base, "FBSharedFramework") == 0;
+}

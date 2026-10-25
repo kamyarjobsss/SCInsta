@@ -9,4 +9,9 @@ void IXSessionLaunchReset(void);
 void IXSessionLaunchNoteImage(const char *path);
 int IXSessionLaunchMayWalkClasses(void);
 
+/* 1 when `name` is FBSharedFramework, with or without a directory prefix.
+   The image-add callback uses this so the keychain rebind can run as soon
+   as that image is mapped, without moving SCInsta ahead of it. */
+int IXSessionFrameworkName(const char *name);
+
 #endif

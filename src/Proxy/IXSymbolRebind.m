@@ -609,6 +609,32 @@ int IXSymbolRebindPermanent(const char *const *names, void *const *replacements,
     return patched;
 }
 
+int IXSymbolRebindPermanentOne(const void *header, intptr_t slide, const char *path,
+                               const char *const *names, void *const *replacements, unsigned count) {
+    const struct mach_header *image = (const struct mach_header *)header;
+    if (!image || !names || !replacements || count == 0) return 0;
+    pthread_mutex_lock(&ix_rebind_mu);
+    unsigned kept = count > 16 ? 16 : count;
+    for (unsigned i = 0; i < kept; i++) {
+        int found = 0;
+        for (unsigned j = 0; j < ix_perm_count; j++) {
+            if (ix_perm_names[j] && names[i] && strcmp(ix_perm_names[j], names[i]) == 0) {
+                ix_perm_repl[j] = replacements[i];
+                found = 1;
+                break;
+            }
+        }
+        if (!found && ix_perm_count < 16) {
+            ix_perm_names[ix_perm_count] = names[i];
+            ix_perm_repl[ix_perm_count] = replacements[i];
+            ix_perm_count++;
+        }
+    }
+    int patched = IXRebindImage(image, slide, path, ix_perm_names, ix_perm_repl, ix_perm_count, 0);
+    pthread_mutex_unlock(&ix_rebind_mu);
+    return patched;
+}
+
 void *IXSymbolPrevious(const char *name) {
     void *prev = NULL;
     if (!name) return NULL;

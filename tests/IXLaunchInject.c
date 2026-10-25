@@ -22,6 +22,21 @@ static void mkdir_p(const char *path) {
     mkdir(buf, 0755);
 }
 
+static void write_kept(const char *path) {
+    char dir[1024];
+    char *slash;
+    FILE *file;
+    memcpy(dir, path, strlen(path) + 1);
+    slash = strrchr(dir, '/');
+    if (!slash) _exit(89);
+    *slash = 0;
+    mkdir_p(dir);
+    file = fopen(path, "w");
+    if (!file) _exit(88);
+    if (fputs("kept\n", file) < 0) _exit(87);
+    if (fclose(file) != 0) _exit(86);
+}
+
 static void write_suite(const char *docs, const char *suite) {
     char path[1024];
     char dir[1024];
@@ -50,4 +65,14 @@ static void ix_launch_inject(void) {
     if (!IXSessionLaunchMayWalkClasses()) _exit(98);
     write_suite(docs, "group.com.burbn.instagram");
     write_suite(docs, "group.com.facebook.family");
+    {
+        char group[128];
+        char path[1024];
+        if (!IXSessionStoredAccessGroup("group.com.facebook.family", "PROBEGROUP", group, sizeof group)) _exit(85);
+        if (strcmp(group, "PROBEGROUP") != 0) _exit(84);
+        if (!IXSessionAuthStorePath(docs, group, path, sizeof path)) _exit(83);
+        write_kept(path);
+        if (!IXSessionSharedSessionPath(docs, path, sizeof path)) _exit(82);
+        write_kept(path);
+    }
 }

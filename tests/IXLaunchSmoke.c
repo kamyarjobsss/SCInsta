@@ -11,23 +11,36 @@
 #include <mach-o/dyld.h>
 #endif
 
-static int read_suite(const char *docs, const char *suite) {
-    char path[1024];
+static int read_exact(const char *path, const char *want) {
     char buf[64];
     FILE *file;
     size_t n;
-    if (!IXSessionSuitePlist(docs, suite, path, sizeof path)) return 0;
     file = fopen(path, "r");
     if (!file) return 0;
     n = fread(buf, 1, sizeof buf - 1, file);
     fclose(file);
     buf[n] = 0;
-    return strcmp(buf, "account=kept\n") == 0;
+    return strcmp(buf, want) == 0;
+}
+
+static int read_suite(const char *docs, const char *suite) {
+    char path[1024];
+    if (!IXSessionSuitePlist(docs, suite, path, sizeof path)) return 0;
+    return read_exact(path, "account=kept\n");
 }
 
 static int relaunch_ok(const char *docs) {
-    return read_suite(docs, "group.com.burbn.instagram") &&
-           read_suite(docs, "group.com.facebook.family");
+    char group[128];
+    char path[1024];
+    if (!read_suite(docs, "group.com.burbn.instagram")) return 0;
+    if (!read_suite(docs, "group.com.facebook.family")) return 0;
+    if (!IXSessionStoredAccessGroup("group.com.facebook.family", "PROBEGROUP", group, sizeof group)) return 0;
+    if (strcmp(group, "PROBEGROUP") != 0) return 0;
+    if (!IXSessionAuthStorePath(docs, group, path, sizeof path)) return 0;
+    if (!read_exact(path, "kept\n")) return 0;
+    if (!IXSessionSharedSessionPath(docs, path, sizeof path)) return 0;
+    if (!read_exact(path, "kept\n")) return 0;
+    return 1;
 }
 
 static int exec_self(void) {

@@ -2,6 +2,7 @@
 #define IX_SYMBOL_REBIND_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,6 +25,12 @@ void IXSymbolRebindRestore(void);
 /// IXSymbolRebindSlots call does not drop these names. Used for the app-group
 /// symbols Instagram calls directly after login.
 int IXSymbolRebindPermanent(const char *const *names, void *const *replacements, unsigned count);
+
+/* Rebind one already-mapped image. Does not call dyld, so it can run from
+   the image-add callback that is still inside dyld's lock. `path` is the
+   on-disk binary used for chained fixups. */
+int IXSymbolRebindPermanentOne(const void *header, intptr_t slide, const char *path,
+                               const char *const *names, void *const *replacements, unsigned count);
 
 /// The function a permanent rebind replaced, when one was already installed.
 /// NULL until IXSymbolRebindPermanent has seen that name. The raw export is
