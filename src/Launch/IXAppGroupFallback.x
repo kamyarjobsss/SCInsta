@@ -8,6 +8,7 @@
 #import "IXSessionDiag.h"
 #import "IXSessionLaunch.h"
 #import "IXSessionPersist.h"
+#import "IXSessionSource.h"
 
 #import <dispatch/dispatch.h>
 #import <mach-o/dyld.h>
@@ -469,6 +470,7 @@ static void IXSuiteImageAdded(const struct mach_header *header, intptr_t slide) 
 }
 
 %ctor {
+    IXSessionSourceProbeFiles("ctor");
     IXNoteLoadedImages();
     if (IXSessionLaunchMayWalkClasses()) {
         IXEnableSuiteHooks();

@@ -181,6 +181,10 @@ jobs:
                   src/Launch/IXSessionLaunch.c \
                   -o /tmp/ix-session-test
                 /tmp/ix-session-test
+                clang \
+                  tests/IXSessionSourceTest.c src/Launch/IXSessionSource.c \
+                  -o /tmp/ix-source-test
+                /tmp/ix-source-test
                 python3 tests/test_dylib_order.py
                 clang -shared -fPIC \
                   tests/IXLaunchInject.c src/Launch/IXSessionLaunch.c \
