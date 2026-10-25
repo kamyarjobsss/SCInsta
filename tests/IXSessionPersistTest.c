@@ -188,5 +188,33 @@ int main(void) {
     expect_str(out, "group.com.facebook.family", "requested name is the fallback");
     expect(IXSessionIdentifierFill(NULL, NULL, NULL, out, sizeof out) == 1, "nil identifier default");
     expect_str(out, "group.com.burbn.instagram", "default identifier");
+
+    expect(IXSessionFrameworkName("FBSharedFramework") == 1, "framework basename");
+    expect(IXSessionFrameworkName("/path/FBSharedFramework") == 1, "framework path");
+    expect(IXSessionFrameworkName("SCInsta.dylib") == 0, "tweak is not the framework");
+    expect(IXSessionFrameworkName(NULL) == 0, "null framework");
+
+    expect(IXSessionUseDocumentsContainer("group.com.burbn.instagram") == 1, "ig container ignores a system url");
+    expect(IXSessionUseDocumentsContainer("group.com.facebook.family") == 1, "family container ignores a system url");
+    expect(IXSessionUseDocumentsContainer("group.com.burbn.family") == 1, "burbn container ignores a system url");
+    expect(IXSessionUseDocumentsContainer("group.com.burbn.instagram.TEAM") == 1, "suffixed ig container");
+    expect(IXSessionUseDocumentsContainer("group.com.facebook.familyextra") == 0, "family prefix needs a boundary");
+    expect(IXSessionUseDocumentsContainer("group.com.other") == 0, "other group stays with the system");
+    expect(IXSessionUseDocumentsContainer("com.burbn.instagram") == 0, "app domain is not a group container");
+    expect(IXSessionDocumentsContainer("/docs", "group.com.burbn.instagram", out, sizeof out) == 1, "documents container");
+    expect_str(out, "/docs/group.com.burbn.instagram", "documents container path");
+    expect(IXSessionDocumentsContainer("/docs", "com.burbn.instagram", out, sizeof out) == 0, "app id has no documents container");
+
+    expect(IXSessionStoredAccessGroup("group.com.facebook.family", "PROBEGROUP", out, sizeof out) == 1, "auth group uses the probe");
+    expect_str(out, "PROBEGROUP", "probe group is not the requested group");
+    expect(IXSessionStoredAccessGroup("PROBEGROUP", "PROBEGROUP", out, sizeof out) == 1, "matching probe stays");
+    expect_str(out, "PROBEGROUP", "matching probe value");
+    expect(IXSessionStoredAccessGroup("group.com.burbn.instagram", "", out, sizeof out) == 0, "empty probe is not invented");
+    expect(IXSessionStoredAccessGroup("group.com.burbn.instagram", NULL, out, sizeof out) == 0, "null probe is not invented");
+    expect(IXSessionAuthStorePath("/docs", "PROBEGROUP", out, sizeof out) == 1, "authheaders path");
+    expect_str(out, "/docs/InstagramX/session-sim/PROBEGROUP/authheaders", "authheaders path value");
+    expect(IXSessionAuthStorePath("/docs", "a/b", out, sizeof out) == 0, "authheaders slash rejected");
+    expect(IXSessionSharedSessionPath("/docs", out, sizeof out) == 1, "shared session path");
+    expect_str(out, "/docs/InstagramX/session-sim/shared-session", "shared session path value");
     return g_failed ? 1 : 0;
 }

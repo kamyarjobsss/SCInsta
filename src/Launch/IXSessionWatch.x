@@ -920,13 +920,29 @@ static void IXArmSec(int probeNow) {
     IXResolvePrev();
 }
 
+static void IXArmSecImage(const struct mach_header *header, intptr_t slide, const char *path) {
+    const char *names[4] = { "SecItemAdd", "SecItemCopyMatching", "SecItemUpdate", "SecItemDelete" };
+    void *repl[4] = { (void *)ix_sec_add, (void *)ix_sec_copy, (void *)ix_sec_update, (void *)ix_sec_delete };
+    IXCaptureRaw();
+    IXSymbolRebindPermanentOne(header, slide, path, names, repl, 4);
+}
+
+void IXSessionArmKeychain(void) {
+    static int logged = 0;
+    if (!IXSessionLaunchMayWalkClasses()) return;
+    IXArmSec(1);
+    if (logged) return;
+    logged = 1;
+    IXSessionDiagLine(@"kc_arm phase=ctor rewrite=1");
+}
+
 void IXSessionWatchArm(void) {
     static int announced = 0;
     pthread_mutex_lock(&ix_watch_mu);
     if (ix_watch_clock == 0) ix_watch_clock = CFAbsoluteTimeGetCurrent();
     pthread_mutex_unlock(&ix_watch_mu);
     IXMobileconfigSync(@"arm");
-    IXArmSec(1);
+    IXSessionArmKeychain();
     IXInstallLogoutHooks();
     if (!announced) {
         announced = 1;
@@ -1100,18 +1116,62 @@ static void IXEnableCookieHooks(void) {
     IXSessionDiagLine(@"cookie_hook ctor=1");
 }
 
+static int IXHeaderIsFramework(const struct mach_header *header) {
+    const struct mach_header_64 *image;
+    const uint8_t *cursor;
+    uint32_t i;
+    if (!header || header->magic != MH_MAGIC_64) return 0;
+    image = (const struct mach_header_64 *)header;
+    cursor = (const uint8_t *)(image + 1);
+    for (i = 0; i < image->ncmds && i < 256; i++) {
+        const struct load_command *cmd = (const struct load_command *)cursor;
+        if (cmd->cmdsize < sizeof(*cmd) || cmd->cmdsize > 8192) return 0;
+        if (cmd->cmd == LC_ID_DYLIB && cmd->cmdsize >= sizeof(struct dylib_command)) {
+            const struct dylib_command *dylib = (const struct dylib_command *)cmd;
+            if (dylib->dylib.name.offset >= sizeof(*dylib) && dylib->dylib.name.offset < cmd->cmdsize) {
+                const char *name = (const char *)cmd + dylib->dylib.name.offset;
+                if (IXSessionFrameworkName(name)) return 1;
+            }
+        }
+        cursor += cmd->cmdsize;
+    }
+    return 0;
+}
+
+static const char *IXFrameworkDiskPath(void) {
+    static char path[1024];
+    NSString *bundle = NSBundle.mainBundle.bundlePath;
+    NSString *full;
+    const char *utf;
+    if (bundle.length == 0) return NULL;
+    full = [bundle stringByAppendingPathComponent:@"Frameworks/FBSharedFramework.framework/FBSharedFramework"];
+    if (full.length == 0) return NULL;
+    utf = full.UTF8String;
+    if (!utf || strlen(utf) >= sizeof path) return NULL;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:full]) return NULL;
+    memcpy(path, utf, strlen(utf) + 1);
+    return path;
+}
+
 static void IXCookieImageAdded(const struct mach_header *header, intptr_t slide) {
-    (void)header;
-    (void)slide;
-    IXNoteLoadedImages();
-    if (!IXSessionLaunchMayWalkClasses()) return;
-    dispatch_async(dispatch_get_main_queue(), ^{ IXEnableCookieHooks(); });
+    if (!IXHeaderIsFramework(header)) return;
+    IXSessionLaunchNoteImage("FBSharedFramework");
+    IXArmSecImage(header, slide, IXFrameworkDiskPath());
+    IXEnableCookieHooks();
+    IXSessionDiagLine(@"kc_arm phase=callback image=FBSharedFramework");
+}
+
+__attribute__((constructor(101)))
+static void IXSessionEarlyCtor(void) {
+    _dyld_register_func_for_add_image(&IXCookieImageAdded);
+    if (IXSessionLaunchMayWalkClasses()) IXSessionArmKeychain();
 }
 
 %ctor {
     IXSessionSourceProbeFiles("ctor");
     IXNoteLoadedImages();
     if (IXSessionLaunchMayWalkClasses()) {
+        IXSessionArmKeychain();
         IXEnableCookieHooks();
         return;
     }

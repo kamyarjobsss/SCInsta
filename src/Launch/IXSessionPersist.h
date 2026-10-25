@@ -157,4 +157,27 @@ int IXSessionDefaultsSuite(const char *identifier, char *out, size_t outLen);
    requested name. */
 int IXSessionIdentifierFill(const char *current, const char *requested, const char *probe, char *out, size_t outLen);
 
+/* 1 for the Instagram and Facebook group ids whose container must be
+   Documents/<id> even when the system returned a URL. A team suffix after
+   a dot is included. Other names, including the app domain, are 0. */
+int IXSessionUseDocumentsContainer(const char *identifier);
+
+/* Absolute Documents/<id> path. 0 when the id is not one of those groups
+   or the buffer is too small. */
+int IXSessionDocumentsContainer(const char *docs, const char *identifier, char *out, size_t outLen);
+
+/* Access group used to store a keychain item. A non-empty probed group
+   (the one SecItem assigned) is always the destination. An empty probe
+   returns 0 so a team id is not invented from the requested group. */
+int IXSessionStoredAccessGroup(const char *requested, const char *probed, char *out, size_t outLen);
+
+/* Simulated authheaders file for a relaunch test:
+   <docs>/InstagramX/session-sim/<probed>/authheaders
+   The probed group may not contain a slash. */
+int IXSessionAuthStorePath(const char *docs, const char *probed, char *out, size_t outLen);
+
+/* Simulated shared cookie jar marker:
+   <docs>/InstagramX/session-sim/shared-session */
+int IXSessionSharedSessionPath(const char *docs, char *out, size_t outLen);
+
 #endif

@@ -83,7 +83,7 @@ static NSURL *IXContainerURL(NSString *identifier) {
         NSString *text = [NSString stringWithUTF8String:leaf];
         if (text.length) name = text;
     }
-    parent = IXEntitledGroupParent();
+    parent = IXSessionUseDocumentsContainer(raw) ? nil : IXEntitledGroupParent();
     if (parent.path.length) path = [parent.path stringByAppendingPathComponent:name];
     else {
         NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
@@ -216,9 +216,11 @@ static void IXFillAppGroup(id object, id name) {
         NSUserDefaults *defaults = IXGroupDefaults(IXDefaultsSuite());
         if (defaults) IXWriteIvar(object, "_userDefaults", defaults);
     }
+    NSString *groupName = IXGroupIdentifier(name);
+    int forceDocuments = IXSessionUseDocumentsContainer(groupName.UTF8String);
     id existing = IXReadIvar(object, "_containerURL");
-    if ([existing isKindOfClass:[NSURL class]] && [(NSURL *)existing path].length) return;
-    NSURL *url = IXContainerURL(IXGroupIdentifier(name));
+    if (!forceDocuments && [existing isKindOfClass:[NSURL class]] && [(NSURL *)existing path].length) return;
+    NSURL *url = IXContainerURL(groupName);
     if (url) IXWriteIvar(object, "_containerURL", url);
 }
 
@@ -302,7 +304,7 @@ static void IXMigrateInto(NSString *destPath) {
         [sources addObject:[docs stringByAppendingPathComponent:@"InstagramX/AppGroup"]];
         for (NSString *name in [fm contentsOfDirectoryAtPath:docs error:nil]) {
             if (![name isKindOfClass:[NSString class]]) continue;
-            if ([name hasPrefix:@"group.com.burbn.instagram"] || [name hasPrefix:@"group.com.facebook.family"]) {
+            if ([name hasPrefix:@"group.com.burbn.instagram"] || [name hasPrefix:@"group.com.facebook.family"] || [name hasPrefix:@"group.com.burbn.family"]) {
                 [sources addObject:[docs stringByAppendingPathComponent:name]];
             }
         }
@@ -334,18 +336,30 @@ static void IXMigrateInto(NSString *destPath) {
 - (NSURL *)containerURLForSecurityApplicationGroupIdentifier:(NSString *)identifier {
     static __thread int depth = 0;
     NSURL *url = nil;
+    NSURL *systemURL = nil;
     NSString *source = @"system";
+    const char *raw = [identifier isKindOfClass:[NSString class]] ? identifier.UTF8String : NULL;
+    int forceDocuments = IXSessionUseDocumentsContainer(raw);
     if (depth) {
         @try { return %orig; }
         @catch (__unused NSException *exception) { return nil; }
     }
     depth++;
-    @try { url = %orig; }
-    @catch (__unused NSException *exception) { url = nil; }
-    if (![url isKindOfClass:[NSURL class]] || url.path.length == 0) {
+    @try { systemURL = %orig; }
+    @catch (__unused NSException *exception) { systemURL = nil; }
+    if (forceDocuments || ![systemURL isKindOfClass:[NSURL class]] || systemURL.path.length == 0) {
         @try { url = IXContainerURL(identifier); }
         @catch (__unused NSException *exception) { url = nil; }
-        source = @"sandbox";
+        if ([url isKindOfClass:[NSURL class]] && url.path.length &&
+            [systemURL isKindOfClass:[NSURL class]] && systemURL.path.length &&
+            ![systemURL.path isEqualToString:url.path]) {
+            @try { IXCopyMissing([NSFileManager defaultManager], systemURL.path, url.path); }
+            @catch (__unused NSException *exception) {}
+        }
+        source = [url isKindOfClass:[NSURL class]] ? @"sandbox" : @"system";
+        if (![url isKindOfClass:[NSURL class]]) url = systemURL;
+    } else {
+        url = systemURL;
     }
     depth--;
     if ([url isKindOfClass:[NSURL class]] && url.path.length) {
@@ -461,12 +475,48 @@ static void IXEnableSuiteHooks(void) {
     IXSessionDiagLine(@"suite_hook ctor=1");
 }
 
+static int IXHeaderIsFramework(const struct mach_header *header);
+
 static void IXSuiteImageAdded(const struct mach_header *header, intptr_t slide) {
-    (void)header;
     (void)slide;
-    IXNoteLoadedImages();
-    if (!IXSessionLaunchMayWalkClasses()) return;
-    dispatch_async(dispatch_get_main_queue(), ^{ IXEnableSuiteHooks(); });
+    if (!IXHeaderIsFramework(header)) return;
+    IXSessionLaunchNoteImage("FBSharedFramework");
+    IXEnableSuiteHooks();
+}
+
+static int IXHeaderIsFramework(const struct mach_header *header) {
+    const struct mach_header_64 *image;
+    const uint8_t *cursor;
+    uint32_t i;
+    if (!header || header->magic != MH_MAGIC_64) return 0;
+    image = (const struct mach_header_64 *)header;
+    cursor = (const uint8_t *)(image + 1);
+    for (i = 0; i < image->ncmds && i < 256; i++) {
+        const struct load_command *cmd = (const struct load_command *)cursor;
+        if (cmd->cmdsize < sizeof(*cmd) || cmd->cmdsize > 8192) return 0;
+        if (cmd->cmd == LC_ID_DYLIB && cmd->cmdsize >= sizeof(struct dylib_command)) {
+            const struct dylib_command *dylib = (const struct dylib_command *)cmd;
+            if (dylib->dylib.name.offset >= sizeof(*dylib) && dylib->dylib.name.offset < cmd->cmdsize) {
+                const char *name = (const char *)cmd + dylib->dylib.name.offset;
+                if (IXSessionFrameworkName(name)) return 1;
+            }
+        }
+        cursor += cmd->cmdsize;
+    }
+    return 0;
+}
+
+static void IXSuiteFrameworkAdded(const struct mach_header *header, intptr_t slide) {
+    (void)slide;
+    if (!IXHeaderIsFramework(header)) return;
+    IXSessionLaunchNoteImage("FBSharedFramework");
+    IXEnableSuiteHooks();
+}
+
+__attribute__((constructor(101)))
+static void IXSuiteEarlyCtor(void) {
+    _dyld_register_func_for_add_image(&IXSuiteFrameworkAdded);
+    if (IXSessionLaunchMayWalkClasses()) IXEnableSuiteHooks();
 }
 
 %ctor {

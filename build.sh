@@ -187,9 +187,18 @@ then
         echo -e '\033[1m\033[32mBuilding in-process Xray core\033[0m'
         ./scripts/build_ixray.sh
         export IX_HAS_XRAY=1
+    elif [[ -f vendor/ixray/IXRayCore.dylib ]]; then
+        export IX_HAS_XRAY=1
     fi
 
     make $MAKEARGS
+
+    # libflex is the load name the sideload checker expects. The FLEX
+    # subproject builds libFLEX.dylib, and a case-sensitive filesystem
+    # keeps those as two files.
+    if [[ -f .theos/obj/debug/libFLEX.dylib && ! -f .theos/obj/debug/libflex.dylib ]]; then
+        cp -f .theos/obj/debug/libFLEX.dylib .theos/obj/debug/libflex.dylib
+    fi
 
     # Only build libs (for future use in dev build mode)
     if [ "$2" == "--buildonly" ];

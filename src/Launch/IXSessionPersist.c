@@ -195,6 +195,72 @@ int IXSessionIdentifierFill(const char *current, const char *requested, const ch
     return ix_copy(out, outLen, "group.com.burbn.instagram");
 }
 
+static int ix_group_prefix(const char *text, const char *prefix) {
+    size_t n = strlen(prefix);
+    if (strncmp(text, prefix, n) != 0) return 0;
+    return text[n] == '\0' || text[n] == '.';
+}
+
+static int ix_safe_component(const char *text) {
+    if (!text || !text[0] || strlen(text) > 180) return 0;
+    if (strchr(text, '/') || strchr(text, '\\') || strstr(text, "..")) return 0;
+    return 1;
+}
+
+int IXSessionUseDocumentsContainer(const char *identifier) {
+    if (!IXSessionPersistSuite(identifier)) return 0;
+    return ix_group_prefix(identifier, "group.com.burbn.instagram") ||
+           ix_group_prefix(identifier, "group.com.facebook.family") ||
+           ix_group_prefix(identifier, "group.com.burbn.family");
+}
+
+int IXSessionDocumentsContainer(const char *docs, const char *identifier, char *out, size_t outLen) {
+    int wrote;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!docs || !docs[0] || strchr(docs, '\\') || !IXSessionUseDocumentsContainer(identifier)) return 0;
+    wrote = snprintf(out, outLen, "%s/%s", docs, identifier);
+    if (wrote < 0 || (size_t)wrote >= outLen) {
+        out[0] = 0;
+        return 0;
+    }
+    return 1;
+}
+
+int IXSessionStoredAccessGroup(const char *requested, const char *probed, char *out, size_t outLen) {
+    (void)requested;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!probed || !probed[0]) return 0;
+    return ix_copy(out, outLen, probed);
+}
+
+int IXSessionAuthStorePath(const char *docs, const char *probed, char *out, size_t outLen) {
+    int wrote;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!docs || !docs[0] || strchr(docs, '\\') || !ix_safe_component(probed)) return 0;
+    wrote = snprintf(out, outLen, "%s/InstagramX/session-sim/%s/authheaders", docs, probed);
+    if (wrote < 0 || (size_t)wrote >= outLen) {
+        out[0] = 0;
+        return 0;
+    }
+    return 1;
+}
+
+int IXSessionSharedSessionPath(const char *docs, char *out, size_t outLen) {
+    int wrote;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!docs || !docs[0] || strchr(docs, '\\')) return 0;
+    wrote = snprintf(out, outLen, "%s/InstagramX/session-sim/shared-session", docs);
+    if (wrote < 0 || (size_t)wrote >= outLen) {
+        out[0] = 0;
+        return 0;
+    }
+    return 1;
+}
+
 int IXSessionDeleteAllowed(int existing_install, int launch_finished, int marker_persisted, int our_service, int password_class) {
     if (our_service) return 1;
     if (!password_class) return 1;
