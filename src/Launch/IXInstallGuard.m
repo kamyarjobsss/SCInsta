@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
-#import <substrate.h>
+#import <CydiaSubstrate/CydiaSubstrate.h>
 #import <execinfo.h>
 #import <dlfcn.h>
 #import <string.h>
