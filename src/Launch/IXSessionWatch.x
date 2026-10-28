@@ -413,13 +413,22 @@ static int IXInstallMarkerQuery(CFDictionaryRef query) {
     return [service isEqualToString:@"instagramx.install"];
 }
 
+static int IXAuthHeadersPresent(void);
+
+static int IXStartupServiceQuery(CFDictionaryRef query) {
+    NSString *service = IXQueryService(query);
+    if (!service.UTF8String || !IXSessionStartupService(service.UTF8String)) return 0;
+    return IXAuthHeadersPresent();
+}
+
 static OSStatus ix_sec_delete(CFDictionaryRef queryIn) {
     int rewrote = 0;
     CFDictionaryRef query;
     IXSecDeleteFn next;
     OSStatus status;
-    if (IXInstallMarkerQuery(queryIn)) {
-        IXSessionDiagLine(@"wipe_block kind=keychain service=instagramx.install");
+    if (IXInstallMarkerQuery(queryIn) || IXStartupServiceQuery(queryIn)) {
+        IXSessionDiagLine([NSString stringWithFormat:@"wipe_block kind=keychain service=%@",
+                           IXQueryService(queryIn) ?: @"-"]);
         IXFrames(@"wipe_block");
         return errSecSuccess;
     }
@@ -743,9 +752,53 @@ static void ix_logout1(id self, SEL _cmd, id arg) {
     if (orig) ((void (*)(id, SEL, id))orig)(self, _cmd, arg);
 }
 
+static int ix_auth_cached = -1;
+
+static int IXAuthHeadersPresent(void) {
+    IXSecCopyFn copy;
+    NSDictionary *base;
+    NSArray *groups;
+    int i;
+    if (ix_auth_cached >= 0) return ix_auth_cached;
+    copy = IXRawCopy();
+    ix_auth_cached = 0;
+    if (!copy) return 0;
+    base = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: @"com.instagram.users.authheaders.service",
+        (__bridge id)kSecReturnAttributes: @YES,
+        (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
+    };
+    groups = ix_entitled_group.length ? @[ix_entitled_group, @""] : @[@""];
+    for (i = 0; i < (int)groups.count; i++) {
+        NSMutableDictionary *query = [base mutableCopy];
+        CFTypeRef result = NULL;
+        OSStatus status;
+        if ([(NSString *)groups[i] length]) query[(__bridge id)kSecAttrAccessGroup] = groups[i];
+        status = copy((__bridge CFDictionaryRef)query, &result);
+        if (result) CFRelease(result);
+        if (status == errSecSuccess) {
+            ix_auth_cached = 1;
+            break;
+        }
+    }
+    return ix_auth_cached;
+}
+
+static int IXBlockClearUsers(SEL sel, long long entry) {
+    const char *name = sel ? sel_getName(sel) : NULL;
+    if (!name || !strstr(name, "clearAllUsers")) return 0;
+    return IXSessionBlockStartupLogout((int)entry, IXAuthHeadersPresent());
+}
+
 static void ix_logout_q(id self, SEL _cmd, long long entry) {
     IMP orig;
     IXNoteLogout(self, _cmd, entry, 1);
+    if (IXBlockClearUsers(_cmd, entry)) {
+        IXSessionDiagLine(@"logout_block sel=clearAllUsers entry=4 reason=authheaders");
+        IXFrames(@"logout_block");
+        return;
+    }
     orig = IXLogoutOrig(self, _cmd);
     if (orig) ((void (*)(id, SEL, long long))orig)(self, _cmd, entry);
 }
@@ -753,6 +806,11 @@ static void ix_logout_q(id self, SEL _cmd, long long entry) {
 static void ix_logout_i(id self, SEL _cmd, int entry) {
     IMP orig;
     IXNoteLogout(self, _cmd, entry, 1);
+    if (IXBlockClearUsers(_cmd, entry)) {
+        IXSessionDiagLine(@"logout_block sel=clearAllUsers entry=4 reason=authheaders");
+        IXFrames(@"logout_block");
+        return;
+    }
     orig = IXLogoutOrig(self, _cmd);
     if (orig) ((void (*)(id, SEL, int))orig)(self, _cmd, entry);
 }
@@ -761,6 +819,11 @@ static void ix_logout_q_obj(id self, SEL _cmd, long long entry, id arg) {
     IMP orig;
     (void)arg;
     IXNoteLogout(self, _cmd, entry, 1);
+    if (IXBlockClearUsers(_cmd, entry)) {
+        IXSessionDiagLine(@"logout_block sel=clearAllUsers entry=4 reason=authheaders");
+        IXFrames(@"logout_block");
+        return;
+    }
     orig = IXLogoutOrig(self, _cmd);
     if (orig) ((void (*)(id, SEL, long long, id))orig)(self, _cmd, entry, arg);
 }
@@ -837,6 +900,73 @@ static void IXConsiderLogout(Class cls, Method method, int forcedOnly) {
     ix_logout_count++;
 }
 
+typedef struct {
+    Class cls;
+    SEL sel;
+    IMP orig;
+    int kind;
+} IXFirstSlot;
+
+static IXFirstSlot ix_first_slots[32];
+static int ix_first_count;
+
+static IXFirstSlot *IXFirstSlotFor(id object, SEL sel) {
+    Class cls = object_getClass(object);
+    while (cls) {
+        for (int i = 0; i < ix_first_count; i++) {
+            if (ix_first_slots[i].cls == cls && ix_first_slots[i].sel == sel) return &ix_first_slots[i];
+        }
+        cls = class_getSuperclass(cls);
+    }
+    return NULL;
+}
+
+static BOOL ix_first_no(id self, SEL _cmd) {
+    IXFirstSlot *slot = IXFirstSlotFor(self, _cmd);
+    if (IXAuthHeadersPresent()) {
+        IXSessionDiagLine(@"first_install_block sel=getIsFirstUserEnterSession");
+        return NO;
+    }
+    if (slot && slot->orig) return ((BOOL (*)(id, SEL))slot->orig)(self, _cmd);
+    return NO;
+}
+
+static void ix_first_skip(id self, SEL _cmd) {
+    IXFirstSlot *slot = IXFirstSlotFor(self, _cmd);
+    if (IXAuthHeadersPresent()) {
+        IXSessionDiagLine(@"first_install_block sel=onFirstAppInstall");
+        return;
+    }
+    if (slot && slot->orig) ((void (*)(id, SEL))slot->orig)(self, _cmd);
+}
+
+static void IXConsiderFirst(Class cls, Method method) {
+    SEL sel;
+    const char *name;
+    const char *types;
+    IMP repl;
+    if (!cls || !method || ix_first_count >= 32) return;
+    sel = method_getName(method);
+    name = sel ? sel_getName(sel) : NULL;
+    types = method_getTypeEncoding(method);
+    if (!name || !types) return;
+    if (strcmp(name, "getIsFirstUserEnterSession") == 0 || strcmp(name, "isFirstUserEnterSession") == 0) {
+        if (strcmp(types, "B16@0:8") != 0 && strcmp(types, "c16@0:8") != 0) return;
+        repl = (IMP)ix_first_no;
+    } else if (strcmp(name, "onFirstAppInstall") == 0) {
+        if (strcmp(types, "v16@0:8") != 0) return;
+        repl = (IMP)ix_first_skip;
+    } else {
+        return;
+    }
+    if (method_getImplementation(method) == repl) return;
+    ix_first_slots[ix_first_count].cls = cls;
+    ix_first_slots[ix_first_count].sel = sel;
+    ix_first_slots[ix_first_count].kind = repl == (IMP)ix_first_skip;
+    ix_first_slots[ix_first_count].orig = method_setImplementation(method, repl);
+    ix_first_count++;
+}
+
 static void IXInstallLogoutHooks(void) {
     unsigned int classCount = 0;
     Class *classes = objc_copyClassList(&classCount);
@@ -852,7 +982,44 @@ static void IXInstallLogoutHooks(void) {
             if (methods) free(methods);
         }
     }
+    for (unsigned int i = 0; i < classCount && ix_first_count < 32; i++) {
+        unsigned int methodCount = 0;
+        Method *methods = class_copyMethodList(classes[i], &methodCount);
+        for (unsigned int m = 0; m < methodCount && ix_first_count < 32; m++) {
+            IXConsiderFirst(classes[i], methods[m]);
+        }
+        if (methods) free(methods);
+    }
     free(classes);
+    IXSessionDiagLine([NSString stringWithFormat:@"first_install_hook count=%d", ix_first_count]);
+}
+
+static void IXClearFreshFlags(void) {
+    NSArray *keys = @[@"mc_freshinstall_time", @"mobileconfig_freshinstall_track_version"];
+    NSString *docs;
+    NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
+    if (!IXAuthHeadersPresent()) return;
+    for (NSString *key in keys) {
+        @try { [defs removeObjectForKey:key]; }
+        @catch (__unused NSException *exception) {}
+    }
+    docs = IXDocsDir();
+    for (NSString *dir in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:docs error:nil]) {
+        NSString *path;
+        NSMutableDictionary *plist;
+        int changed = 0;
+        if (![dir isKindOfClass:[NSString class]] || ![dir hasPrefix:@"group."]) continue;
+        path = [[docs stringByAppendingPathComponent:dir] stringByAppendingPathComponent:[NSString stringWithFormat:@"Library/Preferences/%@.plist", dir]];
+        plist = [[NSDictionary dictionaryWithContentsOfFile:path] mutableCopy];
+        if (![plist isKindOfClass:[NSMutableDictionary class]]) continue;
+        for (NSString *key in keys) {
+            if (!plist[key]) continue;
+            [plist removeObjectForKey:key];
+            changed = 1;
+        }
+        if (changed) [plist writeToFile:path atomically:YES];
+    }
+    IXSessionDiagLine(@"first_install_clear fresh_flags=1 reason=authheaders");
 }
 
 static NSString *IXHashText(NSString *value) {
@@ -1059,6 +1226,7 @@ void IXSessionWatchArm(void) {
     IXMobileconfigSync(@"arm");
     IXSessionArmKeychain();
     IXSessionNoteInstall();
+    IXClearFreshFlags();
     IXInstallLogoutHooks();
     if (!announced) {
         announced = 1;

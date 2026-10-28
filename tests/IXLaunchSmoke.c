@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -34,6 +35,13 @@ static int relaunch_ok(const char *docs) {
     char path[1024];
     if (!read_suite(docs, "group.com.burbn.instagram")) return 0;
     if (!read_suite(docs, "group.com.facebook.family")) return 0;
+    {
+        char path[1024];
+        struct stat st;
+        if (!IXSessionSuitePlist(docs, "group.com.facebook.family", path, sizeof path)) return 0;
+        if (stat(path, &st) != 0 || st.st_size <= 0) return 0;
+    }
+    if (!IXSessionBlockStartupLogout(4, 1) || IXSessionBlockStartupLogout(4, 0)) return 0;
     if (!IXSessionStoredAccessGroup("group.com.facebook.family", "PROBEGROUP", group, sizeof group)) return 0;
     if (strcmp(group, "PROBEGROUP") != 0) return 0;
     if (!IXSessionAuthStorePath(docs, group, path, sizeof path)) return 0;

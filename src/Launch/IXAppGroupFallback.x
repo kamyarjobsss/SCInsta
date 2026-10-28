@@ -387,6 +387,107 @@ static void IXAdoptSuitePlist(NSString *suite, NSURL *container) {
     [fm copyItemAtPath:home toPath:dest error:nil];
 }
 
+static const void *ix_suite_key = &ix_suite_key;
+static NSMutableDictionary<NSString *, NSMutableDictionary *> *ix_suite_cache;
+static int ix_suite_logs;
+static __thread int ix_mirror_depth;
+
+static void IXSuiteCacheInit(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ ix_suite_cache = [NSMutableDictionary dictionary]; });
+}
+
+static NSString *IXSuiteFile(NSString *suite) {
+    char path[1024];
+    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+    if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+    if (![suite isKindOfClass:[NSString class]] || !docs.UTF8String) return nil;
+    if (!IXSessionSuitePlist(docs.UTF8String, suite.UTF8String, path, sizeof path)) return nil;
+    return [NSString stringWithUTF8String:path];
+}
+
+static unsigned long long IXFileSizeAt(NSString *path) {
+    NSDictionary *attr = [[NSFileManager defaultManager] attributesOfItemAtPath:path error:nil];
+    NSNumber *size = [attr isKindOfClass:[NSDictionary class]] ? attr[NSFileSize] : nil;
+    return [size isKindOfClass:[NSNumber class]] ? size.unsignedLongLongValue : 0;
+}
+
+static BOOL IXPlistValue(id value) {
+    if (!value) return NO;
+    return [value isKindOfClass:[NSString class]] || [value isKindOfClass:[NSNumber class]] ||
+           [value isKindOfClass:[NSData class]] || [value isKindOfClass:[NSDate class]] ||
+           [value isKindOfClass:[NSArray class]] || [value isKindOfClass:[NSDictionary class]];
+}
+
+static void IXLogSuiteBytes(NSString *suite, unsigned long long bytes, NSUInteger keys) {
+    if (ix_suite_logs >= 32 || suite.length == 0) return;
+    ix_suite_logs++;
+    IXSessionDiagLine([NSString stringWithFormat:@"suite_sync name=%@ bytes=%llu keys=%lu",
+                       suite.length > 96 ? [suite substringToIndex:96] : suite,
+                       bytes, (unsigned long)keys]);
+}
+
+static unsigned long long IXWriteSuite(NSString *suite, NSDictionary *values) {
+    NSString *path;
+    NSString *dir;
+    unsigned long long bytes;
+    if (![values isKindOfClass:[NSDictionary class]] || values.count == 0) return 0;
+    path = IXSuiteFile(suite);
+    if (path.length == 0) return 0;
+    dir = [path stringByDeletingLastPathComponent];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    if (![values writeToFile:path atomically:YES]) return IXFileSizeAt(path);
+    bytes = IXFileSizeAt(path);
+    IXLogSuiteBytes(suite, bytes, values.count);
+    return bytes;
+}
+
+static NSMutableDictionary *IXSuiteShadow(NSString *suite) {
+    NSMutableDictionary *one;
+    NSDictionary *disk;
+    IXSuiteCacheInit();
+    if (![suite isKindOfClass:[NSString class]] || !IXSessionPersistSuite(suite.UTF8String)) return nil;
+    @synchronized (ix_suite_cache) {
+        one = ix_suite_cache[suite];
+        if (!one) {
+            one = [NSMutableDictionary dictionary];
+            disk = [NSDictionary dictionaryWithContentsOfFile:IXSuiteFile(suite)];
+            if ([disk isKindOfClass:[NSDictionary class]]) [one addEntriesFromDictionary:disk];
+            ix_suite_cache[suite] = one;
+        }
+    }
+    return one;
+}
+
+static int ix_has_password(NSString *key) {
+    return [key isKindOfClass:[NSString class]] && [key.lowercaseString containsString:@"password"];
+}
+
+static void IXMirrorUser(NSString *key, id value) {
+    if (ix_mirror_depth || ![key isKindOfClass:[NSString class]] || !value) return;
+    if (!IXSessionUserKey(key.UTF8String)) return;
+    ix_mirror_depth++;
+    @try { [[NSUserDefaults standardUserDefaults] setObject:value forKey:key]; }
+    @catch (__unused NSException *exception) {}
+    ix_mirror_depth--;
+}
+
+static void IXStoreSuiteValue(NSString *suite, NSString *key, id value) {
+    NSMutableDictionary *one;
+    NSDictionary *snap;
+    if (![key isKindOfClass:[NSString class]] || ix_has_password(key)) return;
+    one = IXSuiteShadow(suite);
+    if (!one) return;
+    @synchronized (ix_suite_cache) {
+        if (value && IXPlistValue(value)) one[key] = value;
+        else if (!value) [one removeObjectForKey:key];
+        else return;
+        snap = [one copy];
+    }
+    IXWriteSuite(suite, snap);
+    if (value) IXMirrorUser(key, value);
+}
+
 static void IXLogSuite(NSString *suite, NSURL *container) {
     static int logs = 0;
     NSString *plist;
@@ -406,6 +507,42 @@ static void IXLogSuite(NSString *suite, NSURL *container) {
                        tail]);
 }
 
+static NSString *IXSuiteOf(id defaults) {
+    NSString *suite = objc_getAssociatedObject(defaults, ix_suite_key);
+    const char *names[] = {"_suiteName", "_identifier", "_containerIdentifier", NULL};
+    int i;
+    if ([suite isKindOfClass:[NSString class]] && suite.length) return suite;
+    for (i = 0; names[i]; i++) {
+        Ivar ivar = class_getInstanceVariable(object_getClass(defaults), names[i]);
+        id value;
+        const char *type;
+        if (!ivar) continue;
+        type = ivar_getTypeEncoding(ivar);
+        if (!type || type[0] != '@') continue;
+        value = object_getIvar(defaults, ivar);
+        if (![value isKindOfClass:[NSString class]] || !IXSessionPersistSuite([(NSString *)value UTF8String])) continue;
+        objc_setAssociatedObject(defaults, ix_suite_key, value, OBJC_ASSOCIATION_COPY_NONATOMIC);
+        return value;
+    }
+    return nil;
+}
+
+static void IXPreloadSuite(NSUserDefaults *defaults, NSString *suite) {
+    NSMutableDictionary *one = IXSuiteShadow(suite);
+    NSDictionary *snap;
+    if (!defaults || !one) return;
+    @synchronized (ix_suite_cache) { snap = [one copy]; }
+    ix_suite_depth++;
+    for (NSString *key in snap) {
+        id value = snap[key];
+        @try {
+            if ([defaults objectForKey:key] == nil && value) [defaults setObject:value forKey:key];
+        } @catch (__unused NSException *exception) {}
+        IXMirrorUser(key, value);
+    }
+    ix_suite_depth--;
+}
+
 %hook NSUserDefaults
 - (id)_initWithSuiteName:(NSString *)suiteName container:(NSURL *)container {
     NSURL *stable = nil;
@@ -421,6 +558,8 @@ static void IXLogSuite(NSString *suite, NSURL *container) {
     @catch (__unused NSException *exception) { result = nil; }
     ix_suite_depth--;
     if (!result) return %orig;
+    objc_setAssociatedObject(result, ix_suite_key, suiteName, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    IXPreloadSuite(result, suiteName);
     IXLogSuite(suiteName, stable);
     return result;
 }
@@ -438,15 +577,89 @@ static void IXLogSuite(NSString *suite, NSURL *container) {
     @catch (__unused NSException *exception) { result = nil; }
     ix_suite_depth--;
     if (!result) return %orig;
+    objc_setAssociatedObject(result, ix_suite_key, suiteName, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    IXPreloadSuite(result, suiteName);
     IXLogSuite(suiteName, stable);
     return result;
 }
+- (void)setObject:(id)value forKey:(NSString *)key {
+    NSString *suite = IXSuiteOf(self);
+    %orig;
+    if (ix_suite_depth || ix_mirror_depth) return;
+    IXStoreSuiteValue(suite, key, value);
+}
+- (BOOL)synchronize {
+    BOOL ok = %orig;
+    NSString *suite = IXSuiteOf(self);
+    NSDictionary *domain = nil;
+    if (ix_suite_depth || ![suite isKindOfClass:[NSString class]]) return ok;
+    @try { domain = [self persistentDomainForName:suite]; }
+    @catch (__unused NSException *exception) { domain = nil; }
+    if ([domain isKindOfClass:[NSDictionary class]]) {
+        for (NSString *key in domain) {
+            if (ix_has_password(key)) continue;
+            IXStoreSuiteValue(suite, key, domain[key]);
+        }
+    }
+    return ok;
+}
 %end
 
+typedef void (*IXCFSetAppFn)(CFStringRef, CFTypeRef, CFStringRef);
+typedef void (*IXCFSetValueFn)(CFStringRef, CFTypeRef, CFStringRef, CFStringRef, CFStringRef);
+typedef void (*IXCFSyncFn)(CFStringRef);
+static IXCFSetAppFn ix_real_cf_set_app;
+static IXCFSetValueFn ix_real_cf_set_value;
+static IXCFSyncFn ix_real_cf_sync;
+
+static void ix_cf_set_app(CFStringRef key, CFTypeRef value, CFStringRef app) {
+    if (ix_real_cf_set_app) ix_real_cf_set_app(key, value, app);
+    IXStoreSuiteValue((__bridge NSString *)app, (__bridge NSString *)key, value ? (__bridge id)value : nil);
+}
+
+static void ix_cf_set_value(CFStringRef key, CFTypeRef value, CFStringRef app, CFStringRef user, CFStringRef host) {
+    if (ix_real_cf_set_value) ix_real_cf_set_value(key, value, app, user, host);
+    (void)user;
+    (void)host;
+    IXStoreSuiteValue((__bridge NSString *)app, (__bridge NSString *)key, value ? (__bridge id)value : nil);
+}
+
+static void ix_cf_sync(CFStringRef app) {
+    NSString *suite = (__bridge NSString *)app;
+    NSDictionary *snap = nil;
+    if (ix_real_cf_sync) ix_real_cf_sync(app);
+    if (![suite isKindOfClass:[NSString class]] || !IXSessionPersistSuite(suite.UTF8String)) return;
+    IXSuiteShadow(suite);
+    @synchronized (ix_suite_cache) { snap = [ix_suite_cache[suite] copy]; }
+    IXWriteSuite(suite, snap);
+}
+
+static void IXInstallSuiteWrites(void) {
+    const char *names[3] = {"CFPreferencesSetAppValue", "CFPreferencesSetValue", "CFPreferencesAppSynchronize"};
+    void *repl[3];
+    ix_real_cf_set_app = (IXCFSetAppFn)dlsym(RTLD_DEFAULT, "CFPreferencesSetAppValue");
+    ix_real_cf_set_value = (IXCFSetValueFn)dlsym(RTLD_DEFAULT, "CFPreferencesSetValue");
+    ix_real_cf_sync = (IXCFSyncFn)dlsym(RTLD_DEFAULT, "CFPreferencesAppSynchronize");
+    repl[0] = (void *)ix_cf_set_app;
+    repl[1] = (void *)ix_cf_set_value;
+    repl[2] = (void *)ix_cf_sync;
+    IXSymbolRebindPermanent((const char *const *)names, repl, 3);
+}
+
 void IXSessionSyncGroupSuites(void) {
-    NSArray *names = @[@"group.com.burbn.instagram", @"group.com.facebook.family", @"group.com.burbn.family"];
+    NSMutableArray *names = [@[@"group.com.burbn.instagram", @"group.com.facebook.family", @"group.com.burbn.family"] mutableCopy];
+    NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
     @try { [[NSUserDefaults standardUserDefaults] synchronize]; }
     @catch (__unused NSException *exception) {}
+    IXSuiteCacheInit();
+    @synchronized (ix_suite_cache) {
+        for (NSString *name in ix_suite_cache) {
+            if ([name isKindOfClass:[NSString class]] && ![names containsObject:name]) [names addObject:name];
+        }
+    }
+    for (NSString *dir in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:docs error:nil]) {
+        if ([dir isKindOfClass:[NSString class]] && [dir hasPrefix:@"group."] && ![names containsObject:dir]) [names addObject:dir];
+    }
     for (NSString *name in names) {
         NSURL *url = IXContainerURL(name);
         NSUserDefaults *defaults = nil;
@@ -472,6 +685,7 @@ static void IXEnableSuiteHooks(void) {
     once = 1;
     %init;
     IXInstallDirectAppGroup();
+    IXInstallSuiteWrites();
     IXSessionDiagLine(@"suite_hook ctor=1");
 }
 

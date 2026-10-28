@@ -1,4 +1,5 @@
 #import "IXSessionSource.h"
+#import "IXSessionPersist.h"
 #import "IXSessionDiag.h"
 
 #import <Security/Security.h>
@@ -190,6 +191,13 @@ static void IXNoteSuites(const char *phase) {
         IXNotePlistKeys(phase, [[home stringByAppendingPathComponent:@"Library/Preferences"] stringByAppendingPathComponent:plist], where);
         snprintf(where, sizeof where, "%s_docs", shortName.UTF8String);
         IXNotePlistKeys(phase, [[[docs stringByAppendingPathComponent:name] stringByAppendingPathComponent:@"Library/Preferences"] stringByAppendingPathComponent:plist], where);
+    }
+    for (NSString *dir in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:docs error:nil]) {
+        NSString *plist;
+        if (![dir isKindOfClass:[NSString class]] || ![dir hasPrefix:@"group."]) continue;
+        if (!IXSessionPersistSuite(dir.UTF8String)) continue;
+        plist = [[[docs stringByAppendingPathComponent:dir] stringByAppendingPathComponent:@"Library/Preferences"] stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.plist", dir]];
+        IXNoteFile(phase, "suite", dir.UTF8String, plist, "docs");
     }
 }
 

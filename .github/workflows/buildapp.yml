@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.12"
+                description: "Publish a prerelease tagged instagram-x-v2.4.13"
                 default: true
                 required: false
                 type: boolean
@@ -280,15 +280,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.12 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.13 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.12
+                tag_name: instagram-x-v2.4.13
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.12
+                name: Instagram X 2.4.13
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -313,6 +313,8 @@ jobs:
                   The panel at https://77.110.125.217:9443 is called on launch, when the app becomes active, and every 15 minutes, whether or not the VPN is on. That host is exempt from the kill switch. A direct request is tried first. If it fails and the tunnel is up, the same call goes through the tunnel. Settings, Panel connection, shows the URL, the last result, the HTTP status, registration, the config version, and the announcement, font, and sticker counts, with Retry now. That block is included in the copied diagnostics. The certificate pin is the SHA-256 of the P-256 SubjectPublicKeyInfo.
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
+
+                  v2.4.13 keeps the Los Angeles default and the same load order. Every group.* suite, including team-suffixed names, is written to a real plist under Documents and synchronize is checked for a non-zero size. Fresh-install flags are cleared when auth headers are already in the keychain, and clearAllUsersWithLogoutEntryPoint: entry 4 is refused in that case so the keychain session can be restored. One login can be required. Not tested on a device.
 
                   v2.4.12 keeps the Los Angeles default and the same load order. A Sideloadly resign stores the install marker in the team keychain group, TEAMID plus the signed bundle id. When that read misses, Instagram treats every launch as a first install and deletes preferences and Documents, which also clears Instagram X's one-time prompts. The marker is written at startup and those wipes are refused once it exists. The log records the bundle id, the container path, and the team keychain group. One login can be required. Not tested on a device.
 
@@ -341,4 +343,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.12"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.13"

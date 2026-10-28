@@ -197,6 +197,22 @@ int IXSessionDomainWipe(const char *domain, const char *bundle);
 /* 1 when an existing install must keep this defaults key. */
 int IXSessionKeepKey(const char *key);
 
+/* 1 for mc_freshinstall_time and the mobileconfig track version.
+   Those flags make onFirstAppInstall run. They are cleared when the
+   keychain already has auth headers. */
+int IXSessionFreshFlag(const char *key);
+
+/* 1 for the user-id keys and com.instagram.usersession.sessiondata.
+   Values are stored, never logged. */
+int IXSessionUserKey(const char *key);
+
+/* 1 when startup must not run clearAllUsersWithLogoutEntryPoint: entry 4.
+   That call deletes auth headers after a Sideloadly relaunch. */
+int IXSessionBlockStartupLogout(int entry, int authheaders);
+
+/* 1 for the keychain services clearAllUsers deletes on that path. */
+int IXSessionStartupService(const char *service);
+
 /* 1 when the wipe must not run. A first install is allowed to clean.
    After the marker exists, state paths and kept keys stay. */
 int IXSessionBlockWipe(int first_install, int state_target);

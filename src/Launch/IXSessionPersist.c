@@ -296,13 +296,34 @@ int IXSessionDomainWipe(const char *domain, const char *bundle) {
     return 0;
 }
 
-int IXSessionKeepKey(const char *key) {
+int IXSessionFreshFlag(const char *key) {
     if (!key || !key[0]) return 0;
     return strcmp(key, "mc_freshinstall_time") == 0 ||
-           strcmp(key, "mobileconfig_freshinstall_track_version") == 0 ||
-           strcmp(key, "logged_in_user_id") == 0 ||
+           strcmp(key, "mobileconfig_freshinstall_track_version") == 0;
+}
+
+int IXSessionUserKey(const char *key) {
+    if (!key || !key[0] || ix_has(key, "password")) return 0;
+    return strcmp(key, "logged_in_user_id") == 0 ||
            strcmp(key, "logged_in_user") == 0 ||
            strcmp(key, "logged_in_user_ids") == 0 ||
+           strcmp(key, "ig_logged_in_usernames") == 0 ||
+           strcmp(key, "com.instagram.usersession.sessiondata") == 0;
+}
+
+int IXSessionBlockStartupLogout(int entry, int authheaders) {
+    return entry == 4 && authheaders ? 1 : 0;
+}
+
+int IXSessionStartupService(const char *service) {
+    if (!service || !service[0]) return 0;
+    return strcmp(service, "com.instagram.users.authheaders.service") == 0 ||
+           strcmp(service, "com.instagram.usersession.sessiondata") == 0;
+}
+
+int IXSessionKeepKey(const char *key) {
+    if (!key || !key[0]) return 0;
+    return IXSessionUserKey(key) ||
            strcmp(key, "sci_exp_warning_seen") == 0 ||
            strcmp(key, "sci_changelog_last_seen_version") == 0;
 }
