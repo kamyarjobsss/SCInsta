@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ipa_macho import MachOError, constructors_follow_framework, dylib_loads, guard_precedes_framework  # noqa: E402
+from ipa_macho import MachOError, bind_ordinal_errors, constructors_follow_framework, dylib_loads  # noqa: E402
 
 
 def fail(message: str) -> int:
@@ -23,11 +23,23 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    args = sys.argv[1:]
-    lite = "--lite" in args
-    args = [arg for arg in args if arg != "--lite"]
-    if len(args) != 1:
-        print("usage: check_sideload_ipa.py <ipa> [--lite]", file=sys.stderr)
+    raw = sys.argv[1:]
+    lite = "--lite" in raw
+    base: Path | None = None
+    args: list[str] = []
+    index = 0
+    while index < len(raw):
+        if raw[index] == "--lite":
+            index += 1
+            continue
+        if raw[index] == "--base" and index + 1 < len(raw):
+            base = Path(raw[index + 1])
+            index += 2
+            continue
+        args.append(raw[index])
+        index += 1
+    if len(args) != 1 or base is None:
+        print("usage: check_sideload_ipa.py <ipa> --base <original.ipa> [--lite]", file=sys.stderr)
         return 2
     ipa = Path(args[0])
     expected_display = "Instagram X Lite" if lite else "Instagram X"
@@ -123,6 +135,7 @@ def main() -> int:
         try:
             loads = dylib_loads(binary_path)
             tweak_loads = dylib_loads(dylib_path)
+            patched_binary = binary_path.read_bytes()
         except MachOError as exc:
             return fail(f"Mach-O parse failed: {exc}")
 
@@ -140,7 +153,6 @@ def main() -> int:
         ("FLEXing.dylib", 1),
         ("libflex.dylib", 1),
         ("zxPluginsInject.dylib", 1),
-        ("IXInstallGuard.dylib", 1),
     ):
         got = counts.get(name, 0)
         if got != expect:
@@ -151,11 +163,26 @@ def main() -> int:
             "SCInsta and zxPluginsInject must load after FBSharedFramework; "
             "initializing them first crashed 2.4.9 at launch"
         )
-    if not guard_precedes_framework([path for _kind, path in loads]):
+    if not base.is_file():
+        return fail(f"original IPA not found: {base}")
+    try:
+        with zipfile.ZipFile(base) as original_archive:
+            original_binary = original_archive.read(binary_name)
+    except KeyError:
+        return fail(f"original IPA has no {binary_name}")
+    except zipfile.BadZipFile as exc:
+        return fail(f"original IPA is not a zip: {exc}")
+    try:
+        mismatches = bind_ordinal_errors(original_binary, patched_binary)
+    except MachOError as exc:
+        return fail(f"bind ordinal check failed: {exc}")
+    if mismatches:
         return fail(
-            "IXInstallGuard must load before FBSharedFramework so a first-install wipe "
-            "can be refused before that image initializes"
+            "main-binary binds no longer resolve to the original libraries "
+            f"({mismatches[0]}). A load command was inserted mid-list; "
+            "2.4.13 crashed in dyld looking for _swift_bridgeObjectRelease."
         )
+    print("[*] main-binary bind ordinals match the original IPA")
     if counts.get("IXRayCore.dylib", 0):
         return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")
     if counts.get("CydiaSubstrate", 0) > 1:

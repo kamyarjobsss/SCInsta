@@ -194,6 +194,10 @@ int IXSessionStatePath(const char *home, const char *path);
    The main bundle id, com.burbn.instagram, and every group.* name match. */
 int IXSessionDomainWipe(const char *domain, const char *bundle);
 
+/* 1 for com.burbn.instagram and a Sideloadly suffix such as
+   com.burbn.instagram.773S3XDQX7. The team suffix is not a different app. */
+int IXSessionInstagramBundle(const char *bundle);
+
 /* 1 when an existing install must keep this defaults key. */
 int IXSessionKeepKey(const char *key);
 

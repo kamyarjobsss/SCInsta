@@ -206,22 +206,6 @@ then
         exit
     fi
 
-    GUARD_OUT=".theos/obj/debug/IXInstallGuard.dylib"
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-        GUARD_CLANG="$(xcrun -f clang)"
-        GUARD_SDK="${THEOS}/sdks/iPhoneOS16.2.sdk"
-    else
-        GUARD_CLANG="${THEOS}/toolchain/linux/iphone/bin/clang"
-        GUARD_SDK="${THEOS}/sdks/iPhoneOS16.2.sdk"
-    fi
-    "$GUARD_CLANG" -target arm64-apple-ios14.0 -isysroot "$GUARD_SDK" -fobjc-arc -dynamiclib \
-        -install_name @rpath/IXInstallGuard.dylib \
-        -Isrc/Launch -F "${THEOS}/vendor/lib" \
-        -framework Foundation -framework Security -framework CydiaSubstrate \
-        src/Launch/IXInstallGuard.m src/Launch/IXSessionPersist.c \
-        -o "$GUARD_OUT"
-    ldid -S "$GUARD_OUT"
-
     SCINSTAPATH=".theos/obj/debug/SCInsta.dylib"
     if [ "$2" == "--devquick" ];
     then
@@ -246,7 +230,7 @@ then
     # Create IPA File
     echo -e '\033[1m\033[32mCreating the IPA file...\033[0m'
     rm -f "$IPA_OUT" packages/SCInsta-sideloaded.ipa
-    cyan -i "packages/${ipaFile}" -o "$IPA_OUT" -f "$GUARD_OUT" $SCINSTAPATH $FLEXPATH "packages/${BUNDLE_NAME}" -c $COMPRESSION -m 15.0 -du
+    cyan -i "packages/${ipaFile}" -o "$IPA_OUT" -f $SCINSTAPATH $FLEXPATH "packages/${BUNDLE_NAME}" -c $COMPRESSION -m 15.0 -du
 
     # Display name, holographic icon, and optional bundle id (IX_BUNDLE_ID).
     IX_DISPLAY_NAME="$DISPLAY_NAME" python3 scripts/brand_ipa.py "$IPA_OUT" "$DISPLAY_NAME"
@@ -254,16 +238,17 @@ then
     # Patch IPA for sideloading
     ipapatch --input "$IPA_OUT" --inplace --noconfirm
 
-    # Only the install-wipe guard moves ahead of FBSharedFramework. SCInsta
-    # and zxPluginsInject stay after it; that earlier order crashed on launch.
-    python3 scripts/prioritize_launch_dylibs.py "$IPA_OUT" IXInstallGuard.dylib
+    # Do not insert a new LC_LOAD_DYLIB in front of FBSharedFramework.
+    # 2.4.13 did that for IXInstallGuard and shifted two-level bind ordinals,
+    # so dyld looked for _swift_bridgeObjectRelease in the wrong image and
+    # aborted before main. New dylibs stay appended. The guard lives in SCInsta.
 
     # Full builds only. No LC_LOAD: the tweak dlopens this after the VPN is on.
     if [[ "${IX_LITE:-}" != "1" && -f vendor/ixray/IXRayCore.dylib ]]; then
         python3 scripts/embed_ixray.py "$IPA_OUT" vendor/ixray/IXRayCore.dylib
     fi
 
-    python3 scripts/check_sideload_ipa.py "$IPA_OUT" "${CHECK_ARGS[@]}"
+    python3 scripts/check_sideload_ipa.py "$IPA_OUT" --base "packages/${ipaFile}" "${CHECK_ARGS[@]}"
 
     echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/$IPA_OUT"
 

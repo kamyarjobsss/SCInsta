@@ -291,9 +291,16 @@ int IXSessionStatePath(const char *home, const char *path) {
 int IXSessionDomainWipe(const char *domain, const char *bundle) {
     if (!domain || !domain[0]) return 1;
     if (strncmp(domain, "group.", 6) == 0) return 1;
+    if (IXSessionInstagramBundle(domain)) return 1;
     if (bundle && bundle[0] && strcmp(domain, bundle) == 0) return 1;
-    if (strcmp(domain, "com.burbn.instagram") == 0) return 1;
     return 0;
+}
+
+int IXSessionInstagramBundle(const char *bundle) {
+    size_t prefix = strlen("com.burbn.instagram");
+    if (!bundle || !bundle[0]) return 0;
+    if (strncmp(bundle, "com.burbn.instagram", prefix) != 0) return 0;
+    return bundle[prefix] == '\0' || bundle[prefix] == '.';
 }
 
 int IXSessionFreshFlag(const char *key) {
