@@ -241,6 +241,200 @@ def guard_precedes_framework(paths: list[str]) -> bool:
     return guard < framework
 
 
+    return framework < tweak and framework < injector
+
+
+def linked_dylibs(data: bytes, start: int) -> list[str]:
+    """Install names in load-command order. Ordinal 1 is the first entry.
+
+    Two-level binds name a library by this ordinal. Inserting a load command
+    in the middle renumbers every later library, so an existing bind looks
+    up its symbol in the wrong image.
+    """
+
+    paths: list[str] = []
+    for _i, cmd, blob in iter_commands(data, start):
+        if cmd not in DYLIB_CMDS or cmd == LC_ID_DYLIB:
+            continue
+        text = _load_path(cmd, blob)
+        if text:
+            paths.append(text)
+    return paths
+
+
+def _arm64_slice(data: bytes) -> int:
+    if len(data) >= 4 and struct.unpack_from("<I", data, 0)[0] == MH_MAGIC_64:
+        return 0
+    magic_be = struct.unpack_from(">I", data, 0)[0] if len(data) >= 8 else 0
+    if magic_be not in (FAT_MAGIC, FAT_CIGAM):
+        raise MachOError("not a Mach-O")
+    nfat = struct.unpack_from(">I", data, 4)[0]
+    for i in range(nfat):
+        cputype, _sub, offset, size, _align = struct.unpack_from(">I" * 5, data, 8 + i * 20)
+        if cputype == 0x0100000C and offset + size <= len(data):
+            return offset
+    raise MachOError("no arm64 slice")
+
+
+def _uleb(blob: bytes, pos: int, end: int) -> tuple[int, int]:
+    value = 0
+    shift = 0
+    while pos < end and shift <= 63:
+        byte = blob[pos]
+        pos += 1
+        value |= (byte & 0x7F) << shift
+        if byte & 0x80 == 0:
+            return value, pos
+        shift += 7
+    raise MachOError("truncated uleb128 in bind info")
+
+
+def _bind_symbols(blob: bytes) -> list[tuple[str, int]]:
+    """(symbol, library ordinal) from a classic dyld bind opcode stream."""
+
+    found: list[tuple[str, int]] = []
+    pos = 0
+    end = len(blob)
+    ordinal = 0
+    symbol = ""
+    while pos < end:
+        opcode = blob[pos]
+        pos += 1
+        op = opcode & 0xF0
+        imm = opcode & 0x0F
+        if op == 0x00:
+            break
+        if op == 0x10:
+            ordinal = imm
+        elif op == 0x20:
+            ordinal, pos = _uleb(blob, pos, end)
+        elif op == 0x30:
+            ordinal = imm - 16 if imm else 0
+        elif op == 0x40:
+            if pos >= end:
+                break
+            stop = blob.find(b"\x00", pos, end)
+            if stop < 0:
+                break
+            symbol = blob[pos:stop].decode("utf-8", "replace")
+            pos = stop + 1
+        elif op == 0x60:
+            while pos < end and blob[pos] & 0x80:
+                pos += 1
+            pos = min(pos + 1, end)
+        elif op in (0x70, 0x80, 0xA0):
+            _value, pos = _uleb(blob, pos, end)
+            if op == 0x90 or op == 0xA0:
+                found.append((symbol, ordinal))
+        elif op == 0x90:
+            found.append((symbol, ordinal))
+        elif op == 0xB0:
+            found.append((symbol, ordinal))
+        elif op == 0xC0:
+            count, pos = _uleb(blob, pos, end)
+            _skip, pos = _uleb(blob, pos, end)
+            found.extend((symbol, ordinal) for _ in range(min(count, 100000)))
+        else:
+            continue
+    return found
+
+
+def _chained_symbols(data: bytes, start: int, dataoff: int, datasize: int) -> list[tuple[str, int]]:
+    absolute = start + dataoff
+    end = absolute + datasize
+    if dataoff == 0 or end > len(data) or datasize < 28:
+        return []
+    header = data[absolute:absolute + 28]
+    _version, _starts, imports_off, symbols_off, count, fmt, symbols_fmt = struct.unpack_from("<7I", header)
+    if symbols_fmt != 0 or count > 200000 or fmt not in (1, 2, 3):
+        return []
+    stride = {1: 4, 2: 8, 3: 16}[fmt]
+    imports = absolute + imports_off
+    symbols = absolute + symbols_off
+    if imports < absolute or symbols < absolute or imports + count * stride > end or symbols > end:
+        return []
+    found: list[tuple[str, int]] = []
+    for index in range(count):
+        raw = data[imports + index * stride : imports + (index + 1) * stride]
+        if fmt == 3:
+            word = struct.unpack_from("<I", raw)[0]
+            ordinal = word & 0xFFFF
+            name_off = struct.unpack_from("<I", raw, 4)[0]
+        else:
+            word = struct.unpack_from("<I", raw)[0]
+            ordinal = word & 0xFF
+            name_off = (word >> 9) & 0x7FFFFF
+        name_at = symbols + name_off
+        if name_at >= end:
+            continue
+        symbol = _cstring(data, name_at)
+        found.append((symbol, ordinal))
+    return found
+
+
+def bind_imports(data: bytes, start: int | None = None) -> tuple[list[str], list[tuple[str, int]]]:
+    """Dylib ordinals plus every bind's (symbol, ordinal).
+
+    Ordinals 1..N index `linked_dylibs`. Zero and values at or above 240 are
+    special (this image, flat lookup, weak lookup) and are left unchanged.
+    """
+
+    if start is None:
+        start = _arm64_slice(data)
+    dylibs = linked_dylibs(data, start)
+    imports: list[tuple[str, int]] = []
+    for _i, cmd, blob in iter_commands(data, start):
+        if cmd in (0x22, 0x80000022) and len(blob) >= 40:
+            bind_off, bind_size = struct.unpack_from("<II", blob, 16)
+            weak_off, weak_size = struct.unpack_from("<II", blob, 24)
+            lazy_off, lazy_size = struct.unpack_from("<II", blob, 32)
+            for off, size in ((bind_off, bind_size), (weak_off, weak_size), (lazy_off, lazy_size)):
+                if off and size and start + off + size <= len(data):
+                    imports.extend(_bind_symbols(data[start + off : start + off + size]))
+        elif cmd == 0x80000034 and len(blob) >= 16:
+            dataoff, datasize = struct.unpack_from("<II", blob, 8)
+            imports.extend(_chained_symbols(data, start, dataoff, datasize))
+    return dylibs, imports
+
+
+def _resolved(dylibs: list[str], imports: list[tuple[str, int]]) -> list[tuple[str, str]]:
+    resolved: list[tuple[str, str]] = []
+    for symbol, ordinal in imports:
+        if ordinal <= 0 or ordinal >= 240:
+            continue
+        if ordinal > len(dylibs):
+            resolved.append((symbol, f"ordinal {ordinal} missing"))
+            continue
+        resolved.append((symbol, dylibs[ordinal - 1]))
+    return resolved
+
+
+def bind_ordinal_errors(original: bytes, patched: bytes) -> list[str]:
+    """Binds that no longer name the library they named in `original`.
+
+    Appending a load command keeps every existing ordinal. Inserting one
+    in the middle makes `_swift_bridgeObjectRelease` look in the new image
+    instead of libswiftCallKit and dyld aborts before main.
+    """
+
+    old_dylibs, old_imports = bind_imports(original)
+    new_dylibs, new_imports = bind_imports(patched)
+    errors: list[str] = []
+    if new_dylibs[: len(old_dylibs)] != old_dylibs:
+        errors.append("a load command was inserted or reordered ahead of an original library")
+    from collections import Counter
+
+    old_resolved = Counter(_resolved(old_dylibs, old_imports))
+    new_resolved = Counter(_resolved(new_dylibs, new_imports))
+    for pair, count in old_resolved.items():
+        if new_resolved[pair] < count:
+            symbol, library = pair
+            errors.append(f"{symbol} no longer binds to {library}")
+            if len(errors) > 8:
+                break
+    return errors
+
+
 def strip_dylibs(path: Path, basenames: set[str]) -> list[str]:
     """Remove load commands whose dylib path ends with one of `basenames`.
 

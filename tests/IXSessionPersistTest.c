@@ -229,7 +229,10 @@ int main(void) {
     expect(IXSessionStatePath("/home", "/other/Documents") == 0, "outside home is not state");
     expect(IXSessionDomainWipe(NULL, "com.example.app") == 1, "empty domain is a wipe");
     expect(IXSessionDomainWipe("com.example.app", "com.example.app") == 1, "bundle domain is a wipe");
-    expect(IXSessionDomainWipe("com.burbn.instagram", "com.example.app") == 1, "original bundle domain is a wipe");
+    expect(IXSessionDomainWipe("com.burbn.instagram.773S3XDQX7", "com.wexpid.instagramx") == 1, "sideloadly suffixed bundle is instagram");
+    expect(IXSessionInstagramBundle("com.burbn.instagram.773S3XDQX7") == 1, "team suffix stays the instagram bundle");
+    expect(IXSessionInstagramBundle("com.burbn.instagram") == 1, "plain instagram bundle");
+    expect(IXSessionInstagramBundle("com.burbn.instagramextra") == 0, "bundle prefix needs a boundary");
     expect(IXSessionDomainWipe("group.com.facebook.family", "com.example.app") == 1, "group domain is a wipe");
     expect(IXSessionDomainWipe("instagramx.vpn", "com.example.app") == 0, "unrelated domain stays");
     expect(IXSessionFreshFlag("mc_freshinstall_time") == 1, "fresh time is a first-install flag");

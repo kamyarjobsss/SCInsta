@@ -390,6 +390,7 @@ static void IXAdoptSuitePlist(NSString *suite, NSURL *container) {
 static const void *ix_suite_key = &ix_suite_key;
 static NSMutableDictionary<NSString *, NSMutableDictionary *> *ix_suite_cache;
 static int ix_suite_logs;
+static __thread int ix_cf_depth;
 static __thread int ix_mirror_depth;
 
 static void IXSuiteCacheInit(void) {
@@ -464,7 +465,7 @@ static int ix_has_password(NSString *key) {
 }
 
 static void IXMirrorUser(NSString *key, id value) {
-    if (ix_mirror_depth || ![key isKindOfClass:[NSString class]] || !value) return;
+    if (ix_cf_depth || ix_mirror_depth || ![key isKindOfClass:[NSString class]] || !value) return;
     if (!IXSessionUserKey(key.UTF8String)) return;
     ix_mirror_depth++;
     @try { [[NSUserDefaults standardUserDefaults] setObject:value forKey:key]; }
@@ -475,6 +476,7 @@ static void IXMirrorUser(NSString *key, id value) {
 static void IXStoreSuiteValue(NSString *suite, NSString *key, id value) {
     NSMutableDictionary *one;
     NSDictionary *snap;
+    if (ix_cf_depth) return;
     if (![key isKindOfClass:[NSString class]] || ix_has_password(key)) return;
     one = IXSuiteShadow(suite);
     if (!one) return;
@@ -532,15 +534,17 @@ static void IXPreloadSuite(NSUserDefaults *defaults, NSString *suite) {
     NSDictionary *snap;
     if (!defaults || !one) return;
     @synchronized (ix_suite_cache) { snap = [one copy]; }
+    ix_cf_depth++;
     ix_suite_depth++;
     for (NSString *key in snap) {
         id value = snap[key];
         @try {
             if ([defaults objectForKey:key] == nil && value) [defaults setObject:value forKey:key];
         } @catch (__unused NSException *exception) {}
-        IXMirrorUser(key, value);
     }
     ix_suite_depth--;
+    ix_cf_depth--;
+    for (NSString *key in snap) IXMirrorUser(key, snap[key]);
 }
 
 %hook NSUserDefaults
@@ -583,18 +587,31 @@ static void IXPreloadSuite(NSUserDefaults *defaults, NSString *suite) {
     return result;
 }
 - (void)setObject:(id)value forKey:(NSString *)key {
-    NSString *suite = IXSuiteOf(self);
+    NSString *suite;
+    if (ix_cf_depth) {
+        %orig;
+        return;
+    }
+    suite = IXSuiteOf(self);
+    ix_cf_depth++;
     %orig;
+    ix_cf_depth--;
     if (ix_suite_depth || ix_mirror_depth) return;
     IXStoreSuiteValue(suite, key, value);
 }
 - (BOOL)synchronize {
-    BOOL ok = %orig;
-    NSString *suite = IXSuiteOf(self);
+    NSString *suite;
     NSDictionary *domain = nil;
-    if (ix_suite_depth || ![suite isKindOfClass:[NSString class]]) return ok;
-    @try { domain = [self persistentDomainForName:suite]; }
-    @catch (__unused NSException *exception) { domain = nil; }
+    BOOL ok;
+    if (ix_cf_depth) return %orig;
+    suite = IXSuiteOf(self);
+    ix_cf_depth++;
+    ok = %orig;
+    if (!ix_suite_depth && [suite isKindOfClass:[NSString class]]) {
+        @try { domain = [self persistentDomainForName:suite]; }
+        @catch (__unused NSException *exception) { domain = nil; }
+    }
+    ix_cf_depth--;
     if ([domain isKindOfClass:[NSDictionary class]]) {
         for (NSString *key in domain) {
             if (ix_has_password(key)) continue;
@@ -613,25 +630,45 @@ static IXCFSetValueFn ix_real_cf_set_value;
 static IXCFSyncFn ix_real_cf_sync;
 
 static void ix_cf_set_app(CFStringRef key, CFTypeRef value, CFStringRef app) {
+    if (ix_cf_depth) {
+        if (ix_real_cf_set_app) ix_real_cf_set_app(key, value, app);
+        return;
+    }
+    ix_cf_depth++;
     if (ix_real_cf_set_app) ix_real_cf_set_app(key, value, app);
     IXStoreSuiteValue((__bridge NSString *)app, (__bridge NSString *)key, value ? (__bridge id)value : nil);
+    ix_cf_depth--;
 }
 
 static void ix_cf_set_value(CFStringRef key, CFTypeRef value, CFStringRef app, CFStringRef user, CFStringRef host) {
+    if (ix_cf_depth) {
+        if (ix_real_cf_set_value) ix_real_cf_set_value(key, value, app, user, host);
+        return;
+    }
+    ix_cf_depth++;
     if (ix_real_cf_set_value) ix_real_cf_set_value(key, value, app, user, host);
     (void)user;
     (void)host;
     IXStoreSuiteValue((__bridge NSString *)app, (__bridge NSString *)key, value ? (__bridge id)value : nil);
+    ix_cf_depth--;
 }
 
 static void ix_cf_sync(CFStringRef app) {
-    NSString *suite = (__bridge NSString *)app;
+    NSString *suite;
     NSDictionary *snap = nil;
+    if (ix_cf_depth) {
+        if (ix_real_cf_sync) ix_real_cf_sync(app);
+        return;
+    }
+    ix_cf_depth++;
     if (ix_real_cf_sync) ix_real_cf_sync(app);
-    if (![suite isKindOfClass:[NSString class]] || !IXSessionPersistSuite(suite.UTF8String)) return;
-    IXSuiteShadow(suite);
-    @synchronized (ix_suite_cache) { snap = [ix_suite_cache[suite] copy]; }
-    IXWriteSuite(suite, snap);
+    suite = (__bridge NSString *)app;
+    if ([suite isKindOfClass:[NSString class]] && IXSessionPersistSuite(suite.UTF8String)) {
+        IXSuiteShadow(suite);
+        @synchronized (ix_suite_cache) { snap = [ix_suite_cache[suite] copy]; }
+        IXWriteSuite(suite, snap);
+    }
+    ix_cf_depth--;
 }
 
 static void IXInstallSuiteWrites(void) {

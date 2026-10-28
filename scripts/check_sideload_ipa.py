@@ -8,13 +8,22 @@ once, a required injected file is missing, or the display name was not set.
 from __future__ import annotations
 
 import plistlib
+import shutil
+import subprocess
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ipa_macho import MachOError, constructors_follow_framework, dylib_loads, guard_precedes_framework  # noqa: E402
+from ipa_macho import MachOError, bind_ordinal_errors, constructors_follow_framework, dylib_loads  # noqa: E402
+from macho_closure import (  # noqa: E402
+    missing_loads,
+    resolve_load_paths,
+    structure_errors,
+    undefined_from_nm,
+    unresolved_symbols,
+)
 
 
 def fail(message: str) -> int:
@@ -23,12 +32,35 @@ def fail(message: str) -> int:
 
 
 def main() -> int:
-    args = sys.argv[1:]
-    lite = "--lite" in args
-    args = [arg for arg in args if arg != "--lite"]
-    if len(args) != 1:
-        print("usage: check_sideload_ipa.py <ipa> [--lite]", file=sys.stderr)
+    raw = sys.argv[1:]
+    lite = "--lite" in raw
+    original_ipa: Path | None = None
+    sdk: Path | None = None
+    args: list[str] = []
+    index = 0
+    while index < len(raw):
+        if raw[index] == "--lite":
+            index += 1
+            continue
+        if raw[index] == "--base" and index + 1 < len(raw):
+            original_ipa = Path(raw[index + 1])
+            index += 2
+            continue
+        if raw[index] == "--sdk" and index + 1 < len(raw):
+            sdk = Path(raw[index + 1])
+            index += 2
+            continue
+        args.append(raw[index])
+        index += 1
+    if len(args) != 1 or original_ipa is None:
+        print("usage: check_sideload_ipa.py <ipa> --base <original.ipa> [--sdk <sdk>] [--lite]", file=sys.stderr)
         return 2
+    if sdk is None:
+        sdk = Path("/home/ubuntu/theos/sdks/iPhoneOS16.5.sdk")
+    if not sdk.is_dir():
+        return fail(f"iOS SDK not found: {sdk}")
+    nm = shutil.which("llvm-nm") or "/home/ubuntu/theos/toolchain/linux/iphone/bin/llvm-nm"
+    ldid = shutil.which("ldid") or "/home/ubuntu/theos/toolchain/linux/iphone/bin/ldid"
     ipa = Path(args[0])
     expected_display = "Instagram X Lite" if lite else "Instagram X"
     if not ipa.is_file():
@@ -123,6 +155,7 @@ def main() -> int:
         try:
             loads = dylib_loads(binary_path)
             tweak_loads = dylib_loads(dylib_path)
+            patched_binary = binary_path.read_bytes()
         except MachOError as exc:
             return fail(f"Mach-O parse failed: {exc}")
 
@@ -140,7 +173,6 @@ def main() -> int:
         ("FLEXing.dylib", 1),
         ("libflex.dylib", 1),
         ("zxPluginsInject.dylib", 1),
-        ("IXInstallGuard.dylib", 1),
     ):
         got = counts.get(name, 0)
         if got != expect:
@@ -151,11 +183,34 @@ def main() -> int:
             "SCInsta and zxPluginsInject must load after FBSharedFramework; "
             "initializing them first crashed 2.4.9 at launch"
         )
-    if not guard_precedes_framework([path for _kind, path in loads]):
+    if not original_ipa.is_file():
+        return fail(f"original IPA not found: {original_ipa}")
+    try:
+        with zipfile.ZipFile(original_ipa) as original_archive:
+            original_binary = original_archive.read(binary_name)
+    except KeyError:
+        return fail(f"original IPA has no {binary_name}")
+    except zipfile.BadZipFile as exc:
+        return fail(f"original IPA is not a zip: {exc}")
+    try:
+        mismatches = bind_ordinal_errors(original_binary, patched_binary)
+    except MachOError as exc:
+        return fail(f"bind ordinal check failed: {exc}")
+    if mismatches:
         return fail(
-            "IXInstallGuard must load before FBSharedFramework so a first-install wipe "
-            "can be refused before that image initializes"
+            "main-binary binds no longer resolve to the original libraries "
+            f"({mismatches[0]}). A load command was inserted mid-list; "
+            "2.4.13 crashed in dyld looking for _swift_bridgeObjectRelease."
         )
+    print("[*] main-binary bind ordinals match the original IPA")
+    if counts.get("IXInstallGuard.dylib", 0):
+        return fail("IXInstallGuard.dylib is a load command; inserting it shifts bind ordinals")
+    layout = structure_errors(patched_binary)
+    if layout:
+        return fail(f"main binary is not codesign-able: {layout[0]}")
+    absent = missing_loads(set(names), loads, patched_binary, binary_name, f"Payload/{app_name}", sdk)
+    if absent:
+        return fail(f"main binary loads {absent[0]} but that file is not in the IPA")
     if counts.get("IXRayCore.dylib", 0):
         return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")
     if counts.get("CydiaSubstrate", 0) > 1:
@@ -223,6 +278,70 @@ def main() -> int:
                     return fail(f"{name} still loads {banned}")
             if extra_counts.get("zxPluginsInject.dylib", 0) > 1:
                 return fail(f"{name} loads zxPluginsInject.dylib more than once")
+
+    link_targets = [
+        binary_name,
+        f"Payload/{app_name}/Frameworks/SCInsta.dylib",
+        f"Payload/{app_name}/Frameworks/FLEXing.dylib",
+        f"Payload/{app_name}/Frameworks/libflex.dylib",
+        f"Payload/{app_name}/Frameworks/zxPluginsInject.dylib",
+        f"Payload/{app_name}/Frameworks/CydiaSubstrate.framework/CydiaSubstrate",
+    ]
+    name_set = set(names)
+    with tempfile.TemporaryDirectory(prefix="ix-link-") as link_tmp:
+        root = Path(link_tmp)
+        for member in link_targets:
+            if member not in name_set:
+                return fail(f"missing {member}")
+            data = archive.read(member)
+            layout = structure_errors(data)
+            if layout:
+                return fail(f"{member} is not codesign-able: {layout[0]}")
+            blob_path = root / Path(member).name
+            blob_path.write_bytes(data)
+            signed = root / f"signed-{blob_path.name}"
+            signed.write_bytes(data)
+            result = subprocess.run([ldid, "-S", str(signed)], capture_output=True)
+            if result.returncode != 0:
+                detail = (result.stderr or result.stdout or b"").decode("utf-8", "replace")[:200]
+                return fail(f"ldid cannot sign {member}: {detail}")
+            try:
+                member_loads = dylib_loads(blob_path)
+            except MachOError as exc:
+                return fail(f"{member}: {exc}")
+            absent = missing_loads(name_set, member_loads, data, member, f"Payload/{app_name}", sdk)
+            if absent:
+                return fail(f"{member} loads {absent[0]} but that file is not in the IPA")
+            if member == binary_name:
+                continue
+            try:
+                undef = undefined_from_nm(nm, blob_path)
+            except MachOError as exc:
+                return fail(f"{member}: {exc}")
+            exports: dict[str, set[str]] = {}
+            for _kind, dep in member_loads:
+                candidates = resolve_load_paths(dep, member, f"Payload/{app_name}", ["@executable_path/Frameworks", "@loader_path"])
+                member_dep = next((item for item in candidates if item in name_set), None)
+                if not member_dep or member_dep not in name_set or dep in exports:
+                    continue
+                dep_path = root / Path(member_dep).name
+                if not dep_path.exists():
+                    dep_path.write_bytes(archive.read(member_dep))
+                defined = subprocess.run(
+                    [nm, "-defined-only", "-extern-only", str(dep_path)],
+                    capture_output=True,
+                    text=True,
+                )
+                names_found: set[str] = set()
+                for line in defined.stdout.splitlines():
+                    parts = line.split()
+                    if parts:
+                        names_found.add(parts[-1])
+                exports[dep] = names_found
+            missing_syms = unresolved_symbols(undef, [path for _kind, path in member_loads], sdk, exports)
+            if missing_syms:
+                return fail(f"{member} has an unresolved symbol {missing_syms[0]}")
+            print(f"[*] {Path(member).name}: {len(undef)} undefined symbols resolve")
 
     print("[*] IPA checks passed")
     return 0
