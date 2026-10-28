@@ -14,7 +14,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ipa_macho import MachOError, constructors_follow_framework, dylib_loads  # noqa: E402
+from ipa_macho import MachOError, constructors_follow_framework, dylib_loads, guard_precedes_framework  # noqa: E402
 
 
 def fail(message: str) -> int:
@@ -140,6 +140,7 @@ def main() -> int:
         ("FLEXing.dylib", 1),
         ("libflex.dylib", 1),
         ("zxPluginsInject.dylib", 1),
+        ("IXInstallGuard.dylib", 1),
     ):
         got = counts.get(name, 0)
         if got != expect:
@@ -149,6 +150,11 @@ def main() -> int:
         return fail(
             "SCInsta and zxPluginsInject must load after FBSharedFramework; "
             "initializing them first crashed 2.4.9 at launch"
+        )
+    if not guard_precedes_framework([path for _kind, path in loads]):
+        return fail(
+            "IXInstallGuard must load before FBSharedFramework so a first-install wipe "
+            "can be refused before that image initializes"
         )
     if counts.get("IXRayCore.dylib", 0):
         return fail("main binary has a load command for IXRayCore.dylib; it must be dlopened later")

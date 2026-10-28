@@ -180,4 +180,31 @@ int IXSessionAuthStorePath(const char *docs, const char *probed, char *out, size
    <docs>/InstagramX/session-sim/shared-session */
 int IXSessionSharedSessionPath(const char *docs, char *out, size_t outLen);
 
+/* 1 when this launch found no install marker in the keychain or on disk.
+   A Sideloadly resign keeps the team keychain item even if the container
+   path changes, so a keychain marker alone means this is not a new install. */
+int IXSessionFirstInstall(int file_marker, int keychain_marker);
+
+/* 1 when `path` is the app container, Documents, Library/Preferences,
+   Library/Cookies, or a session directory under Documents. Cache files
+   under Library/Caches are 0 so a cache clear still works. */
+int IXSessionStatePath(const char *home, const char *path);
+
+/* 1 when a defaults domain wipe would erase the app or a group suite.
+   The main bundle id, com.burbn.instagram, and every group.* name match. */
+int IXSessionDomainWipe(const char *domain, const char *bundle);
+
+/* 1 when an existing install must keep this defaults key. */
+int IXSessionKeepKey(const char *key);
+
+/* 1 when the wipe must not run. A first install is allowed to clean.
+   After the marker exists, state paths and kept keys stay. */
+int IXSessionBlockWipe(int first_install, int state_target);
+
+/* File that records this install inside Documents. The keychain copy is
+   what survives a container change; this one survives a keychain miss. */
+int IXSessionInstallMarkerPath(const char *docs, char *out, size_t outLen);
+int IXSessionKeptDefaultsPath(const char *docs, char *out, size_t outLen);
+int IXSessionKeptDocumentPath(const char *docs, char *out, size_t outLen);
+
 #endif

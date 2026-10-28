@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from ipa_macho import constructors_follow_framework
+from ipa_macho import constructors_follow_framework, guard_precedes_framework
 
 
 def main() -> int:
@@ -32,6 +32,24 @@ def main() -> int:
         return 1
     if constructors_follow_framework(["SCInsta.dylib", "FBSharedFramework"]):
         print("FAIL missing injector")
+        return 1
+    guarded = [
+        "/usr/lib/libSystem.B.dylib",
+        "@rpath/IXInstallGuard.dylib",
+        "@rpath/FBSharedFramework.framework/FBSharedFramework",
+        "@rpath/SCInsta.dylib",
+        "@rpath/FLEXing.dylib",
+        "@rpath/libflex.dylib",
+        "@rpath/zxPluginsInject.dylib",
+    ]
+    if not guard_precedes_framework(guarded):
+        print("FAIL guard should precede the framework")
+        return 1
+    if not constructors_follow_framework(guarded):
+        print("FAIL guard must not pull SCInsta ahead of the framework")
+        return 1
+    if guard_precedes_framework(launched):
+        print("FAIL missing guard")
         return 1
     print("ok dylib order")
     return 0

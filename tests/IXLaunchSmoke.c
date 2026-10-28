@@ -40,6 +40,12 @@ static int relaunch_ok(const char *docs) {
     if (!read_exact(path, "kept\n")) return 0;
     if (!IXSessionSharedSessionPath(docs, path, sizeof path)) return 0;
     if (!read_exact(path, "kept\n")) return 0;
+    if (!IXSessionKeptDefaultsPath(docs, path, sizeof path)) return 0;
+    if (!read_exact(path, "kept\n")) return 0;
+    if (!IXSessionKeptDocumentPath(docs, path, sizeof path)) return 0;
+    if (!read_exact(path, "kept\n")) return 0;
+    if (!IXSessionInstallMarkerPath(docs, path, sizeof path)) return 0;
+    if (!read_exact(path, "kept\n")) return 0;
     return 1;
 }
 

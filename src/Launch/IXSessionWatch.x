@@ -59,6 +59,11 @@ typedef struct {
 
 static IXLogoutSlot ix_logout_slots[64];
 static int ix_logout_count = 0;
+static int ix_block_wipes = 0;
+static int ix_first_install = 1;
+static int ix_file_marker = 0;
+static int ix_kc_marker = 0;
+static int ix_wipe_logs = 0;
 
 static NSString *IXClipC(const char *text, NSUInteger max) {
     NSString *value = text ? [NSString stringWithUTF8String:text] : nil;
@@ -396,11 +401,28 @@ static OSStatus ix_sec_update(CFDictionaryRef queryIn, CFDictionaryRef attribute
     return status;
 }
 
+static NSString *IXQueryService(CFDictionaryRef query) {
+    id service;
+    if (!query || CFGetTypeID(query) != CFDictionaryGetTypeID()) return nil;
+    service = ((__bridge NSDictionary *)query)[(__bridge id)kSecAttrService];
+    return [service isKindOfClass:[NSString class]] ? service : nil;
+}
+
+static int IXInstallMarkerQuery(CFDictionaryRef query) {
+    NSString *service = IXQueryService(query);
+    return [service isEqualToString:@"instagramx.install"];
+}
+
 static OSStatus ix_sec_delete(CFDictionaryRef queryIn) {
     int rewrote = 0;
     CFDictionaryRef query;
     IXSecDeleteFn next;
     OSStatus status;
+    if (IXInstallMarkerQuery(queryIn)) {
+        IXSessionDiagLine(@"wipe_block kind=keychain service=instagramx.install");
+        IXFrames(@"wipe_block");
+        return errSecSuccess;
+    }
     IXEnsureGroup();
     query = IXPreparedQuery(queryIn, &rewrote);
     next = IXRawDelete();
@@ -519,6 +541,99 @@ static NSString *IXDocsDir(void) {
     NSString *docs = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
     if (docs.length == 0) docs = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
     return docs;
+}
+
+static void IXNoteWipe(NSString *kind, NSString *detail, int blocked) {
+    int room;
+    pthread_mutex_lock(&ix_watch_mu);
+    room = ix_wipe_logs < 24;
+    if (room) ix_wipe_logs++;
+    pthread_mutex_unlock(&ix_watch_mu);
+    if (!room) return;
+    IXSessionDiagLine([NSString stringWithFormat:@"wipe_%@ kind=%@ detail=%@",
+                       blocked ? @"block" : @"allow",
+                       kind ?: @"?",
+                       detail.length ? (detail.length > 120 ? [detail substringFromIndex:detail.length - 120] : detail) : @"-"]);
+    IXFrames(blocked ? @"wipe_block" : @"wipe_allow");
+}
+
+static NSString *IXMarkerFile(void) {
+    char path[1024];
+    NSString *docs = IXDocsDir();
+    if (!docs.UTF8String || !IXSessionInstallMarkerPath(docs.UTF8String, path, sizeof path)) return nil;
+    return [NSString stringWithUTF8String:path];
+}
+
+static int IXMarkerFilePresent(void) {
+    NSString *path = IXMarkerFile();
+    return path.length && [[NSFileManager defaultManager] fileExistsAtPath:path];
+}
+
+static int IXWriteMarkerFile(void) {
+    NSString *path = IXMarkerFile();
+    NSString *dir;
+    if (path.length == 0) return 0;
+    dir = [path stringByDeletingLastPathComponent];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return [@"1\n" writeToFile:path atomically:YES encoding:NSUTF8StringEncoding error:nil] ? 1 : 0;
+}
+
+static int IXReadKeychainMarker(void) {
+    IXSecCopyFn copy = IXRawCopy();
+    NSDictionary *query;
+    CFTypeRef result = NULL;
+    OSStatus status;
+    if (!copy) return 0;
+    query = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: @"instagramx.install",
+        (__bridge id)kSecAttrAccount: @"marker",
+        (__bridge id)kSecReturnAttributes: @YES,
+        (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
+    };
+    status = copy((__bridge CFDictionaryRef)query, &result);
+    if (result) CFRelease(result);
+    return status == errSecSuccess;
+}
+
+static void IXWriteKeychainMarker(void) {
+    IXSecAddFn add;
+    NSDictionary *query;
+    CFTypeRef result = NULL;
+    if (IXReadKeychainMarker()) return;
+    add = IXRawAdd();
+    if (!add) return;
+    query = @{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: @"instagramx.install",
+        (__bridge id)kSecAttrAccount: @"marker",
+        (__bridge id)kSecValueData: [@"1" dataUsingEncoding:NSUTF8StringEncoding],
+        (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlock
+    };
+    add((__bridge CFDictionaryRef)query, &result);
+    if (result) CFRelease(result);
+}
+
+static void IXSessionNoteInstall(void) {
+    static int decided = 0;
+    NSString *bundle = NSBundle.mainBundle.bundleIdentifier ?: @"-";
+    NSString *home = NSHomeDirectory() ?: @"";
+    NSString *tail = home.lastPathComponent.length ? home.lastPathComponent : @"-";
+    NSString *group = ix_entitled_group.length ? ix_entitled_group : @"-";
+    if (!decided) {
+        ix_file_marker = IXMarkerFilePresent();
+        ix_kc_marker = IXReadKeychainMarker();
+        ix_first_install = IXSessionFirstInstall(ix_file_marker, ix_kc_marker);
+        decided = 1;
+    }
+    if (!IXMarkerFilePresent()) IXWriteMarkerFile();
+    IXWriteKeychainMarker();
+    if (IXMarkerFilePresent() || IXReadKeychainMarker()) ix_block_wipes = 1;
+    IXSessionDiagLine([NSString stringWithFormat:@"identity bundle=%@ container=%@ kc_group=%@ file_marker=%d kc_marker=%d first_install=%d block_wipes=%d",
+                       bundle.length > 96 ? [bundle substringToIndex:96] : bundle,
+                       tail.length > 64 ? [tail substringToIndex:64] : tail,
+                       group.length > 96 ? [group substringToIndex:96] : group,
+                       ix_file_marker, ix_kc_marker, ix_first_install, ix_block_wipes]);
 }
 
 static NSString *IXMobileconfigLive(void) {
@@ -943,6 +1058,7 @@ void IXSessionWatchArm(void) {
     pthread_mutex_unlock(&ix_watch_mu);
     IXMobileconfigSync(@"arm");
     IXSessionArmKeychain();
+    IXSessionNoteInstall();
     IXInstallLogoutHooks();
     if (!announced) {
         announced = 1;
@@ -1017,6 +1133,10 @@ static void IXNoteFile(NSString *path) {
 %hook NSUserDefaults
 - (void)removeObjectForKey:(NSString *)key {
     int room = 0;
+    if (ix_block_wipes && [key isKindOfClass:[NSString class]] && IXSessionKeepKey(key.UTF8String)) {
+        IXNoteWipe(@"pref", key, 1);
+        return;
+    }
     if ([key isKindOfClass:[NSString class]] && IXSessionSensitiveName(key.UTF8String)) {
         pthread_mutex_lock(&ix_watch_mu);
         room = ix_pref_logs < 30;
@@ -1029,8 +1149,26 @@ static void IXNoteFile(NSString *path) {
     }
     %orig;
 }
++ (void)resetStandardUserDefaults {
+    IXNoteWipe(@"reset_defaults", @"standard", ix_block_wipes);
+    if (ix_block_wipes) return;
+    %orig;
+}
+- (void)setPersistentDomain:(NSDictionary<NSString *, id> *)domain forName:(NSString *)domainName {
+    NSString *bundle = NSBundle.mainBundle.bundleIdentifier;
+    if (ix_block_wipes && domain.count == 0 && IXSessionDomainWipe(domainName.UTF8String, bundle.UTF8String)) {
+        IXNoteWipe(@"domain_empty", domainName, 1);
+        return;
+    }
+    %orig;
+}
 - (void)removePersistentDomainForName:(NSString *)name {
     int room = 0;
+    NSString *bundle = NSBundle.mainBundle.bundleIdentifier;
+    if (ix_block_wipes && IXSessionDomainWipe(name.UTF8String, bundle.UTF8String)) {
+        IXNoteWipe(@"domain", [name isKindOfClass:[NSString class]] ? name : @"-", 1);
+        return;
+    }
     if ([name isKindOfClass:[NSString class]] && IXSessionSensitiveName(name.UTF8String)) {
         pthread_mutex_lock(&ix_watch_mu);
         room = ix_pref_logs < 30;
@@ -1051,7 +1189,12 @@ static void IXNoteFile(NSString *path) {
     int restored = 0;
     int keep = IXLiveMobileconfig(path) && IXMcEnter();
     BOOL ok;
+    NSString *home = NSHomeDirectory();
     IXNoteFile(path);
+    if (ix_block_wipes && IXSessionStatePath(home.UTF8String, path.UTF8String)) {
+        IXNoteWipe(@"file", path, 1);
+        return YES;
+    }
     if (keep) {
         existed = IXDirExists(IXMobileconfigLive());
         if (existed) IXCopyTree(IXMobileconfigLive(), IXMobileconfigKeep());
@@ -1070,7 +1213,12 @@ static void IXNoteFile(NSString *path) {
     int restored = 0;
     int keep = IXLiveMobileconfig(path) && IXMcEnter();
     BOOL ok;
+    NSString *home = NSHomeDirectory();
     IXNoteFile(path);
+    if (ix_block_wipes && IXSessionStatePath(home.UTF8String, path.UTF8String)) {
+        IXNoteWipe(@"file", path, 1);
+        return YES;
+    }
     if (keep) {
         existed = IXDirExists(IXMobileconfigLive());
         if (existed) IXCopyTree(IXMobileconfigLive(), IXMobileconfigKeep());
@@ -1165,6 +1313,7 @@ __attribute__((constructor(101)))
 static void IXSessionEarlyCtor(void) {
     _dyld_register_func_for_add_image(&IXCookieImageAdded);
     if (IXSessionLaunchMayWalkClasses()) IXSessionArmKeychain();
+    IXSessionNoteInstall();
 }
 
 %ctor {
@@ -1173,6 +1322,7 @@ static void IXSessionEarlyCtor(void) {
     if (IXSessionLaunchMayWalkClasses()) {
         IXSessionArmKeychain();
         IXEnableCookieHooks();
+        IXSessionNoteInstall();
         return;
     }
     _dyld_register_func_for_add_image(&IXCookieImageAdded);

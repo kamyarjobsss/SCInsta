@@ -216,5 +216,32 @@ int main(void) {
     expect(IXSessionAuthStorePath("/docs", "a/b", out, sizeof out) == 0, "authheaders slash rejected");
     expect(IXSessionSharedSessionPath("/docs", out, sizeof out) == 1, "shared session path");
     expect_str(out, "/docs/InstagramX/session-sim/shared-session", "shared session path value");
+
+    expect(IXSessionFirstInstall(0, 0) == 1, "no marker is a first install");
+    expect(IXSessionFirstInstall(1, 0) == 0, "file marker is an existing install");
+    expect(IXSessionFirstInstall(0, 1) == 0, "keychain marker survives a new container");
+    expect(IXSessionStatePath("/home", "/home") == 1, "home is state");
+    expect(IXSessionStatePath("/home", "/home/Documents") == 1, "documents root is state");
+    expect(IXSessionStatePath("/home", "/home/Documents/group.com.burbn.instagram/Library/Preferences/x.plist") == 1, "group plist is state");
+    expect(IXSessionStatePath("/home", "/home/Library/Preferences/com.burbn.instagram.plist") == 1, "app plist is state");
+    expect(IXSessionStatePath("/home", "/home/Library/Cookies/Cookies.binarycookies") == 1, "cookie file is state");
+    expect(IXSessionStatePath("/home", "/home/Library/Caches/image") == 0, "cache clear stays allowed");
+    expect(IXSessionStatePath("/home", "/other/Documents") == 0, "outside home is not state");
+    expect(IXSessionDomainWipe(NULL, "com.example.app") == 1, "empty domain is a wipe");
+    expect(IXSessionDomainWipe("com.example.app", "com.example.app") == 1, "bundle domain is a wipe");
+    expect(IXSessionDomainWipe("com.burbn.instagram", "com.example.app") == 1, "original bundle domain is a wipe");
+    expect(IXSessionDomainWipe("group.com.facebook.family", "com.example.app") == 1, "group domain is a wipe");
+    expect(IXSessionDomainWipe("instagramx.vpn", "com.example.app") == 0, "unrelated domain stays");
+    expect(IXSessionKeepKey("mc_freshinstall_time") == 1, "fresh marker is kept");
+    expect(IXSessionKeepKey("logged_in_user_id") == 1, "user id is kept");
+    expect(IXSessionKeepKey("sci_exp_warning_seen") == 1, "tweak popup flag is kept");
+    expect(IXSessionKeepKey("fake_location_enabled") == 0, "setting key is not frozen");
+    expect(IXSessionBlockWipe(1, 1) == 0, "first install may wipe");
+    expect(IXSessionBlockWipe(0, 1) == 1, "existing install blocks a state wipe");
+    expect(IXSessionBlockWipe(0, 0) == 0, "existing install allows a cache delete");
+    expect(IXSessionInstallMarkerPath("/docs", out, sizeof out) == 1, "install marker path");
+    expect_str(out, "/docs/InstagramX/ix_install_marker", "install marker path value");
+    expect(IXSessionKeptDefaultsPath("/docs", out, sizeof out) == 1, "kept defaults path");
+    expect(IXSessionKeptDocumentPath("/docs", out, sizeof out) == 1, "kept document path");
     return g_failed ? 1 : 0;
 }

@@ -36,6 +36,7 @@ STRIP_FILES = {
     "FLEXing.dylib",
     "libflex.dylib",
     "zxPluginsInject.dylib",
+    "IXInstallGuard.dylib",
 }
 
 # Closed-source bundle shipped inside the 436 base IPA. libswiftIU.dylib and
