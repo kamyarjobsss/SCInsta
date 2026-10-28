@@ -39,7 +39,7 @@ on:
                 required: false
                 type: boolean
             publish_release:
-                description: "Publish a prerelease tagged instagram-x-v2.4.14"
+                description: "Publish a prerelease tagged instagram-x-v2.4.15"
                 default: true
                 required: false
                 type: boolean
@@ -185,7 +185,12 @@ jobs:
                   tests/IXSessionSourceTest.c src/Launch/IXSessionSource.c \
                   -o /tmp/ix-source-test
                 /tmp/ix-source-test
+                clang \
+                  tests/IXBetaGateTest.c src/Features/General/IXBetaGate.c \
+                  -o /tmp/ix-beta-test
+                /tmp/ix-beta-test
                 python3 tests/test_dylib_order.py
+                python3 panel/igx_stickers.py --self-test
                 clang -shared -fPIC \
                   tests/IXLaunchInject.c src/Launch/IXSessionLaunch.c \
                   src/Launch/IXSessionPersist.c \
@@ -280,15 +285,15 @@ jobs:
               env:
                 GH_TOKEN: ${{ github.token }}
               run: |
-                gh release delete-asset instagram-x-v2.4.14 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
+                gh release delete-asset instagram-x-v2.4.15 "InstagramX_sideloaded_v${{ steps.tweak_version.outputs.version }}.ipa" --repo "${{ github.repository }}" --yes || true
 
             - name: Publish prerelease
               if: steps.ipa.outputs.have_ipa == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
               uses: softprops/action-gh-release@v2.0.6
               with:
-                tag_name: instagram-x-v2.4.14
+                tag_name: instagram-x-v2.4.15
                 target_commitish: ${{ github.sha }}
-                name: Instagram X 2.4.14
+                name: Instagram X 2.4.15
                 draft: false
                 prerelease: true
                 make_latest: false
@@ -313,6 +318,8 @@ jobs:
                   The panel at https://77.110.125.217:9443 is called on launch, when the app becomes active, and every 15 minutes, whether or not the VPN is on. That host is exempt from the kill switch. A direct request is tried first. If it fails and the tunnel is up, the same call goes through the tunnel. Settings, Panel connection, shows the URL, the last result, the HTTP status, registration, the config version, and the announcement, font, and sticker counts, with Retry now. That block is included in the copied diagnostics. The certificate pin is the SHA-256 of the P-256 SubjectPublicKeyInfo.
 
                   Profile Analyzer keeps the following list, then checks who follows you back without downloading followers. It asks friendships/show_many for followed_by, then confirms a suspected non-follower with an exact followers search. A row is listed as not following you back only when both methods say no. A yes from either method, including a renamed account matched by pk, counts as a mutual. An unknown stays off both lists. Tap the row, avatar, or username to open that profile. Unfollow stays on its button. Checks are spaced out, with pause, resume, and cancel.
+
+                  v2.4.15 leaves session restore and load order as in 2.4.14. The TestFlight "It's time to update Instagram Beta" screen is not presented, and a sandbox receipt is reported as a normal receipt. Story tray items are reported to POST /api/v1/stickers/defaults. Hidden default ids from the signed config are removed, and panel stickers open from the Wexpid chip as movable image stickers. Each announcement shows once per device, keyed by its server id and stored in Documents/InstagramX/ix_ann_seen.plist with a 773S3XDQX7.* keychain backup. One login can be required.
 
                   v2.4.14 keeps the 2.4.13 session behavior and does not add a load command in front of FBSharedFramework. 2.4.13 inserted IXInstallGuard.dylib mid-list, which shifted two-level bind ordinals, so dyld looked for _swift_bridgeObjectRelease in the wrong library and aborted before main. The guard is linked into SCInsta, which stays after the framework. The IPA check compares main-binary binds with the original IPA. The Sideloadly bundle id com.burbn.instagram.<team> is still the Instagram app. One login can be required. Not tested on a device.
 
@@ -345,4 +352,4 @@ jobs:
             - name: Output Release URL
               if: steps.ipa.outputs.have_ipa == 'true'
               run: |
-                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.14"
+                echo "::notice::Release available at: https://github.com/${{ github.repository }}/releases/tag/instagram-x-v2.4.15"

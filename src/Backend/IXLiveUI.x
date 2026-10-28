@@ -96,7 +96,11 @@ static void IXRefreshBanner(void) {
     [close setTitle:@"×" forState:UIControlStateNormal];
     [close setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
     close.titleLabel.font = [UIFont systemFontOfSize:22 weight:UIFontWeightMedium];
-    close.tag = [ann[@"id"] integerValue];
+    NSString *annID = nil;
+    id rawID = ann[@"id"];
+    if ([rawID isKindOfClass:[NSNumber class]]) annID = [rawID stringValue];
+    else if ([rawID isKindOfClass:[NSString class]]) annID = rawID;
+    objc_setAssociatedObject(close, "ix_ann_id", annID, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [close addTarget:NSClassFromString(@"IXLiveActions") action:@selector(dismiss:) forControlEvents:UIControlEventTouchUpInside];
     [existing addSubview:close];
     if (label.length) {
@@ -110,6 +114,7 @@ static void IXRefreshBanner(void) {
         [existing addSubview:action];
     }
     [window bringSubviewToFront:existing];
+    if (annID.length) IXBackendNoteAnnouncementShown(annID);
 }
 
 @interface IXLiveActions : NSObject
@@ -117,7 +122,9 @@ static void IXRefreshBanner(void) {
 
 @implementation IXLiveActions
 + (void)dismiss:(UIButton *)sender {
-    IXBackendDismissAnnouncement(sender.tag);
+    NSString *ident = objc_getAssociatedObject(sender, "ix_ann_id");
+    if ([ident isKindOfClass:[NSString class]] && ident.length) IXBackendDismissAnnouncementID(ident);
+    else IXBackendDismissAnnouncement(sender.tag);
 }
 + (void)tap:(UIButton *)sender {
     NSDictionary *ann = objc_getAssociatedObject(sender, "ix_ann");
@@ -177,6 +184,11 @@ static void IXPlaceSticker(UIImage *image, UIViewController *tray) {
     UIImageView *sticker = [[UIImageView alloc] initWithImage:image];
     sticker.frame = CGRectMake(0, 0, 150, 150);
     sticker.contentMode = UIViewContentModeScaleAspectFit;
+    if (image.images.count > 1) {
+        sticker.animationImages = image.images;
+        sticker.animationDuration = image.duration > 0 ? image.duration : image.images.count * 0.08;
+        [sticker startAnimating];
+    }
     sticker.userInteractionEnabled = YES;
     IXStickerMover *mover = [IXStickerMover new];
     objc_setAssociatedObject(sticker, "ix_mover", mover, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -226,7 +238,8 @@ static void IXPlaceSticker(UIImage *image, UIViewController *tray) {
         CGFloat x = 16;
         for (NSDictionary *sticker in pack[@"stickers"]) {
             NSString *path = [sticker[@"path"] isKindOfClass:[NSString class]] ? sticker[@"path"] : @"";
-            UIImage *image = [UIImage imageWithContentsOfFile:path];
+            NSData *bytes = [NSData dataWithContentsOfFile:path];
+            UIImage *image = [UIImage imageWithData:bytes];
             if (!image) continue;
             UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
             button.frame = CGRectMake(x, y, 84, 84);
@@ -260,34 +273,158 @@ static void IXPlaceSticker(UIImage *image, UIViewController *tray) {
 }
 @end
 
-static UIImage *IXLogo(void) {
-    NSBundle *bundle = SCILocalizationBundle();
-    UIImage *image = [UIImage imageNamed:@"wexpid-logo" inBundle:bundle compatibleWithTraitCollection:nil];
-    if (image) return image;
-    return [UIImage imageNamed:@"wexpid-logo"];
+static void IXInstallTrayButton(UIViewController *tray) {
+    if (!tray.view) return;
+    UIButton *button = (UIButton *)[tray.view viewWithTag:kTrayButtonTag];
+    if (!button) {
+        button = [UIButton buttonWithType:UIButtonTypeCustom];
+        button.tag = kTrayButtonTag;
+        [button setTitle:@"Wexpid" forState:UIControlStateNormal];
+        [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+        button.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+        button.backgroundColor = [UIColor colorWithWhite:1 alpha:0.16];
+        button.layer.cornerRadius = 16;
+        button.accessibilityLabel = @"Wexpid";
+        button.autoresizingMask = UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleBottomMargin;
+        objc_setAssociatedObject(button, "ix_tray", tray, OBJC_ASSOCIATION_ASSIGN);
+        [button addTarget:NSClassFromString(@"IXLiveActions") action:@selector(showStickers:) forControlEvents:UIControlEventTouchUpInside];
+        [tray.view addSubview:button];
+    }
+    button.frame = CGRectMake(12, 8, 92, 32);
+    [tray.view bringSubviewToFront:button];
 }
 
-static void IXInstallTrayButton(UIViewController *tray) {
-    if ([tray.view viewWithTag:kTrayButtonTag]) return;
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
-    button.tag = kTrayButtonTag;
-    UIImage *logo = IXLogo();
-    if (logo) {
-        [button setImage:logo forState:UIControlStateNormal];
-        button.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    } else {
-        [button setTitle:@"X" forState:UIControlStateNormal];
-        [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+static NSString *IXPropString(id obj, NSArray<NSString *> *names) {
+    if (!obj) return nil;
+    for (NSString *name in names) {
+        SEL sel = NSSelectorFromString(name);
+        Method method = class_getInstanceMethod(object_getClass(obj), sel);
+        if (!method) continue;
+        const char *types = method_getTypeEncoding(method);
+        if (!types || types[0] != '@') continue;
+        id value = ((id (*)(id, SEL))objc_msgSend)(obj, sel);
+        if ([value isKindOfClass:[NSString class]] && [(NSString *)value length] && [(NSString *)value length] <= 80) return value;
+        if ([value isKindOfClass:[NSNumber class]] && [(NSNumber *)value integerValue] != 0) return [(NSNumber *)value stringValue];
     }
-    button.backgroundColor = [UIColor colorWithWhite:0 alpha:0.35];
-    button.layer.cornerRadius = 18;
-    button.accessibilityLabel = @"Instagram X";
-    CGFloat width = tray.view.bounds.size.width;
-    button.frame = CGRectMake(MAX(width - 56, 8), 8, 36, 36);
-    button.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
-    objc_setAssociatedObject(button, "ix_tray", tray, OBJC_ASSOCIATION_ASSIGN);
-    [button addTarget:NSClassFromString(@"IXLiveActions") action:@selector(showStickers:) forControlEvents:UIControlEventTouchUpInside];
-    [tray.view addSubview:button];
+    return nil;
+}
+
+static UIImage *IXPropImage(id obj) {
+    for (NSString *name in @[@"thumbnail", @"previewImage", @"icon", @"stickerImage"]) {
+        SEL sel = NSSelectorFromString(name);
+        Method method = class_getInstanceMethod(object_getClass(obj), sel);
+        if (!method) continue;
+        const char *types = method_getTypeEncoding(method);
+        if (!types || types[0] != '@') continue;
+        id value = ((id (*)(id, SEL))objc_msgSend)(obj, sel);
+        if ([value isKindOfClass:[UIImage class]]) return value;
+    }
+    return nil;
+}
+
+static NSString *IXStickerStableID(id obj) {
+    if (!obj || [obj isKindOfClass:[NSArray class]] || [obj isKindOfClass:[NSString class]] || [obj isKindOfClass:[NSNumber class]]) return nil;
+    NSString *kind = IXPropString(obj, @[@"stickerType", @"modelType"]);
+    NSString *name = IXPropString(obj, @[@"name", @"title", @"accessibilityLabel", @"displayName", @"stickerName"]);
+    NSString *explicit = IXPropString(obj, @[@"stickerId", @"stickerID", @"identifier", @"diffIdentifier", @"pk"]);
+    NSString *cls = NSStringFromClass(object_getClass(obj));
+    NSString *sid = nil;
+    if (kind.length && name.length) sid = [NSString stringWithFormat:@"%@/%@", kind, name];
+    else if (kind.length) sid = kind;
+    else if (explicit.length) sid = explicit;
+    else if (name.length) sid = [NSString stringWithFormat:@"%@/%@", cls, name];
+    else sid = cls;
+    if (sid.length > 96) sid = [sid substringToIndex:96];
+    return sid;
+}
+
+static NSString *IXThumb64(UIImage *image) {
+    if (![image isKindOfClass:[UIImage class]]) return nil;
+    CGSize size = image.size;
+    if (size.width < 1 || size.height < 1) return nil;
+    CGFloat scale = 48.0 / MAX(size.width, size.height);
+    CGSize target = CGSizeMake(MAX(1, size.width * scale), MAX(1, size.height * scale));
+    UIGraphicsBeginImageContextWithOptions(target, NO, 1);
+    [image drawInRect:CGRectMake(0, 0, target.width, target.height)];
+    UIImage *small = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    NSData *jpeg = UIImageJPEGRepresentation(small, 0.4);
+    if (jpeg.length == 0 || jpeg.length > 12000) return nil;
+    return [jpeg base64EncodedStringWithOptions:0];
+}
+
+static NSString *IXReportSignature;
+static void IXCollectStickers(id node, NSMutableArray *report, NSMutableSet *seen, int depth) {
+    if (!node || depth > 3) return;
+    if ([node isKindOfClass:[NSArray class]]) {
+        for (id item in (NSArray *)node) IXCollectStickers(item, report, seen, depth + 1);
+        return;
+    }
+    NSString *sid = IXStickerStableID(node);
+    if (!sid || [seen containsObject:sid] || report.count >= 80) return;
+    [seen addObject:sid];
+    NSMutableDictionary *row = [@{
+        @"id": sid,
+        @"type": NSStringFromClass(object_getClass(node)) ?: @"",
+        @"name": IXPropString(node, @[@"name", @"title", @"accessibilityLabel", @"displayName", @"stickerName"]) ?: @""
+    } mutableCopy];
+    NSString *thumb = IXThumb64(IXPropImage(node));
+    if (thumb.length) row[@"thumbnail"] = thumb;
+    [report addObject:row];
+}
+
+static void IXReportTray(id node) {
+    NSMutableArray *report = [NSMutableArray array];
+    IXCollectStickers(node, report, [NSMutableSet set], 0);
+    if (report.count == 0) return;
+    NSMutableString *sig = [NSMutableString string];
+    for (NSDictionary *row in report) {
+        [sig appendString:row[@"id"] ?: @""];
+        [sig appendString:@","];
+    }
+    if ([sig isEqualToString:IXReportSignature]) return;
+    IXReportSignature = [sig copy];
+    IXBackendReportStickerDefaults(report);
+}
+
+static id IXFilterNode(id node, NSSet *hidden, int depth) {
+    if (!node || depth > 3) return node;
+    if ([node isKindOfClass:[NSArray class]]) {
+        NSMutableArray *kept = [NSMutableArray array];
+        for (id item in (NSArray *)node) {
+            id next = IXFilterNode(item, hidden, depth + 1);
+            if (next) [kept addObject:next];
+        }
+        NSArray *order = IXBackendStickerOrder();
+        if (order.count == 0) return kept;
+        return [kept sortedArrayUsingComparator:^NSComparisonResult(id a, id b) {
+            NSString *ia = IXStickerStableID(a) ?: @"";
+            NSString *ib = IXStickerStableID(b) ?: @"";
+            NSUInteger pa = [order indexOfObject:ia];
+            NSUInteger pb = [order indexOfObject:ib];
+            BOOL aKnown = pa != NSNotFound;
+            BOOL bKnown = pb != NSNotFound;
+            if (aKnown && bKnown) return pa < pb ? NSOrderedAscending : (pa > pb ? NSOrderedDescending : NSOrderedSame);
+            if (aKnown != bKnown) return aKnown ? NSOrderedAscending : NSOrderedDescending;
+            NSUInteger oa = [((NSArray *)node) indexOfObjectIdenticalTo:a];
+            NSUInteger ob = [((NSArray *)node) indexOfObjectIdenticalTo:b];
+            if (oa < ob) return NSOrderedAscending;
+            if (oa > ob) return NSOrderedDescending;
+            return NSOrderedSame;
+        }];
+    }
+    NSString *sid = IXStickerStableID(node);
+    if (sid && [hidden containsObject:sid]) return nil;
+    return node;
+}
+
+static id IXPrepareTrayList(id orig) {
+    if (![orig isKindOfClass:[NSArray class]]) return orig;
+    IXReportTray(orig);
+    NSSet *hidden = IXBackendHiddenStickerIDs();
+    NSArray *order = IXBackendStickerOrder();
+    if (hidden.count == 0 && order.count == 0) return orig;
+    return IXFilterNode(orig, hidden, 0);
 }
 
 @implementation IXLiveActions (Stickers)
@@ -306,6 +443,21 @@ static void IXInstallTrayButton(UIViewController *tray) {
     %orig;
     IXInstallTrayButton(self);
 }
+- (void)viewDidLayoutSubviews {
+    %orig;
+    IXInstallTrayButton(self);
+}
+%end
+%end
+
+%group IXStickerSource
+%hook IGStoryStickerDataSourceImpl
+- (id)items {
+    return IXPrepareTrayList(%orig);
+}
+- (id)sections {
+    return IXPrepareTrayList(%orig);
+}
 %end
 %end
 
@@ -317,4 +469,5 @@ static void IXInstallTrayButton(UIViewController *tray) {
         IXRefreshBanner();
     });
     if (objc_getClass("IGStoryStickerTrayViewController")) %init(IXStickerTray);
+    if (objc_getClass("IGStoryStickerDataSourceImpl")) %init(IXStickerSource);
 }
