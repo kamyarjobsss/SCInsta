@@ -250,7 +250,7 @@ jobs:
               run: |
                 cd main
                 FULL="packages/InstagramX_sideloaded_v${SCINSTA_VERSION}.ipa"
-                python3 scripts/check_sideload_ipa.py "$FULL" --base packages/com.burbn.instagram.ipa
+                python3 scripts/check_sideload_ipa.py "$FULL" --base packages/com.burbn.instagram.ipa --sdk "$THEOS/sdks/iPhoneOS16.2.sdk"
                 # otool is the check the owner asked for. The Python check above
                 # is what fails the job; this prints the same load list.
                 TMP=$(mktemp -d)

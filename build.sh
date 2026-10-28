@@ -248,7 +248,7 @@ then
         python3 scripts/embed_ixray.py "$IPA_OUT" vendor/ixray/IXRayCore.dylib
     fi
 
-    python3 scripts/check_sideload_ipa.py "$IPA_OUT" --base "packages/${ipaFile}" "${CHECK_ARGS[@]}"
+    python3 scripts/check_sideload_ipa.py "$IPA_OUT" --base "packages/${ipaFile}" --sdk "${THEOS}/sdks/iPhoneOS16.2.sdk" "${CHECK_ARGS[@]}"
 
     echo -e "\033[1m\033[32mDone. Instagram X IPA is ready to sideload.\033[0m\n\nYou can find the ipa file at: $(pwd)/$IPA_OUT"
 
