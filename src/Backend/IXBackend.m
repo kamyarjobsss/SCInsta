@@ -21,6 +21,7 @@
 #import <objc/runtime.h>
 #import <pthread.h>
 #import <stdlib.h>
+#import <string.h>
 
 NSString *const IXBackendVPNUnavailableMessage = @"مشکل موقتی است، به‌زودی برطرف می‌شود، کمی بعد دوباره تلاش کنید";
 NSString *const IXBackendConfigDidChangeNotification = @"IXBackendConfigDidChange";
@@ -33,7 +34,7 @@ static NSString *const kAPIPrefix = @"/api/v1";
 static NSString *const kPinA = @"nF3bL0hBLUH34FBfD4UJOkq/nY/a/VoH7kaD8ILcIOA=";
 static NSString *const kPinB = @"3f4MhSKZEyhk7q1+RHZ/w0q54d4miKD92xZzBkIlewE=";
 static NSString *const kSignKey = @"H2wbdb2he/9oeYjJYRkrAi8pZYFBLddQvXmSKbouo/0=";
-static NSString *const kAppVersion = @"2.4.14";
+static NSString *const kAppVersion = @"2.4.15";
 static NSString *const kService = @"instagramx.backend";
 
 static dispatch_queue_t ix_q;
@@ -50,6 +51,7 @@ static NSArray *ix_vpn_items;
 static NSString *ix_vpn_label;
 static NSArray *ix_fonts;
 static NSDictionary *ix_stickers;
+static NSArray *ix_pending_sticker_defaults;
 static NSMutableArray *ix_events;
 static BOOL ix_blocked;
 static BOOL ix_started;
@@ -806,6 +808,49 @@ static NSData *IXFetchAsset(NSString *path, NSInteger *statusOut) {
     return nil;
 }
 
+static NSString *IXImageExt(NSData *data) {
+    const unsigned char *bytes = data.bytes;
+    if (data.length >= 8 && bytes[0] == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G') return @"png";
+    if (data.length >= 6 && bytes[0] == 'G' && bytes[1] == 'I' && bytes[2] == 'F') return @"gif";
+    if (data.length >= 12 && bytes[0] == 'R' && bytes[1] == 'I' && memcmp(bytes + 8, "WEBP", 4) == 0) return @"webp";
+    if (data.length >= 2 && bytes[0] == 0xff && bytes[1] == 0xd8) return @"jpeg";
+    return @"png";
+}
+
+static NSString *IXCachedImage(NSString *sha) {
+    for (NSString *ext in @[@"png", @"webp", @"gif", @"jpeg"]) {
+        NSString *path = [[IXCacheDir() stringByAppendingPathComponent:sha] stringByAppendingPathExtension:ext];
+        if (IXFileMatches(path, sha)) return path;
+    }
+    return nil;
+}
+
+static void IXDownloadImage(NSString *urlPath, NSString *sha, void (^ready)(NSString *path)) {
+    char relative[256];
+    NSString *assetPath;
+    NSString *path;
+    NSString *ext;
+    if (urlPath.length == 0 || sha.length != 64) return;
+    path = IXCachedImage(sha);
+    if (path) {
+        if (ready) ready(path);
+        return;
+    }
+    if (!IXPanelStaticPath(urlPath.UTF8String, relative, sizeof relative)) return;
+    assetPath = [NSString stringWithUTF8String:relative];
+    if (assetPath.length == 0 || ix_blocked) return;
+    NSInteger status = 0;
+    NSData *data = IXFetchAsset(assetPath, &status);
+    if (status != 200 || data.length == 0 || data.length > 20 * 1024 * 1024) return;
+    uint8_t dig[32];
+    ix_sha256(data.bytes, data.length, dig);
+    if (![IXHex(dig, 32) isEqualToString:sha.lowercaseString]) return;
+    ext = IXImageExt(data);
+    path = [[IXCacheDir() stringByAppendingPathComponent:sha] stringByAppendingPathExtension:ext];
+    [data writeToFile:path atomically:YES];
+    if (ready) ready(path);
+}
+
 static void IXDownloadFile(NSString *urlPath, NSString *sha, NSString *ext, void (^ready)(NSString *path)) {
     char relative[256];
     NSString *assetPath;
@@ -845,7 +890,7 @@ static void IXFetchFiles(void) {
             if (![sticker isKindOfClass:[NSDictionary class]]) continue;
             NSString *sha = [sticker[@"sha256"] isKindOfClass:[NSString class]] ? [sticker[@"sha256"] lowercaseString] : @"";
             NSString *url = [sticker[@"url"] isKindOfClass:[NSString class]] ? sticker[@"url"] : @"";
-            IXDownloadFile(url, sha, @"png", ^(NSString *path) { IXNoteSticker(path, pack, sticker); });
+            IXDownloadImage(url, sha, ^(NSString *path) { IXNoteSticker(path, pack, sticker); });
         }
     }
 }
@@ -904,6 +949,7 @@ static BOOL IXRegister(void);
 static void IXFetchConfig(void);
 static void IXSendHeartbeat(void);
 static void IXFlushEvents(void);
+static void IXSendStickerDefaults(void);
 
 static BOOL IXRegister(void) {
     if (!ix_device_id || ix_secret.length != 32) return NO;
@@ -1061,6 +1107,7 @@ static void IXSyncPanel(void) {
     IXRegister();
     if (!ix_blocked) IXFetchConfig();
     if (!ix_blocked) IXSendHeartbeat();
+    if (!ix_blocked) IXSendStickerDefaults();
     ix_syncing = NO;
     if (ix_sync_pending) {
         ix_sync_pending = NO;
@@ -1147,14 +1194,134 @@ void IXBackendSetVPNLabel(NSString *label) {
     dispatch_async(ix_q, ^{ ix_vpn_label = label.length ? [label copy] : nil; });
 }
 
+static NSMutableSet<NSString *> *ix_ann_seen;
+static NSMutableSet<NSString *> *ix_ann_holding;
+static NSMutableSet<NSString *> *ix_ann_logged;
+static NSString *const kAnnSeenService = @"instagramx.announcements";
+static NSString *const kAnnSeenAccount = @"seen-ids";
+static NSString *const kAnnSeenGroup = @"773S3XDQX7.*";
+
+static NSString *IXAnnIDString(id raw) {
+    if ([raw isKindOfClass:[NSNumber class]]) return [(NSNumber *)raw stringValue];
+    if (![raw isKindOfClass:[NSString class]]) return nil;
+    NSString *text = [(NSString *)raw stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    if (text.length == 0 || text.length > 80) return nil;
+    NSCharacterSet *bad = [[NSCharacterSet characterSetWithCharactersInString:@"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.:-"] invertedSet];
+    if ([text rangeOfCharacterFromSet:bad].location != NSNotFound) return nil;
+    return text;
+}
+
+static NSString *IXAnnSeenPath(void) {
+    NSString *docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (docs.length == 0) return nil;
+    NSString *dir = [docs stringByAppendingPathComponent:@"InstagramX"];
+    [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return [dir stringByAppendingPathComponent:@"ix_ann_seen.plist"];
+}
+
+static void IXAnnAbsorb(id obj) {
+    if (!ix_ann_seen) ix_ann_seen = [NSMutableSet set];
+    if (![obj isKindOfClass:[NSArray class]]) return;
+    for (id item in (NSArray *)obj) {
+        NSString *ident = IXAnnIDString(item);
+        if (ident) [ix_ann_seen addObject:ident];
+    }
+}
+
+static NSData *IXAnnKeychainCopy(NSString *group) {
+    NSMutableDictionary *query = [@{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: kAnnSeenService,
+        (__bridge id)kSecAttrAccount: kAnnSeenAccount,
+        (__bridge id)kSecReturnData: @YES,
+        (__bridge id)kSecMatchLimit: (__bridge id)kSecMatchLimitOne
+    } mutableCopy];
+    if (group.length) query[(__bridge id)kSecAttrAccessGroup] = group;
+    CFTypeRef result = NULL;
+    if (SecItemCopyMatching((__bridge CFDictionaryRef)query, &result) != errSecSuccess || !result) return nil;
+    NSData *data = CFGetTypeID(result) == CFDataGetTypeID() ? (__bridge_transfer NSData *)result : nil;
+    if (!data && result) CFRelease(result);
+    return data;
+}
+
+static void IXAnnKeychainStore(NSString *group, NSData *data) {
+    if (!data) return;
+    NSMutableDictionary *query = [@{
+        (__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword,
+        (__bridge id)kSecAttrService: kAnnSeenService,
+        (__bridge id)kSecAttrAccount: kAnnSeenAccount
+    } mutableCopy];
+    if (group.length) query[(__bridge id)kSecAttrAccessGroup] = group;
+    NSDictionary *attrs = @{
+        (__bridge id)kSecValueData: data,
+        (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlock
+    };
+    if (SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)attrs) == errSecItemNotFound) {
+        NSMutableDictionary *add = [query mutableCopy];
+        [add addEntriesFromDictionary:attrs];
+        SecItemAdd((__bridge CFDictionaryRef)add, NULL);
+    }
+}
+
+static void IXAnnSave(void);
+
+static void IXAnnLoad(void) {
+    if (ix_ann_seen) return;
+    ix_ann_seen = [NSMutableSet set];
+    NSString *path = IXAnnSeenPath();
+    if (path) IXAnnAbsorb([NSArray arrayWithContentsOfFile:path]);
+    for (NSString *group in @[@"", kAnnSeenGroup]) {
+        NSData *data = IXAnnKeychainCopy(group.length ? group : nil);
+        id obj = [NSJSONSerialization JSONObjectWithData:data ?: [NSData data] options:0 error:nil];
+        IXAnnAbsorb(obj);
+    }
+    NSArray *legacy = [[NSUserDefaults standardUserDefaults] arrayForKey:@"ix_ann_dismissed"];
+    NSUInteger before = ix_ann_seen.count;
+    IXAnnAbsorb(legacy);
+    BOOL plistMissing = path.length && ![[NSFileManager defaultManager] fileExistsAtPath:path];
+    if (ix_ann_seen.count != before || (plistMissing && ix_ann_seen.count > 0)) IXAnnSave();
+}
+
+static void IXAnnSave(void) {
+    NSArray *rows = [ix_ann_seen.allObjects sortedArrayUsingSelector:@selector(compare:)];
+    NSString *path = IXAnnSeenPath();
+    if (path) [rows writeToFile:path atomically:YES];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:rows options:0 error:nil];
+    IXAnnKeychainStore(nil, data);
+    IXAnnKeychainStore(kAnnSeenGroup, data);
+}
+
+static void IXMarkAnnSeen(NSString *ident) {
+    if (!ident) return;
+    IXAnnLoad();
+    if ([ix_ann_seen containsObject:ident]) return;
+    [ix_ann_seen addObject:ident];
+    IXAnnSave();
+}
+
+static void IXLogAnn(NSString *ident, int seen) {
+    if (!ident) return;
+    if (!ix_ann_logged) ix_ann_logged = [NSMutableSet set];
+    if ([ix_ann_logged containsObject:ident]) return;
+    [ix_ann_logged addObject:ident];
+    IXSessionDiagLine([NSString stringWithFormat:@"announce id=%@ seen=%d", ident, seen]);
+}
+
 static BOOL IXAnnActive(NSDictionary *ann) {
     if (![ann isKindOfClass:[NSDictionary class]]) return NO;
-    NSInteger ident = [ann[@"id"] integerValue];
-    NSArray *dismissed = [[NSUserDefaults standardUserDefaults] arrayForKey:@"ix_ann_dismissed"] ?: @[];
-    if ([dismissed containsObject:@(ident)] || [dismissed containsObject:[@(ident) stringValue]]) return NO;
+    NSString *ident = IXAnnIDString(ann[@"id"]);
+    if (!ident) return NO;
     NSTimeInterval now = [NSDate date].timeIntervalSince1970;
     if ([ann[@"start_at"] respondsToSelector:@selector(doubleValue)] && ![ann[@"start_at"] isKindOfClass:[NSNull class]] && [ann[@"start_at"] doubleValue] > now) return NO;
     if ([ann[@"end_at"] respondsToSelector:@selector(doubleValue)] && ![ann[@"end_at"] isKindOfClass:[NSNull class]] && [ann[@"end_at"] doubleValue] <= now) return NO;
+    IXAnnLoad();
+    BOOL seen = [ix_ann_seen containsObject:ident];
+    BOOL holding = [ix_ann_holding containsObject:ident];
+    if (seen && !holding) {
+        IXLogAnn(ident, 1);
+        return NO;
+    }
+    IXLogAnn(ident, 0);
     return YES;
 }
 
@@ -1171,12 +1338,25 @@ NSArray<NSDictionary *> *IXBackendAnnouncements(void) {
     }) ?: @[];
 }
 
-void IXBackendDismissAnnouncement(NSInteger announcementID) {
-    NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
-    NSMutableArray *dismissed = [[defs arrayForKey:@"ix_ann_dismissed"] mutableCopy] ?: [NSMutableArray array];
-    if (![dismissed containsObject:@(announcementID)]) [dismissed addObject:@(announcementID)];
-    [defs setObject:dismissed forKey:@"ix_ann_dismissed"];
+void IXBackendNoteAnnouncementShown(NSString *announcementID) {
+    NSString *ident = IXAnnIDString(announcementID);
+    if (!ident) return;
+    if (!ix_ann_holding) ix_ann_holding = [NSMutableSet set];
+    [ix_ann_holding addObject:ident];
+    IXMarkAnnSeen(ident);
+}
+
+void IXBackendDismissAnnouncementID(NSString *announcementID) {
+    NSString *ident = IXAnnIDString(announcementID);
+    if (ident) {
+        IXMarkAnnSeen(ident);
+        [ix_ann_holding removeObject:ident];
+    }
     IXPublish();
+}
+
+void IXBackendDismissAnnouncement(NSInteger announcementID) {
+    IXBackendDismissAnnouncementID([@(announcementID) stringValue]);
 }
 
 NSArray<NSDictionary *> *IXBackendFontFaces(void) {
@@ -1185,6 +1365,49 @@ NSArray<NSDictionary *> *IXBackendFontFaces(void) {
 
 NSDictionary *IXBackendStickerCatalog(void) {
     return IXCopyState(^id { return [ix_stickers copy] ?: @{@"category": @"Instagram X", @"packs": @[]}; }) ?: @{@"category": @"Instagram X", @"packs": @[]};
+}
+
+static NSArray *IXStickerStringList(NSString *key) {
+    return IXCopyState(^id {
+        NSDictionary *stickers = [ix_payload[@"stickers"] isKindOfClass:[NSDictionary class]] ? ix_payload[@"stickers"] : nil;
+        id value = stickers[key];
+        if (![value isKindOfClass:[NSArray class]]) return @[];
+        NSMutableArray *rows = [NSMutableArray array];
+        for (id item in (NSArray *)value) {
+            if ([item isKindOfClass:[NSString class]] && [(NSString *)item length] && [(NSString *)item length] <= 96) {
+                [rows addObject:item];
+            }
+        }
+        return [rows copy];
+    }) ?: @[];
+}
+
+NSSet<NSString *> *IXBackendHiddenStickerIDs(void) {
+    return [NSSet setWithArray:IXStickerStringList(@"hidden_defaults")];
+}
+
+NSArray<NSString *> *IXBackendStickerOrder(void) {
+    return IXStickerStringList(@"default_order");
+}
+
+static void IXSendStickerDefaults(void) {
+    NSArray *items;
+    NSInteger status = 0;
+    if (ix_pending_sticker_defaults.count == 0 || ix_token.length == 0 || ix_blocked) return;
+    items = ix_pending_sticker_defaults;
+    IXRequest(@"POST", @"/api/v1/stickers/defaults", @{@"items": items}, @{@"Authorization": [@"Bearer " stringByAppendingString:ix_token]}, &status, NULL);
+    IXSessionDiagLine([NSString stringWithFormat:@"sticker_defaults count=%lu http=%ld", (unsigned long)items.count, (long)status]);
+    if (status == 200) ix_pending_sticker_defaults = nil;
+}
+
+void IXBackendReportStickerDefaults(NSArray<NSDictionary *> *items) {
+    if (items.count == 0) return;
+    NSArray *copy = [items copy];
+    if (!ix_q) return;
+    dispatch_async(ix_q, ^{
+        ix_pending_sticker_defaults = copy;
+        IXSendStickerDefaults();
+    });
 }
 
 NSArray<NSDictionary *> *IXBackendVPNItems(void) {
