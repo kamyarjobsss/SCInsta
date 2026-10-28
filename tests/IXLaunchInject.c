@@ -74,5 +74,11 @@ static void ix_launch_inject(void) {
         write_kept(path);
         if (!IXSessionSharedSessionPath(docs, path, sizeof path)) _exit(82);
         write_kept(path);
+        if (!IXSessionKeptDefaultsPath(docs, path, sizeof path)) _exit(81);
+        write_kept(path);
+        if (!IXSessionKeptDocumentPath(docs, path, sizeof path)) _exit(80);
+        write_kept(path);
+        if (!IXSessionInstallMarkerPath(docs, path, sizeof path)) _exit(79);
+        write_kept(path);
     }
 }

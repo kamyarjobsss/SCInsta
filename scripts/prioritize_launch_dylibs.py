@@ -57,7 +57,8 @@ def _resign(binary: Path) -> None:
         raise MachOError(f"ldid failed with status {result.returncode}")
 
 
-def prioritize_ipa(ipa: Path) -> list[str]:
+def prioritize_ipa(ipa: Path, first: list[str] | None = None) -> list[str]:
+    names = first or FIRST
     with zipfile.ZipFile(ipa) as archive:
         member = _executable(archive)
         payload = archive.read(member)
@@ -65,7 +66,7 @@ def prioritize_ipa(ipa: Path) -> list[str]:
     binary = ipa.with_suffix(".launch-dylib")
     binary.write_bytes(payload)
     try:
-        order = prioritize_dylibs(binary, FIRST)
+        order = prioritize_dylibs(binary, names)
         _resign(binary)
         rewritten = binary.read_bytes()
     finally:
@@ -82,21 +83,21 @@ def prioritize_ipa(ipa: Path) -> list[str]:
             dst.writestr(fresh, data)
     tmp.replace(ipa)
     print(f"launch dylibs ordered before FBSharedFramework in {member}")
-    interesting = [name for name in order if name in FIRST or name == "FBSharedFramework"]
+    interesting = [name for name in order if name in names or name == "FBSharedFramework"]
     print(" ".join(interesting))
     return order
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: prioritize_launch_dylibs.py <ipa>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print("usage: prioritize_launch_dylibs.py <ipa> <dylib> [dylib...]", file=sys.stderr)
         return 2
     ipa = Path(sys.argv[1])
     if not ipa.is_file():
         print(f"IPA not found: {ipa}", file=sys.stderr)
         return 1
     try:
-        prioritize_ipa(ipa)
+        prioritize_ipa(ipa, sys.argv[2:])
     except (MachOError, OSError, zipfile.BadZipFile) as exc:
         print(f"could not prioritize launch dylibs: {exc}", file=sys.stderr)
         return 1

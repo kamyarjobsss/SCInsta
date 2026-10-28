@@ -261,6 +261,82 @@ int IXSessionSharedSessionPath(const char *docs, char *out, size_t outLen) {
     return 1;
 }
 
+int IXSessionFirstInstall(int file_marker, int keychain_marker) {
+    return (file_marker || keychain_marker) ? 0 : 1;
+}
+
+static int ix_under(const char *rel, const char *prefix) {
+    size_t n = strlen(prefix);
+    if (strncmp(rel, prefix, n) != 0) return 0;
+    return rel[n] == '\0' || rel[n] == '/';
+}
+
+int IXSessionStatePath(const char *home, const char *path) {
+    size_t h;
+    const char *rel;
+    if (!home || !home[0] || !path || !path[0]) return 0;
+    h = strlen(home);
+    if (strncmp(path, home, h) != 0) return 0;
+    if (path[h] != '\0' && path[h] != '/') return 0;
+    rel = path + h;
+    if (*rel == '/') rel++;
+    if (*rel == '\0') return 1;
+    if (ix_under(rel, "Documents")) return 1;
+    if (strcmp(rel, "Library") == 0) return 1;
+    if (ix_under(rel, "Library/Preferences")) return 1;
+    if (ix_under(rel, "Library/Cookies")) return 1;
+    return 0;
+}
+
+int IXSessionDomainWipe(const char *domain, const char *bundle) {
+    if (!domain || !domain[0]) return 1;
+    if (strncmp(domain, "group.", 6) == 0) return 1;
+    if (bundle && bundle[0] && strcmp(domain, bundle) == 0) return 1;
+    if (strcmp(domain, "com.burbn.instagram") == 0) return 1;
+    return 0;
+}
+
+int IXSessionKeepKey(const char *key) {
+    if (!key || !key[0]) return 0;
+    return strcmp(key, "mc_freshinstall_time") == 0 ||
+           strcmp(key, "mobileconfig_freshinstall_track_version") == 0 ||
+           strcmp(key, "logged_in_user_id") == 0 ||
+           strcmp(key, "logged_in_user") == 0 ||
+           strcmp(key, "logged_in_user_ids") == 0 ||
+           strcmp(key, "sci_exp_warning_seen") == 0 ||
+           strcmp(key, "sci_changelog_last_seen_version") == 0;
+}
+
+int IXSessionBlockWipe(int first_install, int state_target) {
+    if (first_install) return 0;
+    return state_target ? 1 : 0;
+}
+
+static int ix_marker_file(const char *docs, const char *name, char *out, size_t outLen) {
+    int wrote;
+    if (!out || outLen == 0) return 0;
+    out[0] = 0;
+    if (!docs || !docs[0] || strchr(docs, '\\') || !ix_safe_component(name)) return 0;
+    wrote = snprintf(out, outLen, "%s/InstagramX/%s", docs, name);
+    if (wrote < 0 || (size_t)wrote >= outLen) {
+        out[0] = 0;
+        return 0;
+    }
+    return 1;
+}
+
+int IXSessionInstallMarkerPath(const char *docs, char *out, size_t outLen) {
+    return ix_marker_file(docs, "ix_install_marker", out, outLen);
+}
+
+int IXSessionKeptDefaultsPath(const char *docs, char *out, size_t outLen) {
+    return ix_marker_file(docs, "kept-defaults", out, outLen);
+}
+
+int IXSessionKeptDocumentPath(const char *docs, char *out, size_t outLen) {
+    return ix_marker_file(docs, "kept-document", out, outLen);
+}
+
 int IXSessionDeleteAllowed(int existing_install, int launch_finished, int marker_persisted, int our_service, int password_class) {
     if (our_service) return 1;
     if (!password_class) return 1;

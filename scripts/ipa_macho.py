@@ -224,6 +224,23 @@ def constructors_follow_framework(paths: list[str]) -> bool:
     return framework < tweak and framework < injector
 
 
+def guard_precedes_framework(paths: list[str]) -> bool:
+    """True when the install-wipe guard initializes before FBSharedFramework.
+
+    SCInsta and zxPluginsInject stay after the framework. Only this small
+    image is allowed in front, so the first-install wipe can be refused
+    before the framework's initializer runs.
+    """
+
+    names = [path.rsplit("/", 1)[-1] for path in paths]
+    try:
+        guard = names.index("IXInstallGuard.dylib")
+        framework = names.index("FBSharedFramework")
+    except ValueError:
+        return False
+    return guard < framework
+
+
 def strip_dylibs(path: Path, basenames: set[str]) -> list[str]:
     """Remove load commands whose dylib path ends with one of `basenames`.
 
