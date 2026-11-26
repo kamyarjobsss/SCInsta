@@ -646,7 +646,7 @@ static void IXOpenK8myarProfile(void) {
                                             @"footer": SCILocalized(@"When \"Save to Instagram X album\" is on, downloads and share-sheet \"Save to Photos\" picks are routed into a dedicated \"Instagram X\" album in your Photos library."),
                                             @"rows": @[
                                                 [SCISetting switchCellWithTitle:SCILocalized(@"Confirm before download") subtitle:SCILocalized(@"Show a confirmation dialog before starting a download") defaultsKey:@"dw_confirm"],
-                                                [SCISetting switchCellWithTitle:SCILocalized(@"Save to Instagram X album") subtitle:SCILocalized(@"Route saves into a dedicated album in Photos instead of the camera roll root") defaultsKey:@"save_to_ryukgram_album"]
+                                                [SCISetting switchCellWithTitle:SCILocalized(@"Save to Instagram X album") subtitle:SCILocalized(@"Route saves into a dedicated album in Photos instead of the camera roll root") defaultsKey:@"save_to_instagramx_album"]
                                             ]
                                         },
                                         [self enhancedDownloadsSection],

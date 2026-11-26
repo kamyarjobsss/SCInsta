@@ -46,6 +46,7 @@ static void sciHookVideoCell(void) {
     static BOOL hooked = NO;
     if (hooked) return;
     Class cls = objc_getClass("IGModernFeedVideoCell.IGModernFeedVideoCell");
+    if (!cls) cls = objc_getClass("_TtC21IGModernFeedVideoCell21IGModernFeedVideoCell");
     if (!cls) return;
     SEL s = @selector(videoPlayerOverlayControllerDidSingleTap:gestureRecognizer:);
     if (![cls instancesRespondToSelector:s]) return;

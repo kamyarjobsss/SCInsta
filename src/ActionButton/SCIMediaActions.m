@@ -572,7 +572,7 @@ static void sciConfirmThen(NSString *title, void(^block)(void)) {
                         return;
                     }
 
-                    BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_ryukgram_album"];
+                    BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_instagramx_album"];
                     void (^onDone)(BOOL, NSError *) = ^(BOOL ok, NSError *e) {
                         dispatch_async(dispatch_get_main_queue(), ^{
                             if (ok) [pill finishTicket:ticket successMessage:useAlbum ? SCILocalized(@"Saved to Instagram X") : SCILocalized(@"Saved to Photos")];
@@ -863,7 +863,7 @@ static UIView *sciFindSubviewOfClass(UIView *root, NSString *className, int maxD
             vc.popoverPresentationController.sourceRect =
                 CGRectMake(top.view.bounds.size.width/2.0, top.view.bounds.size.height/2.0, 1, 1);
         }
-        if ([SCIUtils getBoolPref:@"save_to_ryukgram_album"]) {
+        if ([SCIUtils getBoolPref:@"save_to_instagramx_album"]) {
             [SCIPhotoAlbum watchForNextSavedAsset];
         }
         [top presentViewController:vc animated:YES completion:nil];
@@ -882,7 +882,7 @@ static UIView *sciFindSubviewOfClass(UIView *root, NSString *className, int maxD
                 });
                 return;
             }
-            BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_ryukgram_album"];
+            BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_instagramx_album"];
             __block NSUInteger saved = 0;
             __block NSUInteger idx = 0;
 
@@ -1387,7 +1387,7 @@ static UIView *sciFindSubviewOfClass(UIView *root, NSString *className, int maxD
             });
             return;
         }
-        BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_ryukgram_album"];
+        BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_instagramx_album"];
         __block NSUInteger saved = 0;
         __block NSUInteger idx = 0;
         __block void (^saveNext)(void) = ^{

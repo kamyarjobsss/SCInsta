@@ -27,7 +27,7 @@ extern void IXSessionWatchSnapshot(NSString *phase);
 ///////////////////////////////////////////////////////////
 
 // * Tweak version *
-NSString *SCIVersionString = @"v2.4.15";
+NSString *SCIVersionString = @"v2.5.0";
 
 // Variables that work across features
 BOOL dmVisualMsgsViewedButtonEnabled = false;
@@ -165,7 +165,7 @@ static void IXEngageLaunchBypass(UIWindow *window) {
         @"keep_seen_visual_local": @(NO),
         @"send_audio_as_file": @(YES),
         @"download_audio_message": @(NO),
-        @"save_to_ryukgram_album": @(NO),
+        @"save_to_instagramx_album": @(NO),
         @"unlock_password_reels": @(YES),
         @"seen_mode": @"button",
         @"seen_auto_on_interact": @(NO),
@@ -362,6 +362,13 @@ static void IXMarkFeedReady(void) {
 %end
 
 %hook IGWelcomeViewController
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    IXMarkFeedReady();
+}
+%end
+
+%hook _TtC14IGRegistration35IGRegistrationWelcomeViewController
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     IXMarkFeedReady();
@@ -1100,12 +1107,14 @@ static NSInteger hook_IGTabBarStyleForLauncherSet(NSInteger set) {
 %ctor {
     // ObjC hooks for liquid glass buttons
     Class swizzleToggle = objc_getClass("IGLiquidGlassSwizzle.IGLiquidGlassSwizzleToggle");
+    if (!swizzleToggle) swizzleToggle = objc_getClass("_TtC20IGLiquidGlassSwizzle26IGLiquidGlassSwizzleToggle");
     if (swizzleToggle) {
         MSHookMessageEx(swizzleToggle, @selector(isEnabled),
                         (IMP)new_swizzleToggle_isEnabled, (IMP *)&orig_swizzleToggle_isEnabled);
     }
 
     Class expHelper = objc_getClass("IGLiquidGlassExperimentHelper.IGLiquidGlassNavigationExperimentHelper");
+    if (!expHelper) expHelper = objc_getClass("_TtC29IGLiquidGlassExperimentHelper39IGLiquidGlassNavigationExperimentHelper");
     if (expHelper) {
         MSHookMessageEx(expHelper, @selector(isEnabled),
                         (IMP)new_expHelper_isEnabled, (IMP *)&orig_expHelper_isEnabled);

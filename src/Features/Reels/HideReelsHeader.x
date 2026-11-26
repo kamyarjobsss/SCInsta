@@ -1,6 +1,9 @@
 #import "../../Utils.h"
 
-%hook IGSundialViewerNavigationBarOld
+@interface _TtC33IGSundialViewerNavigationBarSwift28IGSundialViewerNavigationBar : UIView
+@end
+
+%hook _TtC33IGSundialViewerNavigationBarSwift28IGSundialViewerNavigationBar
 - (void)didMoveToWindow {
     %orig;
 

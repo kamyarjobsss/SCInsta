@@ -44,7 +44,7 @@ static char targetStaticRef[] = "target";
 %end
 
 // Demangled name: IGDirectNotesUISwift.IGDirectNotesBubbleEditorColorPaletteView
-%hook _TtC20IGDirectNotesUISwift41IGDirectNotesBubbleEditorColorPaletteView
+%hook _TtC26IGNotesBubbleCreationSwift41IGDirectNotesBubbleEditorColorPaletteView
 %property (nonatomic, copy) UIColor *backgroundColor;
 %property (nonatomic, copy) UIColor *textColor;
 %property (nonatomic, copy) NSString *emojiText;
@@ -224,7 +224,7 @@ static char targetStaticRef[] = "target";
                         didSelectColor:(UIColor *)color
                           continuously:(BOOL)continuously
 {
-    _TtC20IGDirectNotesUISwift41IGDirectNotesBubbleEditorColorPaletteView *bubbleEditorVC = [SCIUtils nearestViewControllerForView:self];
+    _TtC26IGNotesBubbleCreationSwift41IGDirectNotesBubbleEditorColorPaletteView *bubbleEditorVC = [SCIUtils nearestViewControllerForView:self];
     
     NSString *target = objc_getAssociatedObject(bubbleEditorVC, &targetStaticRef);
     if (!target) return;
@@ -242,7 +242,7 @@ static char targetStaticRef[] = "target";
 
 %new - (void)applySCICustomTheme:(NSString *)target {
     // Get notes composer vc
-    _TtC20IGDirectNotesUISwift39IGDirectNotesBubbleEditorViewController *parentVC = [SCIUtils nearestViewControllerForView:self];
+    _TtC26IGNotesBubbleCreationSwift39IGDirectNotesBubbleEditorViewController *parentVC = [SCIUtils nearestViewControllerForView:self];
     if (!parentVC) return;
 
     IGDirectNotesComposerViewController *composerVC = parentVC.delegate;

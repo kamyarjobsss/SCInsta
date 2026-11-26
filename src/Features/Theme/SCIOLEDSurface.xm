@@ -7,7 +7,7 @@
 #import "../../Utils.h"
 #import <objc/runtime.h>
 
-static inline BOOL sciOLEDSurfaceInRyukGram(UIView *view) {
+static inline BOOL sciOLEDSurfaceInApp(UIView *view) {
     UIResponder *r = view;
     while (r) {
         const char *name = class_getName([r class]);
@@ -30,7 +30,7 @@ static UIColor *sciOLEDSurfaceTone(void) {
 - (void)didMoveToSuperview {
     %orig;
     if (!self.superview) return;
-    if (!sciOLEDSurfaceInRyukGram((UIView *)self)) return;
+    if (!sciOLEDSurfaceInApp((UIView *)self)) return;
     UIColor *tone = sciOLEDSurfaceTone();
     UIBackgroundConfiguration *bg = [UIBackgroundConfiguration listGroupedCellConfiguration];
     bg.backgroundColor = tone;
@@ -44,7 +44,7 @@ static UIColor *sciOLEDSurfaceTone(void) {
 - (void)didMoveToSuperview {
     %orig;
     if (!self.superview) return;
-    if (!sciOLEDSurfaceInRyukGram((UIView *)self)) return;
+    if (!sciOLEDSurfaceInApp((UIView *)self)) return;
     self.backgroundConfiguration = [UIBackgroundConfiguration clearConfiguration];
 }
 %end

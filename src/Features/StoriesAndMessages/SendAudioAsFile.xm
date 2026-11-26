@@ -190,7 +190,7 @@ static void sciAVFoundationConvertAndSend(NSURL *url, UIViewController *threadVC
                          [NSString stringWithFormat:@"rg_exp_%u.m4a", arc4random()]];
         [[NSFileManager defaultManager] removeItemAtPath:out error:nil];
 
-        AVAssetExportSession *exp = [AVAssetExportSession exportSessionWithAsset:comp presetName:AVAssetExportPresetAppleM4A];
+        AVAssetExportSession *exp = [AVAssetExportSession exportSessionWithAsset:comp presetName:@"AVAssetExportPresetAppleM4A"];
         exp.outputURL = [NSURL fileURLWithPath:out];
         exp.outputFileType = AVFileTypeAppleM4A;
 

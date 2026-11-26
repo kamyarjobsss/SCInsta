@@ -461,7 +461,7 @@
                         return;
                     }
 
-                    BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_ryukgram_album"];
+                    BOOL useAlbum = [SCIUtils getBoolPref:@"save_to_instagramx_album"];
                     void (^onDone)(BOOL, NSError *) = ^(BOOL success, NSError *error) {
                         dispatch_async(dispatch_get_main_queue(), ^{
                             if (success) {

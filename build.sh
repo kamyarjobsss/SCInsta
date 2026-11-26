@@ -230,7 +230,7 @@ then
     # Create IPA File
     echo -e '\033[1m\033[32mCreating the IPA file...\033[0m'
     rm -f "$IPA_OUT" packages/SCInsta-sideloaded.ipa
-    cyan -i "packages/${ipaFile}" -o "$IPA_OUT" -f $SCINSTAPATH $FLEXPATH "packages/${BUNDLE_NAME}" -c $COMPRESSION -m 15.0 -du
+    cyan -i "packages/${ipaFile}" -o "$IPA_OUT" -f $SCINSTAPATH $FLEXPATH "packages/${BUNDLE_NAME}" -c $COMPRESSION -m 16.3 -du
 
     # Display name, holographic icon, and optional bundle id (IX_BUNDLE_ID).
     IX_DISPLAY_NAME="$DISPLAY_NAME" python3 scripts/brand_ipa.py "$IPA_OUT" "$DISPLAY_NAME"

@@ -1,8 +1,8 @@
 /*
- *  RyukGram — Localizable.strings  (Vietnamese translation)
+ *  Instagram X — Localizable.strings  (Vietnamese translation)
  *  -------------------------------------------------------------------------
  *
- *  Every user-facing string in RyukGram goes through the macro
+ *  Every user-facing string in Instagram X goes through the macro
  *      SCILocalized(@"English text here")
  *  in the Objective-C source. The argument is BOTH the lookup key and the
  *  English fallback, so if a translation is missing the user still sees
@@ -224,7 +224,7 @@
 
 "Action button" = "Nút hành động";
 "Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "Thêm 'Xem ảnh đại diện' và 'Xem ảnh bìa' vào menu nhấn giữ khay tin";
-"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X bên dưới mỗi bài viết bảng tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Adds a Instagram X action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X bên dưới mỗi bài viết bảng tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
 "Choose Instagram's default feed or force the Following feed" = "Chọn bảng tin mặc định củan Instagram hoặc buộc dùng bảng tin Đang theo dõi";
 "Main feed" = "Bảng tin chính";
 "Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "Kiểm soát thời điểm và cách bảng tin làm mới. Làm mới nền xảy ra khi quay lại ứng dụng sau khoảng 10 phút. Làm mới nút Trang chủ xảy ra khi chạm vào tab Trang chủ khi đã ở trong đó.";
@@ -293,7 +293,7 @@
 // Settings → Reels tab                                                     //
 //////////////////////////////////////////////////////////////////////////////
 
-"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X phía trên thanh bên reel với các mục xem ảnh bìa/tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Adds a Instagram X action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X phía trên thanh bên reel với các mục xem ảnh bìa/tải xuống/chia sẻ/sao chép/mở rộng/đăng lại. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
 "Always show progress scrubber" = "Luôn hiển thị thanh tua tiến trình";
 "Change what happens when you tap on a reel" = "Thay đổi hành động khi chạm vào reel";
 "Confirm reel refresh" = "Xác nhận làm mới reel";
@@ -325,7 +325,7 @@
 "Prevent doom scrolling" = "Ngăn cuộn vô tận";
 "Prevents reels from being scrolled to the next video" = "Ngăn reel chuyển sang video tiếp theo khi vuốt";
 "Prevents reels from unmuting when the volume/silent button is pressed" = "Ngăn reel bật tiếng khi nhấn nút âm lượng/im lặng";
-"RyukGram" = "Instagram X";
+"Instagram X" = "Instagram X";
 "Shows an alert when you trigger a reels refresh" = "Hiển thị cảnh báo khi bạn làm mới reel";
 "Shows buttons to reveal and auto-fill the password on locked reels" = "Hiển thị nút hiện và tự động điền mật khẩu trên reel bị khóa";
 "Swipe a reel left to open the author's profile" = "Vuốt một reel sang trái để mở hồ sơ của tác giả";
@@ -392,7 +392,7 @@
 "Auto-retry attempts" = "Số lần tự động thử lại";
 "Auto-retry failed downloads" = "Tự động thử lại các lượt tải thất bại";
 "Confirm before download" = "Xác nhận trước khi tải xuống";
-"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Đã lỗi thời. Nút hành động Instagram X (được cấu hình theo từng tính năng trong Feed/Reels/Stories) là cách mới để tải media. Chỉ bật công tắc chính này nếu bạn thích kiểu nhấn giữ nhiều ngón trực tiếp trên media như cũ.";
+"Deprecated. The Instagram X action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Đã lỗi thời. Nút hành động Instagram X (được cấu hình theo từng tính năng trong Feed/Reels/Stories) là cách mới để tải media. Chỉ bật công tắc chính này nếu bạn thích kiểu nhấn giữ nhiều ngón trực tiếp trên media như cũ.";
 "Don't pause downloads, encoding, or profile scans when you leave the app" = "Không tạm dừng tải xuống, mã hóa hoặc quét hồ sơ khi bạn rời ứng dụng";
 "Download queue" = "Hàng đợi tải xuống";
 "Downloads" = "Tải xuống";
@@ -450,7 +450,7 @@
 // Settings → Stories tab                                                   //
 //////////////////////////////////////////////////////////////////////////////
 
-"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X cạnh nút con mắt trên tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại/xem lượt nhắc. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
+"Adds a Instagram X action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Thêm nút hành động Instagram X cạnh nút con mắt trên tin với các mục tải xuống/chia sẻ/sao chép/mở rộng/đăng lại/xem lượt nhắc. Chạm sẽ mở menu theo mặc định; thay đổi hành vi chạm bên dưới.";
 "Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "Thêm nút loa vào lớp phủ tin để bật/tắt âm thanh. Cũng có trong menu ba chấm";
 "Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "Thêm nút con mắt vào lớp phủ tin. Khi tắt, việc chặn đã xem vẫn bật mà không có nút";
 "Advance on story like" = "Chuyển tiếp khi thích tin";
@@ -724,7 +724,7 @@
 
 "%@ (%lu)" = "%@ (%lu)";
 "Adds a gallery button to the instants camera so you can send a photo from your album" = "Thêm nút thư viện vào camera instants để bạn có thể gửi ảnh từ album";
-"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Thêm nút hành động Instagram X vào tiêu đề trình xem instants với các mục mở rộng, lưu, chia sẻ và lưu hàng loạt";
+"Adds a Instagram X action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Thêm nút hành động Instagram X vào tiêu đề trình xem instants với các mục mở rộng, lưu, chia sẻ và lưu hàng loạt";
 "All loaded instants" = "Tất cả instants đã tải";
 "Auto advance after reaction" = "Tự động chuyển sau khi thả cảm xúc";
 "Automatically moves to the next instant after you like or react" = "Tự động chuyển sang Instant tiếp theo sau khi bạn thích hoặc thả cảm xúc";
@@ -890,7 +890,7 @@
 "Hide chat" = "Ẩn chat";
 "Hide message preview" = "Ẩn xem trước tin nhắn";
 "Hide this chat?" = "Ẩn chat này?";
-"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Ẩn giao diện Instagram X khỏi ảnh chụp/bản ghi và bỏ qua cảnh báo chụp màn hình củan Instagram cho từng tính năng.";
+"Hides Instagram X UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Ẩn giao diện Instagram X khỏi ảnh chụp/bản ghi và bỏ qua cảnh báo chụp màn hình củan Instagram cho từng tính năng.";
 "Idle timeout" = "Hết thời gian nhàn rỗi";
 "Instagram" = "Instagram";
 "Keep this target locked separately" = "Giữ mục tiêu này khóa riêng";
@@ -938,7 +938,7 @@
 "re-lock on bg" = "khoá lại khi nền";
 "Recently hidden" = "Đã ẩn gần đây";
 "Recently locked" = "Đã khoá gần đây";
-"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "Ẩn các nút Instagram X khỏi ảnh chụp, bản ghi màn hình và phản chiếu";
+"Redact Instagram X buttons from screenshots, screen recordings, and mirroring" = "Ẩn các nút Instagram X khỏi ảnh chụp, bản ghi màn hình và phản chiếu";
 "Remove screenshot alert" = "Xoá cảnh báo chụp màn hình";
 "Replace inbox preview with • • •" = "Thay bản xem trước hộp thư bằng • • •";
 "Require passcode for this section" = "Yêu cầu mật mã cho mục này";
@@ -998,7 +998,7 @@
 "Could not write backup file." = "Không thể ghi tệp sao lưu.";
 "Could not write extracted file." = "Không thể ghi tệp đã giải nén.";
 "Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "Dữ liệu hiện có của các mục đã chọn sẽ bị thay thế. Có thể cần khởi động lại để mọi thứ có hiệu lực.";
-"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "Xuất hoặc nhập dữ liệu Instagram X — cài đặt, bộ lọc theo từng tài khoản, cuộc trò chuyện ẩn & đã khóa, Profile Analyzer, thư viện, hình nền trò chuyện, tin nhắn đã xóa và nhật ký đã xem. Chọn bất kỳ tổ hợp nào ở mỗi trang. Cài đặt được giữ dưới dạng tệp JSON thuần; gói có kèm media được xuất dưới dạng .ryukbak nén.";
+"Export or import Instagram X data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ixbak." = "Xuất hoặc nhập dữ liệu Instagram X — cài đặt, bộ lọc theo từng tài khoản, cuộc trò chuyện ẩn & đã khóa, Profile Analyzer, thư viện, hình nền trò chuyện, tin nhắn đã xóa và nhật ký đã xem. Chọn bất kỳ tổ hợp nào ở mỗi trang. Cài đặt được giữ dưới dạng tệp JSON thuần; gói có kèm media được xuất dưới dạng .ixbak nén.";
 "Feature data" = "Dữ liệu tính năng";
 "Import mode" = "Chế độ nhập";
 "Merge" = "Gộp";
@@ -1011,14 +1011,14 @@
 "Hidden & locked chats" = "Cuộc trò chuyện ẩn & đã khóa";
 "Import" = "Nhập";
 "Inspect the full manifest" = "Xem toàn bộ manifest";
-"Load a .json or .ryukbak backup" = "Tải bản sao lưu .json hoặc .ryukbak";
-"Not a RyukGram backup archive." = "Không phải tệp sao lưu Instagram X.";
+"Load a .json or .ixbak backup" = "Tải bản sao lưu .json hoặc .ixbak";
+"Not a Instagram X backup archive." = "Không phải tệp sao lưu Instagram X.";
 "PK %@" = "PK %@";
 "Preparing backup…" = "Đang chuẩn bị bản sao lưu…";
 "Reading backup…" = "Đang đọc bản sao lưu…";
 "Save settings or a full backup" = "Lưu cài đặt hoặc bản sao lưu đầy đủ";
 "Tick what to apply. Rows not in this backup are hidden." = "Chọn nội dung cần áp dụng. Các hàng không có trong bản sao lưu này sẽ bị ẩn.";
-"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "Chọn nội dung cần đưa vào. Chạm một hàng để xem chi tiết. Thêm thư viện, hình nền trò chuyện hoặc tin nhắn đã xóa sẽ tạo gói .ryukbak nén.";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ixbak bundle." = "Chọn nội dung cần đưa vào. Chạm một hàng để xem chi tiết. Thêm thư viện, hình nền trò chuyện hoặc tin nhắn đã xóa sẽ tạo gói .ixbak nén.";
 "Truncated entry data." = "Dữ liệu mục bị cắt cụt.";
 "Truncated entry length." = "Độ dài mục bị cắt cụt.";
 "Truncated entry path." = "Đường dẫn mục bị cắt cụt.";
@@ -1051,7 +1051,7 @@
 "Fix duplicate notifications" = "Sửa thông báo trùng lặp";
 "Free %@ of Instagram cache." = "Giải phóng %@ bộ nhớ đệm Instagram.";
 "Freed %@" = "Đã giải phóng %@";
-"Hold on the home tab to open RyukGram settings" = "Nhấn giữ tab trang chủ để mở cài đặt Instagram X";
+"Hold on the home tab to open Instagram X settings" = "Nhấn giữ tab trang chủ để mở cài đặt Instagram X";
 "Monthly" = "Hàng tháng";
 "Nothing to clear" = "Không có gì để xóa";
 "Off skips the size scan when Advanced opens." = "Tắt sẽ bỏ qua quét kích thước khi mở Nâng cao.";
@@ -1133,7 +1133,7 @@
 "Localization" = "Bản địa hóa";
 "Log file is empty" = "Tệp nhật ký trống";
 "Logging" = "Ghi nhật ký";
-"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Ghi lại hoạt động của riêng Instagram X vào một tệp duy nhất có thể chia sẻ trên ứng dụng và các tiện ích mở rộng. Mặc định tắt — bật lên, tái hiện sự cố, rồi chia sẻ.";
+"Logs Instagram X's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Ghi lại hoạt động của riêng Instagram X vào một tệp duy nhất có thể chia sẻ trên ứng dụng và các tiện ích mở rộng. Mặc định tắt — bật lên, tái hiện sự cố, rồi chia sẻ.";
 "Menu Cell" = "Ô menu";
 "Navigation Cell" = "Ô điều hướng";
 "No imported localization files to reset." = "Không có tệp bản địa hóa đã nhập để đặt lại.";
@@ -1215,7 +1215,7 @@
 "Save failed" = "Lưu thất bại";
 "Saved %lu items" = "Đã lưu %lu mục";
 "Saved to Photos" = "Đã lưu vào Ảnh";
-"Saved to RyukGram" = "Đã lưu vào Instagram X";
+"Saved to Instagram X" = "Đã lưu vào Instagram X";
 "Saving to Photos" = "Đang lưu vào Ảnh";
 "Saving…" = "Đang lưu...";
 "Unmute audio" = "Bật âm thanh";
@@ -1387,7 +1387,7 @@
 "Reset all backgrounds" = "Đặt lại tất cả hình nền";
 "Reset all backgrounds?" = "Đặt lại tất cả hình nền?";
 "Reset sets opacity to 1.0, blur to 0, dim to 0." = "Đặt lại đưa độ mờ về 1.0, làm mờ về 0, làm tối về 0.";
-"RyukGram Gallery" = "Thư viện Instagram X";
+"Instagram X Gallery" = "Thư viện Instagram X";
 "Search username, name, or thread ID" = "Tìm tên người dùng, tên hoặc ID thread";
 "Set as default" = "Đặt làm mặc định";
 "Tap plus to add. Tap a background to edit, set as default, or delete." = "Chạm dấu cộng để thêm. Chạm một hình nền để chỉnh sửa, đặt làm mặc định hoặc xóa.";
@@ -1404,7 +1404,7 @@
 
 "Add location" = "Thêm vị trí";
 "Add preset" = "Thêm cài đặt sẵn";
-"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Ảnh hưởng đến mọi thứ ở trên. Khi tắt, giao diện và ghi đè bề mặt củan Instagram X chỉ áp dụng khi iOS ở chế độ tối — không đụng đến chế độ sáng.";
+"Affects everything above. When off, Instagram X's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Ảnh hưởng đến mọi thứ ở trên. Khi tắt, giao diện và ghi đè bề mặt củan Instagram X chỉ áp dụng khi iOS ở chế độ tối — không đụng đến chế độ sáng.";
 "Apply & restart" = "Áp dụng & khởi động lại";
 "Background" = "Nền";
 "Behavior" = "Hành vi";
@@ -1450,7 +1450,7 @@
 "Saved locations" = "Vị trí đã lưu";
 "Select color" = "Chọn màu";
 "Set location" = "Đặt vị trí";
-"The theme RyukGram applies to Instagram." = "Giao diện mà Instagram X áp dụng cho Instagram.";
+"The theme Instagram X applies to Instagram." = "Giao diện mà Instagram X áp dụng cho Instagram.";
 "Theme" = "Giao diện";
 "Turn every theme option off and restart" = "Tắt mọi tùy chọn giao diện và khởi động lại";
 "Turn Location Services on in Settings → Privacy to use your current location." = "Bật Dịch vụ định vị trong Cài đặt → Quyền riêng tư để sử dụng vị trí hiện tại của bạn.";
@@ -1508,7 +1508,7 @@
 "Fetching followers (%lu/%ld)…" = "Đang lấy người theo dõi (%lu/%ld)…";
 "Fetching following (%lu/%ld)…" = "Đang lấy đang theo dõi (%lu/%ld)…";
 "Fetching profile info…" = "Đang lấy thông tin hồ sơ…";
-"File is not a valid RyukGram backup." = "Tệp không phải bản xuất Instagram X hợp lệ.";
+"File is not a valid Instagram X backup." = "Tệp không phải bản xuất Instagram X hợp lệ.";
 "Filter" = "Lọc";
 "Filter · %lu" = "Lọc · %lu";
 "First scan: %@" = "Lần quét đầu tiên: %@";
@@ -1748,7 +1748,7 @@
 "Keep-deleted: ON" = "  • Giữ đã xóa: BẬT";
 "Later" = "Để sau";
 "Loading" = "Đang tải";
-"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Tên album Ảnh mà Instagram X lưu vào. Để trống để khôi phục mặc định.";
+"Name of the Photos album Instagram X saves into. Leave empty to restore the default." = "Tên album Ảnh mà Instagram X lưu vào. Để trống để khôi phục mặc định.";
 "Next" = "Tiếp";
 "No results found." = "Không tìm thấy kết quả.";
 "No!" = "Không!";
@@ -1798,7 +1798,7 @@
 "Releases" = "Bản phát hành";
 "Report an issue" = "Báo cáo sự cố";
 "Russian translation" = "Bản dịch tiếng Nga";
-"RyukGram developer" = "Nhà phát triển Instagram X";
+"Instagram X developer" = "Nhà phát triển Instagram X";
 "Join Telegram channel" = "Tham gia kênh Telegram";
 "Source code" = "Mã nguồn";
 "View on GitHub" = "Xem trên GitHub";
@@ -1810,9 +1810,9 @@
 "Translators" = "Dịch giả";
 "Original BHInstagram developer" = "Nhà phát triển BHInstagram gốc";
 "OLED theme inspiration" = "Cảm hứng giao diện OLED";
-"Donate to Ryuk" = "Ủng hộ Ryuk";
-"Support RyukGram development" = "Ủng hộ phát triển Instagram X";
-"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X là một nhánh được làm lại đáng kể từ SCInsta — việc ủng hộ nhà phát triển gốc rất được trân trọng.";
+"Donate" = "Ủng hộ Wexpid";
+"Support Instagram X development" = "Ủng hộ phát triển Instagram X";
+"Instagram X is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X là một nhánh được làm lại đáng kể từ SCInsta — việc ủng hộ nhà phát triển gốc rất được trân trọng.";
 "Browse changes from previous releases" = "Duyệt các thay đổi từ bản phát hành trước";
 "Code inspiration" = "Cảm hứng mã";
 "zxPluginsInject sideload compatibility shim" = "Lớp tương thích sideload zxPluginsInject";
@@ -1820,7 +1820,7 @@
 "Testing and feature suggestions" = "Thử nghiệm và đề xuất tính năng";
 "Version" = "Phiên bản";
 "Version, credits, and links" = "Phiên bản, ghi công và liên kết";
-"What's new in RyukGram" = "Có gì mới trong Instagram X";
+"What's new in Instagram X" = "Có gì mới trong Instagram X";
 
 //////////////////////////////////////////////////////////////////////////////
 //                             HD DOWNLOADS                                 //
@@ -1933,7 +1933,7 @@
 "Very high quality." = "Chất lượng rất cao.";
 "Video bitrate" = "Bitrate video";
 "Video codec" = "Codec video";
-"Visually lossless. RyukGram default." = "Không mất dữ liệu về thị giác. Mặc định Instagram X.";
+"Visually lossless. Instagram X default." = "Không mất dữ liệu về thị giác. Mặc định Instagram X.";
 "Widest compatibility, no B-frames." = "Tương thích rộng nhất, không có B-frame.";
 "Worst quality." = "Chất lượng kém nhất.";
 
@@ -1945,11 +1945,11 @@
 
 "Long-press gestures" = "Cử chỉ nhấn giữ";
 "Inserts a button in the profile navigation header" = "Chèn nút trong tiêu đề điều hướng hồ sơ";
-"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Thêm nút hành động Instagram X vào tiêu đề hồ sơ với các mục sao chép, xem ảnh, chia sẻ, lưu và thông tin hồ sơ. Chạm mở menu theo mặc định; thay đổi hành vi chạm trong menu Cấu hình.";
+"Adds a Instagram X action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Thêm nút hành động Instagram X vào tiêu đề hồ sơ với các mục sao chép, xem ảnh, chia sẻ, lưu và thông tin hồ sơ. Chạm mở menu theo mặc định; thay đổi hành vi chạm trong menu Cấu hình.";
 "Configure menu" = "Cấu hình menu";
 "Reorder, enable/disable, set default tap, show date" = "Sắp xếp lại, bật/tắt, đặt chạm mặc định, hiển thị ngày";
 "Reorder, enable/disable, set default tap" = "Sắp xếp lại, bật/tắt, đặt chạm mặc định";
-"RyukGram profile actions" = "Hành động hồ sơ Instagram X";
+"Instagram X profile actions" = "Hành động hồ sơ Instagram X";
 "Reorder sections" = "Sắp xếp lại các phần";
 "Drag the ≡ handle to reorder sections." = "Kéo tay nắm ≡ để sắp xếp lại các phần.";
 "Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "Kéo tay nắm ≡ để sắp xếp lại. Tắt một hàng để ẩn nó khỏi menu. Đánh dấu một phần là menu phụ để thu gọn các hành động sau một mục duy nhất.";
@@ -2046,7 +2046,7 @@
 "Flat list. No grouping." = "Danh sách phẳng. Không nhóm.";
 "Folder name" = "Tên thư mục";
 "Folders" = "Thư mục";
-"From RyukGram Gallery" = "Âm thanh từ Thư viện Instagram X";
+"From Instagram X Gallery" = "Âm thanh từ Thư viện Instagram X";
 "Gallery" = "Thư viện";
 "Gallery only" = "Chỉ Thư viện";
 "Gallery save mode" = "Chế độ lưu thư viện";
@@ -2062,7 +2062,7 @@
 "items" = "mục";
 "Largest first" = "Lớn nhất trước";
 "List view" = "Chế độ xem danh sách";
-"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "Nhấn giữ nút hộp thư trên thanh tab dưới để mở thư viện Instagram X";
+"Long-press the inbox button in the bottom tab bar to open Instagram X gallery" = "Nhấn giữ nút hộp thư trên thanh tab dưới để mở thư viện Instagram X";
 "Manage" = "Quản lý";
 "More" = "Thêm";
 "Move selected" = "Di chuyển đã chọn";
@@ -2075,7 +2075,7 @@
 "No files in Gallery" = "Không có tệp trong Thư viện";
 "No files to delete" = "Không có tệp để xóa";
 "No matching files" = "Không có tệp khớp";
-"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "Thư viện media trên thiết bị được tải quan Instagram X. Chế độ lưu chọn nơi 'Tải vào Ảnh' thực sự ghi.";
+"On-device library of media downloaded through Instagram X. Save mode picks where 'Download to Photos' actually writes." = "Thư viện media trên thiết bị được tải quan Instagram X. Chế độ lưu chọn nơi 'Tải vào Ảnh' thực sự ghi.";
 "Open" = "Mở";
 "Open Original Post" = "Mở bài viết gốc";
 "Options" = "Tùy chọn";
@@ -2184,8 +2184,8 @@
 "Preview pill" = "Xem trước pill";
 "Preview download pill" = "Xem trước pill tải xuống";
 "Preview loading pill" = "Xem trước pill đang tải";
-"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "Công tắc chính. Khi tắt, không có pill Instagram X hay toast IG gốc nào được phát ra.";
-"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "Thông báo trong ứng dụng phổ quát. Mọi phản hồi củan Instagram X (tải xuống, sao chép, lỗi, thông báo thành công) đều đi qua đây.";
+"Master switch. When off, no Instagram X pills or IG-native toasts are emitted." = "Công tắc chính. Khi tắt, không có pill Instagram X hay toast IG gốc nào được phát ra.";
+"Universal in-app notifications. All Instagram X feedback (downloads, copies, errors, success messages) routes through here." = "Thông báo trong ứng dụng phổ quát. Mọi phản hồi củan Instagram X (tải xuống, sao chép, lỗi, thông báo thành công) đều đi qua đây.";
 "Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Tối giản: làm mờ phẳng. Sắc màu: nhuộm theo tông. Phát sáng: viền sáng có màu. Đảo: viên nang dynamic island.";
 "Top slides down, bottom slides up." = "Trên trượt xuống, dưới trượt lên.";
 "How many pills can show at once before queueing." = "Số pill có thể hiển thị cùng lúc trước khi xếp hàng.";
