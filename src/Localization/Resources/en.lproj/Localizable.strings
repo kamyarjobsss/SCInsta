@@ -1,8 +1,8 @@
 /*
- *  RyukGram — Localizable.strings  (English source of truth)
+ *  Instagram X — Localizable.strings  (English source of truth)
  *  -------------------------------------------------------------------------
  *
- *  Every user-facing string in RyukGram goes through the macro
+ *  Every user-facing string in Instagram X goes through the macro
  *      SCILocalized(@"English text here")
  *  in the Objective-C source. The argument is BOTH the lookup key and the
  *  English fallback, so if a translation is missing the user still sees
@@ -26,7 +26,7 @@
  *     positional specifiers (%1$@ %2$lu).
  *  4. Keep embedded quotes escaped with a backslash: \" — and newlines
  *     as \n.
- *  5. Open a pull request at https://github.com/faroukbmiled/RyukGram/pulls
+ *  5. Open a pull request at https://github.com/kamyarjobsss/Instagram X/pulls
  *     so we can ship the language in the next release.
  *
  *
@@ -254,7 +254,7 @@
 
 "Action button" = "Action button";
 "Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "Adds 'View profile picture' and 'View cover' to story tray long-press menus";
-"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below.";
+"Adds a Instagram X action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below.";
 "Choose Instagram's default feed or force the Following feed" = "Choose Instagram's default feed or force the Following feed";
 "Main feed" = "Main feed";
 "Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it.";
@@ -323,7 +323,7 @@
 // Settings → Reels tab                                                     //
 //////////////////////////////////////////////////////////////////////////////
 
-"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below.";
+"Adds a Instagram X action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below.";
 "Always show progress scrubber" = "Always show progress scrubber";
 "Change what happens when you tap on a reel" = "Change what happens when you tap on a reel";
 "Confirm reel refresh" = "Confirm reel refresh";
@@ -355,7 +355,7 @@
 "Prevent doom scrolling" = "Prevent doom scrolling";
 "Prevents reels from being scrolled to the next video" = "Prevents reels from being scrolled to the next video";
 "Prevents reels from unmuting when the volume/silent button is pressed" = "Prevents reels from unmuting when the volume/silent button is pressed";
-"RyukGram" = "Instagram X";
+"Instagram X" = "Instagram X";
 "Shows an alert when you trigger a reels refresh" = "Shows an alert when you trigger a reels refresh";
 "Shows buttons to reveal and auto-fill the password on locked reels" = "Shows buttons to reveal and auto-fill the password on locked reels";
 "Swipe a reel left to open the author's profile" = "Swipe a reel left to open the author's profile";
@@ -422,7 +422,7 @@
 "Auto-retry attempts" = "Auto-retry attempts";
 "Auto-retry failed downloads" = "Auto-retry failed downloads";
 "Confirm before download" = "Confirm before download";
-"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Deprecated. The Instagram X action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media.";
+"Deprecated. The Instagram X action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "Deprecated. The Instagram X action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media.";
 "Don't pause downloads, encoding, or profile scans when you leave the app" = "Don't pause downloads, encoding, or profile scans when you leave the app";
 "Download queue" = "Download queue";
 "Downloads" = "Downloads";
@@ -503,7 +503,7 @@
 "On the 'who viewed my story' list, adds a filter/sort button (bottom-right) with sticky settings. Long-press a viewer to pin them. Pinned viewers always show at the top — even before they view your story." = "On the 'who viewed my story' list, adds a filter/sort button (bottom-right) with sticky settings. Long-press a viewer to pin them. Pinned viewers always show at the top — even before they view your story.";
 "Username or raw user PK. Pinned users always show at the top of your story viewers, even before they view it." = "Username or raw user PK. Pinned users always show at the top of your story viewers, even before they view it.";
 
-"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below.";
+"Adds a Instagram X action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "Adds an Instagram X action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below.";
 "Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu";
 "Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "Adds the eye button to story overlays. Off keeps seen blocking on without the button";
 "Advance on story like" = "Advance on story like";
@@ -777,7 +777,7 @@
 
 "%@ (%lu)" = "%@ (%lu)";
 "Adds a gallery button to the instants camera so you can send a photo from your album" = "Adds a gallery button to the instants camera so you can send a photo from your album";
-"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Adds an Instagram X action button to the instants viewer header with expand, save, share, and bulk-save entries";
+"Adds a Instagram X action button to the instants viewer header with expand, save, share, and bulk-save entries" = "Adds an Instagram X action button to the instants viewer header with expand, save, share, and bulk-save entries";
 "All loaded instants" = "All loaded instants";
 "Auto advance after reaction" = "Auto advance after reaction";
 "Automatically moves to the next instant after you like or react" = "Automatically moves to the next instant after you like or react";
@@ -943,7 +943,7 @@
 "Hide chat" = "Hide chat";
 "Hide message preview" = "Hide message preview";
 "Hide this chat?" = "Hide this chat?";
-"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Hides Instagram X UI from screenshots/recordings and routes around IG's per-feature screenshot alerts.";
+"Hides Instagram X UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "Hides Instagram X UI from screenshots/recordings and routes around IG's per-feature screenshot alerts.";
 "Idle timeout" = "Idle timeout";
 "Instagram" = "Instagram";
 "Keep this target locked separately" = "Keep this target locked separately";
@@ -991,7 +991,7 @@
 "re-lock on bg" = "re-lock on bg";
 "Recently hidden" = "Recently hidden";
 "Recently locked" = "Recently locked";
-"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "Redact Instagram X buttons from screenshots, screen recordings, and mirroring";
+"Redact Instagram X buttons from screenshots, screen recordings, and mirroring" = "Redact Instagram X buttons from screenshots, screen recordings, and mirroring";
 "Remove screenshot alert" = "Remove screenshot alert";
 "Replace inbox preview with • • •" = "Replace inbox preview with • • •";
 "Require passcode for this section" = "Require passcode for this section";
@@ -1051,7 +1051,7 @@
 "Could not write backup file." = "Could not write backup file.";
 "Could not write extracted file." = "Could not write extracted file.";
 "Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect.";
-"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "Export or import Instagram X data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak.";
+"Export or import Instagram X data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ixbak." = "Export or import Instagram X data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ixbak.";
 "Feature data" = "Feature data";
 "Import mode" = "Import mode";
 "Merge" = "Merge";
@@ -1064,14 +1064,14 @@
 "Hidden & locked chats" = "Hidden & locked chats";
 "Import" = "Import";
 "Inspect the full manifest" = "Inspect the full manifest";
-"Load a .json or .ryukbak backup" = "Load a .json or .ryukbak backup";
-"Not a RyukGram backup archive." = "Not an Instagram X backup archive.";
+"Load a .json or .ixbak backup" = "Load a .json or .ixbak backup";
+"Not a Instagram X backup archive." = "Not an Instagram X backup archive.";
 "PK %@" = "PK %@";
 "Preparing backup…" = "Preparing backup…";
 "Reading backup…" = "Reading backup…";
 "Save settings or a full backup" = "Save settings or a full backup";
 "Tick what to apply. Rows not in this backup are hidden." = "Tick what to apply. Rows not in this backup are hidden.";
-"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle.";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ixbak bundle." = "Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ixbak bundle.";
 "Truncated entry data." = "Truncated entry data.";
 "Truncated entry length." = "Truncated entry length.";
 "Truncated entry path." = "Truncated entry path.";
@@ -1104,7 +1104,7 @@
 "Fix duplicate notifications" = "Fix duplicate notifications";
 "Free %@ of Instagram cache." = "Free %@ of Instagram cache.";
 "Freed %@" = "Freed %@";
-"Hold on the home tab to open RyukGram settings" = "Hold on the home tab to open Instagram X settings";
+"Hold on the home tab to open Instagram X settings" = "Hold on the home tab to open Instagram X settings";
 "Monthly" = "Monthly";
 "Nothing to clear" = "Nothing to clear";
 "Off skips the size scan when Advanced opens." = "Off skips the size scan when Advanced opens.";
@@ -1186,7 +1186,7 @@
 "Localization" = "Localization";
 "Log file is empty" = "Log file is empty";
 "Logging" = "Logging";
-"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Logs Instagram X's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share.";
+"Logs Instagram X's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "Logs Instagram X's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share.";
 "Menu Cell" = "Menu Cell";
 "Navigation Cell" = "Navigation Cell";
 "No imported localization files to reset." = "No imported localization files to reset.";
@@ -1268,7 +1268,7 @@
 "Save failed" = "Save failed";
 "Saved %lu items" = "Saved %lu items";
 "Saved to Photos" = "Saved to Photos";
-"Saved to RyukGram" = "Saved to Instagram X";
+"Saved to Instagram X" = "Saved to Instagram X";
 "Saving to Photos" = "Saving to Photos";
 "Saving…" = "Saving…";
 "Unmute audio" = "Unmute audio";
@@ -1440,7 +1440,7 @@
 "Reset all backgrounds" = "Reset all backgrounds";
 "Reset all backgrounds?" = "Reset all backgrounds?";
 "Reset sets opacity to 1.0, blur to 0, dim to 0." = "Reset sets opacity to 1.0, blur to 0, dim to 0.";
-"RyukGram Gallery" = "Instagram X Gallery";
+"Instagram X Gallery" = "Instagram X Gallery";
 "Search username, name, or thread ID" = "Search username, name, or thread ID";
 "Set as default" = "Set as default";
 "Tap plus to add. Tap a background to edit, set as default, or delete." = "Tap plus to add. Tap a background to edit, set as default, or delete.";
@@ -1457,7 +1457,7 @@
 
 "Add location" = "Add location";
 "Add preset" = "Add preset";
-"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Affects everything above. When off, Instagram X's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched.";
+"Affects everything above. When off, Instagram X's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "Affects everything above. When off, Instagram X's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched.";
 "Apply & restart" = "Apply & restart";
 "Background" = "Background";
 "Behavior" = "Behavior";
@@ -1503,7 +1503,7 @@
 "Saved locations" = "Saved locations";
 "Select color" = "Select color";
 "Set location" = "Set location";
-"The theme RyukGram applies to Instagram." = "The theme Instagram X applies to Instagram.";
+"The theme Instagram X applies to Instagram." = "The theme Instagram X applies to Instagram.";
 "Theme" = "Theme";
 "Turn every theme option off and restart" = "Turn every theme option off and restart";
 "Turn Location Services on in Settings → Privacy to use your current location." = "Turn Location Services on in Settings → Privacy to use your current location.";
@@ -1587,7 +1587,7 @@
 "Pause and Cancel keep the accounts already checked on screen." = "Pause and Cancel keep the accounts already checked on screen.";
 "Removes the saved following analysis for this account." = "Removes the saved following analysis for this account.";
 "Fetching profile info…" = "Fetching profile info…";
-"File is not a valid RyukGram backup." = "File is not a valid Instagram X backup.";
+"File is not a valid Instagram X backup." = "File is not a valid Instagram X backup.";
 "Filter" = "Filter";
 "Filter · %lu" = "Filter · %lu";
 "First scan: %@" = "First scan: %@";
@@ -1834,7 +1834,7 @@
 "Keep-deleted: ON" = "Keep-deleted: ON";
 "Later" = "Later";
 "Loading" = "Loading";
-"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Name of the Photos album Instagram X saves into. Leave empty to restore the default.";
+"Name of the Photos album Instagram X saves into. Leave empty to restore the default." = "Name of the Photos album Instagram X saves into. Leave empty to restore the default.";
 "Next" = "Next";
 "No results found." = "No results found.";
 "No!" = "No!";
@@ -1884,7 +1884,7 @@
 "Releases" = "Releases";
 "Report an issue" = "Report an issue";
 "Russian translation" = "Russian translation";
-"RyukGram developer" = "Instagram X developer";
+"Instagram X developer" = "Instagram X developer";
 "Join Telegram channel" = "Join Telegram channel";
 "Source code" = "Source code";
 "View on GitHub" = "View on GitHub";
@@ -1896,9 +1896,9 @@
 "Translators" = "Translators";
 "Original BHInstagram developer" = "Original BHInstagram developer";
 "OLED theme inspiration" = "OLED theme inspiration";
-"Donate to Ryuk" = "Donate to Ryuk";
-"Support RyukGram development" = "Support Instagram X development";
-"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X is a heavily reworked fork of SCInsta — supporting the original developer is appreciated.";
+"Donate" = "Donate";
+"Support Instagram X development" = "Support Instagram X development";
+"Instagram X is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X is a heavily reworked fork of SCInsta — supporting the original developer is appreciated.";
 "Browse changes from previous releases" = "Browse changes from previous releases";
 "Code inspiration" = "Code inspiration";
 "zxPluginsInject sideload compatibility shim" = "zxPluginsInject sideload compatibility shim";
@@ -1906,7 +1906,7 @@
 "Testing and feature suggestions" = "Testing and feature suggestions";
 "Version" = "Version";
 "Version, credits, and links" = "Version, credits, and links";
-"What's new in RyukGram" = "What's new in Instagram X";
+"What's new in Instagram X" = "What's new in Instagram X";
 
 //////////////////////////////////////////////////////////////////////////////
 //                             HD DOWNLOADS                                 //
@@ -2019,7 +2019,7 @@
 "Very high quality." = "Very high quality.";
 "Video bitrate" = "Video bitrate";
 "Video codec" = "Video codec";
-"Visually lossless. RyukGram default." = "Visually lossless. Instagram X default.";
+"Visually lossless. Instagram X default." = "Visually lossless. Instagram X default.";
 "Widest compatibility, no B-frames." = "Widest compatibility, no B-frames.";
 "Worst quality." = "Worst quality.";
 
@@ -2031,11 +2031,11 @@
 
 "Long-press gestures" = "Long-press gestures";
 "Inserts a button in the profile navigation header" = "Inserts a button in the profile navigation header";
-"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Adds an Instagram X action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu.";
+"Adds a Instagram X action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "Adds an Instagram X action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu.";
 "Configure menu" = "Configure menu";
 "Reorder, enable/disable, set default tap, show date" = "Reorder, enable/disable, set default tap, show date";
 "Reorder, enable/disable, set default tap" = "Reorder, enable/disable, set default tap";
-"RyukGram profile actions" = "Instagram X profile actions";
+"Instagram X profile actions" = "Instagram X profile actions";
 "Reorder sections" = "Reorder sections";
 "Drag the ≡ handle to reorder sections." = "Drag the ≡ handle to reorder sections.";
 "Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry.";
@@ -2132,7 +2132,7 @@
 "Flat list. No grouping." = "Flat list. No grouping.";
 "Folder name" = "Folder name";
 "Folders" = "Folders";
-"From RyukGram Gallery" = "From Instagram X Gallery";
+"From Instagram X Gallery" = "From Instagram X Gallery";
 "Gallery" = "Gallery";
 "Gallery only" = "Gallery only";
 "Gallery save mode" = "Gallery save mode";
@@ -2148,7 +2148,7 @@
 "items" = "items";
 "Largest first" = "Largest first";
 "List view" = "List view";
-"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "Long-press the inbox button in the bottom tab bar to open Instagram X gallery";
+"Long-press the inbox button in the bottom tab bar to open Instagram X gallery" = "Long-press the inbox button in the bottom tab bar to open Instagram X gallery";
 "Manage" = "Manage";
 "More" = "More";
 "Move selected" = "Move selected";
@@ -2161,7 +2161,7 @@
 "No files in Gallery" = "No files in Gallery";
 "No files to delete" = "No files to delete";
 "No matching files" = "No matching files";
-"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "On-device library of media downloaded through Instagram X. Save mode picks where 'Download to Photos' actually writes.";
+"On-device library of media downloaded through Instagram X. Save mode picks where 'Download to Photos' actually writes." = "On-device library of media downloaded through Instagram X. Save mode picks where 'Download to Photos' actually writes.";
 "Open" = "Open";
 "Open Original Post" = "Open Original Post";
 "Options" = "Options";
@@ -2270,8 +2270,8 @@
 "Preview pill" = "Preview pill";
 "Preview download pill" = "Preview download pill";
 "Preview loading pill" = "Preview loading pill";
-"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "Master switch. When off, no Instagram X pills or IG-native toasts are emitted.";
-"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "Universal in-app notifications. All Instagram X feedback (downloads, copies, errors, success messages) routes through here.";
+"Master switch. When off, no Instagram X pills or IG-native toasts are emitted." = "Master switch. When off, no Instagram X pills or IG-native toasts are emitted.";
+"Universal in-app notifications. All Instagram X feedback (downloads, copies, errors, success messages) routes through here." = "Universal in-app notifications. All Instagram X feedback (downloads, copies, errors, success messages) routes through here.";
 "Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule.";
 "Top slides down, bottom slides up." = "Top slides down, bottom slides up.";
 "How many pills can show at once before queueing." = "How many pills can show at once before queueing.";

@@ -189,13 +189,14 @@ def _parse_tbd(path: Path) -> tuple[set[str], set[str]]:
     reexports: set[str] = set()
     mode = ""
     for line in text.splitlines():
-        if line.startswith("reexported-libraries:") or line.startswith("re-exports:"):
+        stripped = line.lstrip()
+        if stripped.startswith("reexported-libraries:") or stripped.startswith("re-exports:"):
             mode = "re"
-            continue
-        if line.startswith("exports:") or line.startswith("install-name:"):
+        elif stripped.startswith(("exports:", "install-name:", "symbols:", "objc-", "weak-def-symbols:")):
             mode = ""
         if mode == "re":
             reexports.update(re.findall(r"'(/[^']+)'", line))
+            reexports.update(re.findall(r"(?<![\w.])(/(?:System|usr)/[A-Za-z0-9_./+-]+)", line))
     _tbd_cache[key] = (symbols, reexports)
     return symbols, reexports
 

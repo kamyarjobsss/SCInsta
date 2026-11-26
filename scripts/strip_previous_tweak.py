@@ -37,11 +37,17 @@ STRIP_FILES = {
     "libflex.dylib",
     "zxPluginsInject.dylib",
     "IXInstallGuard.dylib",
+    "RYGExtensionKit.dylib",
 }
 
-# Closed-source bundle shipped inside the 436 base IPA. libswiftIU.dylib and
-# libmobile_first_frame_pipeline.framework are not in this set and stay.
-STRIP_DIRS = {"RyukGram.bundle"}
+# RyukGram 1.6.0 ships ElleKit as CydiaSubstrate.framework plus a Safari
+# helper. Stock libavcodec and libavutil are not in this set and stay.
+# cyan and ipapatch append a fresh substrate and zxPluginsInject afterwards.
+STRIP_DIRS = {
+    "RyukGram.bundle",
+    "CydiaSubstrate.framework",
+    "OpenInstagramSafariExtension.appex",
+}
 
 SKIP_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".car", ".json", ".ttf", ".otf", ".metallib",

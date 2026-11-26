@@ -176,7 +176,10 @@ static void sciAddZoomGesture(UIView *view) {
 }
 %end
 
-%hook IGModernFeedVideoCell.IGModernFeedVideoCell
+@interface _TtC21IGModernFeedVideoCell21IGModernFeedVideoCell : UIView
+@end
+
+%hook _TtC21IGModernFeedVideoCell21IGModernFeedVideoCell
 - (void)didMoveToSuperview {
     %orig;
     if (((UIView *)self).superview) sciAddZoomGesture((UIView *)self);

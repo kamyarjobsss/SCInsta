@@ -132,7 +132,7 @@ static id new_prismMenuView_init3(id self, SEL _cmd, NSArray *elements, id heade
 
             AVAsset *asset = [AVAsset assetWithURL:srcURL];
             AVAssetExportSession *exp = [AVAssetExportSession
-                exportSessionWithAsset:asset presetName:AVAssetExportPresetAppleM4A];
+                exportSessionWithAsset:asset presetName:@"AVAssetExportPresetAppleM4A"];
             exp.outputURL = m4aURL;
             exp.outputFileType = AVFileTypeAppleM4A;
 

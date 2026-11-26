@@ -35,7 +35,7 @@ static NSArray<NSString *> *sciCacheDirs(void) {
 // data (analyzer snapshots, header cache, future persistent state) and must
 // survive a cache wipe.
 static BOOL sciIsProtectedEntryName(const char *name) {
-    return strcmp(name, "RyukGram") == 0;
+    return strcmp(name, "InstagramX") == 0;
 }
 
 // POSIX fts — avoids the NSDirectoryEnumerator per-entry alloc overhead.

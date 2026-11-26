@@ -20,7 +20,7 @@ static dispatch_queue_t sciCancelQueue(void) {
     static dispatch_queue_t q;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        q = dispatch_queue_create("com.ryuk.scinsta.ffmpeg.cancel", DISPATCH_QUEUE_SERIAL);
+        q = dispatch_queue_create("com.instagramx.scinsta.ffmpeg.cancel", DISPATCH_QUEUE_SERIAL);
         sciActiveURLSessions = [NSHashTable weakObjectsHashTable];
     });
     return q;

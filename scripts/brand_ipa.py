@@ -43,6 +43,14 @@ def main() -> int:
 
         info["CFBundleDisplayName"] = display
         info["CFBundleName"] = display
+        # Decryptor tags such as DecryptedBy=@axryuk are not part of Instagram X.
+        for key in list(info):
+            value = info.get(key)
+            if isinstance(key, str) and "ryuk" in key.lower():
+                info.pop(key, None)
+                continue
+            if isinstance(value, str) and "ryuk" in value.lower():
+                info.pop(key, None)
         icons = info.get("CFBundleIcons") or {}
         primary = icons.get("CFBundlePrimaryIcon") or {}
         primary.pop("CFBundleIconName", None)

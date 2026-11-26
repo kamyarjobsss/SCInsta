@@ -176,7 +176,7 @@ typedef NS_ENUM(NSInteger, SCIPickerRowKind) {
     NSDictionary *p = self.payload;
     id s = p[@"settings"];
     if ([s isKindOfClass:[NSDictionary class]]) return s;
-    if (p && !p[@"ryukgram_export"] && !p[@"settings"] && !p[@"lists"] && !p[@"analyzer"]) return p;
+    if (p && !p[@"instagramx_export"] && !p[@"settings"] && !p[@"lists"] && !p[@"analyzer"]) return p;
     return @{};
 }
 - (NSDictionary *)listsPayload { id v = self.payload[@"lists"]; return [v isKindOfClass:[NSDictionary class]] ? v : @{}; }

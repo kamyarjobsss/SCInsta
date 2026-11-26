@@ -1,8 +1,8 @@
 /*
- *  RyukGram — Localizable.strings  (English source of truth)
+ *  Instagram X — Localizable.strings  (English source of truth)
  *  -------------------------------------------------------------------------
  *
- *  Every user-facing string in RyukGram goes through the macro
+ *  Every user-facing string in Instagram X goes through the macro
  *      SCILocalized(@"English text here")
  *  in the Objective-C source. The argument is BOTH the lookup key and the
  *  English fallback, so if a translation is missing the user still sees
@@ -26,7 +26,7 @@
  *     positional specifiers (%1$@ %2$lu).
  *  4. Keep embedded quotes escaped with a backslash: \" — and newlines
  *     as \n.
- *  5. Open a pull request at https://github.com/faroukbmiled/RyukGram/pulls
+ *  5. Open a pull request at https://github.com/kamyarjobsss/Instagram X/pulls
  *     so we can ship the language in the next release.
  *
  *
@@ -254,7 +254,7 @@
 
 "Action button" = "动作按钮";
 "Adds 'View profile picture' and 'View cover' to story tray long-press menus" = "在限时动态长按选单中新增「查看大头贴」和「查看封面」";
-"Adds a RyukGram action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "在每则动态消息贴文下方新增 Instagram X 动作按钮，包含下载／分享／复制／展开／转贴选项。预设点击会开启选单；可于下方更改点击行为。";
+"Adds a Instagram X action button under each feed post with download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "在每则动态消息贴文下方新增 Instagram X 动作按钮，包含下载／分享／复制／展开／转贴选项。预设点击会开启选单；可于下方更改点击行为。";
 "Choose Instagram's default feed or force the Following feed" = "选择 Instagram 的默认动态或强制使用「正在关注」动态";
 "Main feed" = "主动态";
 "Controls when and how the feed refreshes. Background refresh occurs when returning to the app after ~10 minutes. Home button refresh occurs when tapping the Home tab while already on it." = "控制动态消息的刷新时间与方式。背景刷新会在约 10 分钟后返回应用时执行。首页按钮刷新会在已在首页标签时点击该标签执行。";
@@ -323,7 +323,7 @@
 // Settings → Reels tab                                                     //
 //////////////////////////////////////////////////////////////////////////////
 
-"Adds a RyukGram action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "在短片侧边栏上方新增 Instagram X 操作按钮，包含观看封面/下载/分享/复制/展开/转贴项目。预设点击开启选单；可在下方更改点击行为。";
+"Adds a Instagram X action button above the reel sidebar with view-cover/download/share/copy/expand/repost entries. Tap opens the menu by default; change the tap behavior below." = "在短片侧边栏上方新增 Instagram X 操作按钮，包含观看封面/下载/分享/复制/展开/转贴项目。预设点击开启选单；可在下方更改点击行为。";
 "Always show progress scrubber" = "始终显示进度条";
 "Change what happens when you tap on a reel" = "更改点击短片时的动作";
 "Confirm reel refresh" = "确认短片重新整理";
@@ -355,7 +355,7 @@
 "Prevent doom scrolling" = "防止无止尽卷动";
 "Prevents reels from being scrolled to the next video" = "防止短片卷动至下一支影片";
 "Prevents reels from unmuting when the volume/silent button is pressed" = "按下音量/静音按钮时防止短片取消静音";
-"RyukGram" = "Instagram X";
+"Instagram X" = "Instagram X";
 "Shows an alert when you trigger a reels refresh" = "触发短片重新整理时显示警告";
 "Shows buttons to reveal and auto-fill the password on locked reels" = "显示按钮以揭露并自动填入锁定短片的密码";
 "Swipe a reel left to open the author's profile" = "向左滑动短片以打开作者主页";
@@ -422,7 +422,7 @@
 "Auto-retry attempts" = "自动重试次数";
 "Auto-retry failed downloads" = "自动重试失败的下载";
 "Confirm before download" = "下载前确认";
-"Deprecated. The RyukGram action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "已弃用。Instagram X 动作按钮（在动态/短片/限时动态中依功能设定）是下载媒体的新方式。仅当你偏好旧版多指长按直接下载媒体时，才启用此主开关。";
+"Deprecated. The Instagram X action button (configured per feature in Feed/Reels/Stories) is the new way to download media. Enable this master toggle only if you prefer the old multi-finger long-press directly on the media." = "已弃用。Instagram X 动作按钮（在动态/短片/限时动态中依功能设定）是下载媒体的新方式。仅当你偏好旧版多指长按直接下载媒体时，才启用此主开关。";
 "Don't pause downloads, encoding, or profile scans when you leave the app" = "离开应用时不暂停下载、编码或主页扫描";
 "Download queue" = "下载队列";
 "Downloads" = "下载";
@@ -480,7 +480,7 @@
 // Settings → Stories tab                                                   //
 //////////////////////////////////////////////////////////////////////////////
 
-"Adds a RyukGram action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "在限时动态的观看按钮旁新增 Instagram X 动作按钮，包含下载/分享/复制/展开/转发/查看提及等选项。预设点击开启选单；可在下方更改点击行为。";
+"Adds a Instagram X action button next to the eye button on stories with download/share/copy/expand/repost/view-mentions entries. Tap opens the menu by default; change the tap behavior below." = "在限时动态的观看按钮旁新增 Instagram X 动作按钮，包含下载/分享/复制/展开/转发/查看提及等选项。预设点击开启选单；可在下方更改点击行为。";
 "Adds a speaker button to the story overlay to unmute/mute audio. Also available in the 3-dot menu" = "在限时动态覆盖层新增喇叭按钮，可静音/取消静音音讯。此功能亦可在三点选单中使用";
 "Adds the eye button to story overlays. Off keeps seen blocking on without the button" = "在故事覆盖层加入眼睛按钮。关闭时仍保留已查看封锁，只是不显示按钮";
 "Advance on story like" = "按赞后自动切换限时动态";
@@ -754,7 +754,7 @@
 
 "%@ (%lu)" = "%@ (%lu)";
 "Adds a gallery button to the instants camera so you can send a photo from your album" = "为即时相机加入相册按钮，让你从相册发送照片";
-"Adds a RyukGram action button to the instants viewer header with expand, save, share, and bulk-save entries" = "在 Instants 查看器顶栏添加 Instagram X 操作按钮，包含展开、保存、分享和批量保存条目";
+"Adds a Instagram X action button to the instants viewer header with expand, save, share, and bulk-save entries" = "在 Instants 查看器顶栏添加 Instagram X 操作按钮，包含展开、保存、分享和批量保存条目";
 "All loaded instants" = "已加载的所有即时";
 "Auto advance after reaction" = "互动后自动切换";
 "Automatically moves to the next instant after you like or react" = "点赞或回应后自动切换到下一个即时";
@@ -920,7 +920,7 @@
 "Hide chat" = "隐藏聊天";
 "Hide message preview" = "隐藏消息预览";
 "Hide this chat?" = "隐藏此聊天？";
-"Hides RyukGram UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "从截图/录屏中隐藏 Instagram X 界面，并绕过 Instagram 按功能触发的截图警告。";
+"Hides Instagram X UI from screenshots/recordings and routes around IG's per-feature screenshot alerts." = "从截图/录屏中隐藏 Instagram X 界面，并绕过 Instagram 按功能触发的截图警告。";
 "Idle timeout" = "闲置超时";
 "Instagram" = "Instagram";
 "Keep this target locked separately" = "单独锁定此目标";
@@ -968,7 +968,7 @@
 "re-lock on bg" = "后台重新锁定";
 "Recently hidden" = "最近隐藏";
 "Recently locked" = "最近锁定";
-"Redact RyukGram buttons from screenshots, screen recordings, and mirroring" = "在截图、录屏和镜像中隐藏 Instagram X 按钮";
+"Redact Instagram X buttons from screenshots, screen recordings, and mirroring" = "在截图、录屏和镜像中隐藏 Instagram X 按钮";
 "Remove screenshot alert" = "移除截图警告";
 "Replace inbox preview with • • •" = "用 • • • 替换收件箱预览";
 "Require passcode for this section" = "此部分需要密码";
@@ -1028,7 +1028,7 @@
 "Could not write backup file." = "无法写入备份文件。";
 "Could not write extracted file." = "无法写入解压的文件。";
 "Existing data for the ticked items will be replaced. A restart may be needed for everything to take effect." = "已勾选项目的现有数据将被替换。可能需要重启才能让所有更改生效。";
-"Export or import RyukGram data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ryukbak." = "导出或导入 Instagram X 数据 — 设置、按账号筛选、隐藏和锁定的聊天、主页分析器、图库、聊天背景、已删除的消息和已读回执记录。可在每个页面任意组合选择。设置仍为纯 JSON 文件；包含媒体的捆绑包将导出为压缩的 .ryukbak。";
+"Export or import Instagram X data — settings, per-account filters, hidden & locked chats, Profile Analyzer, gallery, chat backgrounds, deleted messages and the read receipts log. Pick any combination on each page. Settings stay a plain JSON file; bundles with media export as a compressed .ixbak." = "导出或导入 Instagram X 数据 — 设置、按账号筛选、隐藏和锁定的聊天、主页分析器、图库、聊天背景、已删除的消息和已读回执记录。可在每个页面任意组合选择。设置仍为纯 JSON 文件；包含媒体的捆绑包将导出为压缩的 .ixbak。";
 "Feature data" = "功能数据";
 "Import mode" = "导入模式";
 "Merge" = "合并";
@@ -1041,14 +1041,14 @@
 "Hidden & locked chats" = "隐藏和锁定的聊天";
 "Import" = "导入";
 "Inspect the full manifest" = "查看完整清单";
-"Load a .json or .ryukbak backup" = "加载 .json 或 .ryukbak 备份";
-"Not a RyukGram backup archive." = "不是 Instagram X 备份归档。";
+"Load a .json or .ixbak backup" = "加载 .json 或 .ixbak 备份";
+"Not a Instagram X backup archive." = "不是 Instagram X 备份归档。";
 "PK %@" = "PK %@";
 "Preparing backup…" = "正在准备备份…";
 "Reading backup…" = "正在读取备份…";
 "Save settings or a full backup" = "保存设置或完整备份";
 "Tick what to apply. Rows not in this backup are hidden." = "勾选要应用的内容。此备份中不存在的行已隐藏。";
-"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ryukbak bundle." = "勾选要包含的内容。点按某行可查看。添加图库、聊天背景或已删除的消息会生成压缩的 .ryukbak 捆绑包。";
+"Tick what to include. Tap a row to inspect it. Adding gallery, chat backgrounds or deleted messages produces a compressed .ixbak bundle." = "勾选要包含的内容。点按某行可查看。添加图库、聊天背景或已删除的消息会生成压缩的 .ixbak 捆绑包。";
 "Truncated entry data." = "条目数据被截断。";
 "Truncated entry length." = "条目长度被截断。";
 "Truncated entry path." = "条目路径被截断。";
@@ -1081,7 +1081,7 @@
 "Fix duplicate notifications" = "修复重复通知";
 "Free %@ of Instagram cache." = "释放 %@ 的 Instagram 快取。";
 "Freed %@" = "已释放 %@";
-"Hold on the home tab to open RyukGram settings" = "长按主页标签以开启 Instagram X 设定";
+"Hold on the home tab to open Instagram X settings" = "长按主页标签以开启 Instagram X 设定";
 "Monthly" = "每月";
 "Nothing to clear" = "无可清除内容";
 "Off skips the size scan when Advanced opens." = "关闭时，开启进阶页不会扫描大小。";
@@ -1163,7 +1163,7 @@
 "Localization" = "本地化";
 "Log file is empty" = "日志文件为空";
 "Logging" = "日志";
-"Logs RyukGram's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "将 Instagram X 自身的活动记录到一个可分享的文件中，覆盖应用及其扩展。默认关闭——开启后重现问题，然后分享。";
+"Logs Instagram X's own activity to one shareable file across the app and its extensions. Off by default — turn it on, reproduce the issue, then share." = "将 Instagram X 自身的活动记录到一个可分享的文件中，覆盖应用及其扩展。默认关闭——开启后重现问题，然后分享。";
 "Menu Cell" = "选单栏位";
 "Navigation Cell" = "导览单元";
 "No imported localization files to reset." = "无可重设的汇入本地化档案。";
@@ -1245,7 +1245,7 @@
 "Save failed" = "储存失败";
 "Saved %lu items" = "已储存 %lu 项目";
 "Saved to Photos" = "已储存至照片";
-"Saved to RyukGram" = "已储存至 Instagram X";
+"Saved to Instagram X" = "已储存至 Instagram X";
 "Saving to Photos" = "正在保存到照片";
 "Saving…" = "正在储存...";
 "Unmute audio" = "取消静音";
@@ -1417,7 +1417,7 @@
 "Reset all backgrounds" = "重置所有背景";
 "Reset all backgrounds?" = "重置所有背景？";
 "Reset sets opacity to 1.0, blur to 0, dim to 0." = "重置会将不透明度设为 1.0，模糊设为 0，变暗设为 0。";
-"RyukGram Gallery" = "Instagram X 图库";
+"Instagram X Gallery" = "Instagram X 图库";
 "Search username, name, or thread ID" = "搜索用户名、名称或会话 ID";
 "Set as default" = "设为默认";
 "Tap plus to add. Tap a background to edit, set as default, or delete." = "点按加号添加。点按某个背景可编辑、设为默认或删除。";
@@ -1434,7 +1434,7 @@
 
 "Add location" = "新增位置";
 "Add preset" = "新增预设";
-"Affects everything above. When off, RyukGram's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "影响上方所有项。关闭时，Instagram X 的主题和界面覆盖仅在 iOS 处于深色模式时生效——浅色模式保持不变。";
+"Affects everything above. When off, Instagram X's theme and surface overrides only apply while iOS is in dark mode — leaving light mode untouched." = "影响上方所有项。关闭时，Instagram X 的主题和界面覆盖仅在 iOS 处于深色模式时生效——浅色模式保持不变。";
 "Apply & restart" = "套用并重新启动";
 "Background" = "背景";
 "Behavior" = "行为";
@@ -1480,7 +1480,7 @@
 "Saved locations" = "已储存位置";
 "Select color" = "选择颜色";
 "Set location" = "设定位置";
-"The theme RyukGram applies to Instagram." = "Instagram X 应用于 Instagram 的主题。";
+"The theme Instagram X applies to Instagram." = "Instagram X 应用于 Instagram 的主题。";
 "Theme" = "主题";
 "Turn every theme option off and restart" = "关闭所有主题选项并重新启动";
 "Turn Location Services on in Settings → Privacy to use your current location." = "请在设定 → 隐私中开启定位服务以使用目前位置。";
@@ -1538,7 +1538,7 @@
 "Fetching followers (%lu/%ld)…" = "正在取得粉丝 (%lu/%ld)…";
 "Fetching following (%lu/%ld)…" = "正在取得追踪中 (%lu/%ld)…";
 "Fetching profile info…" = "正在取得个人资料资讯…";
-"File is not a valid RyukGram backup." = "档案不是有效的 Instagram X 汇出档。";
+"File is not a valid Instagram X backup." = "档案不是有效的 Instagram X 汇出档。";
 "Filter" = "筛选";
 "Filter · %lu" = "筛选 · %lu";
 "First scan: %@" = "首次扫描：%@";
@@ -1778,7 +1778,7 @@
 "Keep-deleted: ON" = "  • 保留已删除：开启";
 "Later" = "稍后";
 "Loading" = "加载中";
-"Name of the Photos album RyukGram saves into. Leave empty to restore the default." = "Instagram X 保存到的“照片”相册名称。留空则恢复默认。";
+"Name of the Photos album Instagram X saves into. Leave empty to restore the default." = "Instagram X 保存到的“照片”相册名称。留空则恢复默认。";
 "Next" = "下一步";
 "No results found." = "未找到结果。";
 "No!" = "不要！";
@@ -1828,7 +1828,7 @@
 "Releases" = "版本发行";
 "Report an issue" = "回报问题";
 "Russian translation" = "俄文翻译";
-"RyukGram developer" = "Instagram X 开发者";
+"Instagram X developer" = "Instagram X 开发者";
 "Join Telegram channel" = "加入 Telegram 频道";
 "Source code" = "原始码";
 "View on GitHub" = "在 GitHub 查看";
@@ -1840,9 +1840,9 @@
 "Translators" = "翻译者";
 "Original BHInstagram developer" = "BHInstagram 原开发者";
 "OLED theme inspiration" = "OLED 主题灵感";
-"Donate to Ryuk" = "捐赠 Ryuk";
-"Support RyukGram development" = "支持 Instagram X 开发";
-"RyukGram is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X 是 SCInsta 的深度重做分支 — 支持原开发者将不胜感激。";
+"Donate" = "捐赠 Wexpid";
+"Support Instagram X development" = "支持 Instagram X 开发";
+"Instagram X is a heavily reworked fork of SCInsta — supporting the original developer is appreciated." = "Instagram X 是 SCInsta 的深度重做分支 — 支持原开发者将不胜感激。";
 "Browse changes from previous releases" = "查看以往版本的更改";
 "Code inspiration" = "代码灵感";
 "zxPluginsInject sideload compatibility shim" = "zxPluginsInject 侧载兼容性垫片";
@@ -1850,7 +1850,7 @@
 "Testing and feature suggestions" = "测试与功能建议";
 "Version" = "版本";
 "Version, credits, and links" = "版本、制作团队与连结";
-"What's new in RyukGram" = "Instagram X 有什么新功能";
+"What's new in Instagram X" = "Instagram X 有什么新功能";
 
 //////////////////////////////////////////////////////////////////////////////
 //                             HD DOWNLOADS                                 //
@@ -1963,7 +1963,7 @@
 "Very high quality." = "极高画质。";
 "Video bitrate" = "视频比特率";
 "Video codec" = "视频编码器";
-"Visually lossless. RyukGram default." = "视觉无损。Instagram X 默认。";
+"Visually lossless. Instagram X default." = "视觉无损。Instagram X 默认。";
 "Widest compatibility, no B-frames." = "兼容性最广，无 B 帧。";
 "Worst quality." = "最差画质。";
 
@@ -1975,11 +1975,11 @@
 
 "Long-press gestures" = "长按手势";
 "Inserts a button in the profile navigation header" = "在个人资料导航栏中插入一个按钮";
-"Adds a RyukGram action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "在个人资料标题栏新增 Instagram X 操作按钮，包含复制、查看图片、分享、保存和资料信息选项。默认点击打开菜单；可在「配置菜单」中更改点击行为。";
+"Adds a Instagram X action button to the profile header with copy, view picture, share, save, and profile-info entries. Tap opens the menu by default; change the tap behavior in Configure menu." = "在个人资料标题栏新增 Instagram X 操作按钮，包含复制、查看图片、分享、保存和资料信息选项。默认点击打开菜单；可在「配置菜单」中更改点击行为。";
 "Configure menu" = "配置菜单";
 "Reorder, enable/disable, set default tap, show date" = "重新排序、启用/禁用、设置默认点击、显示日期";
 "Reorder, enable/disable, set default tap" = "重新排序、启用/禁用、设置默认点击";
-"RyukGram profile actions" = "Instagram X 个人资料操作";
+"Instagram X profile actions" = "Instagram X 个人资料操作";
 "Reorder sections" = "重新排序分区";
 "Drag the ≡ handle to reorder sections." = "拖动 ≡ 手柄以重新排序分区。";
 "Drag the ≡ handle to reorder. Toggle a row off to hide it from the menu. Mark a section as a submenu to collapse its actions behind a single entry." = "拖动 ≡ 手柄以重新排序。关闭某行可在菜单中隐藏。将分区标记为子菜单可将其操作折叠到单个条目下。";
@@ -2076,7 +2076,7 @@
 "Flat list. No grouping." = "扁平列表，不分组。";
 "Folder name" = "文件夹名称";
 "Folders" = "文件夹";
-"From RyukGram Gallery" = "来自 Instagram X 图库的音频";
+"From Instagram X Gallery" = "来自 Instagram X 图库的音频";
 "Gallery" = "图库";
 "Gallery only" = "仅图库";
 "Gallery save mode" = "图库保存模式";
@@ -2092,7 +2092,7 @@
 "items" = "项";
 "Largest first" = "最大优先";
 "List view" = "列表视图";
-"Long-press the inbox button in the bottom tab bar to open RyukGram gallery" = "长按底部标签栏中的收件箱按钮打开 Instagram X 图库";
+"Long-press the inbox button in the bottom tab bar to open Instagram X gallery" = "长按底部标签栏中的收件箱按钮打开 Instagram X 图库";
 "Manage" = "管理";
 "More" = "更多";
 "Move selected" = "移动所选";
@@ -2105,7 +2105,7 @@
 "No files in Gallery" = "图库中没有文件";
 "No files to delete" = "无可删除文件";
 "No matching files" = "没有匹配的文件";
-"On-device library of media downloaded through RyukGram. Save mode picks where 'Download to Photos' actually writes." = "通过 Instagram X 下载的媒体的本机库。保存模式决定「下载到照片」实际写入的位置。";
+"On-device library of media downloaded through Instagram X. Save mode picks where 'Download to Photos' actually writes." = "通过 Instagram X 下载的媒体的本机库。保存模式决定「下载到照片」实际写入的位置。";
 "Open" = "打开";
 "Open Original Post" = "打开原帖子";
 "Options" = "选项";
@@ -2214,8 +2214,8 @@
 "Preview pill" = "预览药丸";
 "Preview download pill" = "预览下载药丸";
 "Preview loading pill" = "预览加载药丸";
-"Master switch. When off, no RyukGram pills or IG-native toasts are emitted." = "主开关。关闭后将不显示任何通知。";
-"Universal in-app notifications. All RyukGram feedback (downloads, copies, errors, success messages) routes through here." = "应用内统一通知。所有 Instagram X 反馈都从这里发出。";
+"Master switch. When off, no Instagram X pills or IG-native toasts are emitted." = "主开关。关闭后将不显示任何通知。";
+"Universal in-app notifications. All Instagram X feedback (downloads, copies, errors, success messages) routes through here." = "应用内统一通知。所有 Instagram X 反馈都从这里发出。";
 "Minimal: flat blur. Colorful: tinted by tone. Glow: colored halo. Island: dynamic-island capsule." = "Minimal：简单模糊。Colorful：按色调着色。Glow：彩色光环。Island：动态岛胶囊。";
 "Top slides down, bottom slides up." = "顶部下滑,底部上滑.";
 "How many pills can show at once before queueing." = "在排队前同时显示的药丸数量。";

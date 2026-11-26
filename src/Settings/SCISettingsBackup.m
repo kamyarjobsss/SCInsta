@@ -248,7 +248,7 @@ static const SCIBackupScope SCIBackupScopeAll =
 
 + (NSDictionary *)snapshotForScope:(SCIBackupScope)scope {
     NSMutableDictionary *root = [NSMutableDictionary dictionary];
-    root[@"ryukgram_export"] = @(YES);
+    root[@"instagramx_export"] = @(YES);
     root[@"version"] = @(2);
     root[@"exported_at"] = @([[NSDate date] timeIntervalSince1970]);
 
@@ -277,7 +277,7 @@ static const SCIBackupScope SCIBackupScopeAll =
 
     NSDictionary *settings = [root[@"settings"] isKindOfClass:[NSDictionary class]] ? root[@"settings"] : nil;
     // v1 back-compat: file is a flat map of pref keys → value.
-    if (!settings && !root[@"ryukgram_export"]) settings = root;
+    if (!settings && !root[@"instagramx_export"]) settings = root;
 
     if ((scope & SCIBackupScopeSettings) && settings) {
         NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
@@ -336,7 +336,7 @@ static const SCIBackupScope SCIBackupScopeAll =
 
 + (void)writeExportToFilePicker:(NSDictionary *)payload host:(UIViewController *)host {
     NSData *data = [self serializeSettings:payload];
-    NSString *fname = [NSString stringWithFormat:@"ryukgram-export-%@.json", [self timestampString]];
+    NSString *fname = [NSString stringWithFormat:@"instagramx-export-%@.json", [self timestampString]];
     NSURL *tmp = [[NSFileManager defaultManager].temporaryDirectory URLByAppendingPathComponent:fname];
     NSError *err = nil;
     [data writeToURL:tmp options:NSDataWritingAtomic error:&err];
@@ -404,11 +404,11 @@ static const SCIBackupScope SCIBackupScopeAll =
     if ([root[@"lists"] isKindOfClass:[NSDictionary class]]) available |= SCIBackupScopeLists;
     if ([root[@"analyzer"] isKindOfClass:[NSDictionary class]]) available |= SCIBackupScopeAnalyzer;
     // v1 back-compat: flat pref map → treat as settings-only.
-    if (!available && !root[@"ryukgram_export"]) available = SCIBackupScopeSettings;
+    if (!available && !root[@"instagramx_export"]) available = SCIBackupScopeSettings;
     if (!available) { [self showError:SCILocalized(@"File has no importable sections.")]; return; }
 
     // Wrap v1 flat files into the v2 envelope for the picker.
-    NSDictionary *normalized = root[@"ryukgram_export"] ? root : @{ @"settings": root };
+    NSDictionary *normalized = root[@"instagramx_export"] ? root : @{ @"settings": root };
 
     [self presentScopePickerWithContinueTitle:SCILocalized(@"Apply")
                                        message:SCILocalized(@"Tick what to apply. Tap any row to inspect. Sections not in the file are disabled.")

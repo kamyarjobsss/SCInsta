@@ -34,8 +34,8 @@
     BOOL fa = [SCIResolvedLanguageCode() hasPrefix:@"fa"];
     label.textAlignment = fa ? NSTextAlignmentRight : NSTextAlignmentLeft;
     label.text = fa
-        ? @"اینستاگرام ایکس تحت GPL-3.0 منتشر شده است. این ساخت بر پایهٔ کد پروژه‌های متن‌باز زیر است و فایل LICENSE در مخزن منبع حفظ شده است.\n\n• RyukGram نسخهٔ 1.3.2، GPL-3.0\n• SCInsta، GPL-3.0\n• Xray-core، MPL-2.0\n• fishhook\n• FFmpegKit، در صورت بسته‌شدن در این ساخت"
-        : @"Instagram X is released under GPL-3.0. This build is based on the open-source projects below, and the LICENSE file stays in the source tree.\n\n• RyukGram v1.3.2, GPL-3.0\n• SCInsta, GPL-3.0\n• Xray-core, MPL-2.0\n• fishhook\n• FFmpegKit, when this build includes it";
+        ? @"اینستاگرام ایکس تحت GPL-3.0 منتشر شده است. این ساخت بر پایهٔ کد پروژه‌های متن‌باز زیر است و فایل LICENSE در مخزن منبع حفظ شده است.\n\n• Instagram X نسخهٔ 1.3.2، GPL-3.0\n• SCInsta، GPL-3.0\n• Xray-core، MPL-2.0\n• fishhook\n• FFmpegKit، در صورت بسته‌شدن در این ساخت"
+        : @"Instagram X is released under GPL-3.0. This build is based on the open-source projects below, and the LICENSE file stays in the source tree.\n\n• Instagram X, GPL-3.0\n• SCInsta, GPL-3.0\n• Xray-core, MPL-2.0\n• fishhook\n• FFmpegKit, when this build includes it";
     label.translatesAutoresizingMaskIntoConstraints = NO;
     [cell.contentView addSubview:label];
     [NSLayoutConstraint activateConstraints:@[

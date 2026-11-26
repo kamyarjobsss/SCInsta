@@ -574,7 +574,10 @@ sponsoredSupportConfiguration:(id)supportConfig
 %end
 
 // Home feed meta ai button
-%hook IGFloatingActionButton.IGFloatingActionButton
+@interface _TtC11BSLSharedUI23BSLFloatingActionButton : UIView
+@end
+
+%hook _TtC11BSLSharedUI23BSLFloatingActionButton
 - (void)didMoveToSuperview {
     %orig;
     if ([SCIUtils getBoolPref:@"hide_meta_ai"]) {

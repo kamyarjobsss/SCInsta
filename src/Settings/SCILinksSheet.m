@@ -96,11 +96,4 @@
     }];
 }
 
-- (void)openUpstream {
-    NSURL *url = [NSURL URLWithString:@"https://github.com/faroukbmiled/RyukGram/tree/v1.3.2"];
-    [self dismissViewControllerAnimated:YES completion:^{
-        if (url) [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
-    }];
-}
-
 @end

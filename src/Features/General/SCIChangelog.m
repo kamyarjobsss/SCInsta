@@ -16,7 +16,7 @@ static NSString *sciChangelogCacheDir(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         NSString *base = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-        dir = [base stringByAppendingPathComponent:@"RyukGramChangelog"];
+        dir = [base stringByAppendingPathComponent:@"InstagramXChangelog"];
         [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
     });
     return dir;
@@ -198,7 +198,7 @@ static NSAttributedString *sciRenderMarkdown(NSString *md) {
     NSString *name = self.releaseJSON[@"name"] ?: self.releaseJSON[@"tag_name"] ?: @"?";
     NSString *body = self.releaseJSON[@"body"] ?: @"";
     NSString *htmlURL = self.releaseJSON[@"html_url"] ?: @"";
-    self.title = SCILocalized(@"What's new in RyukGram");
+    self.title = SCILocalized(@"What's new in Instagram X");
 
     self.navigationItem.rightBarButtonItem =
         [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone

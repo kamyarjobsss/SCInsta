@@ -483,6 +483,21 @@
 @property (nonatomic) IGDirectNotesComposerViewController *delegate;
 @end
 
+@interface _TtC26IGNotesBubbleCreationSwift41IGDirectNotesBubbleEditorColorPaletteView : UIView
+@property (nonatomic, copy) UIColor *backgroundColor;
+@property (nonatomic, copy) UIColor *textColor;
+@property (nonatomic, copy) NSString *emojiText;
+- (void)presentColorPicker:(NSString *)target;
+- (void)applySCICustomTheme:(NSString *)target;
+@end
+
+@interface _TtC14IGRegistration35IGRegistrationWelcomeViewController : UIViewController
+@end
+
+@interface _TtC26IGNotesBubbleCreationSwift39IGDirectNotesBubbleEditorViewController : UIViewController
+@property (nonatomic) IGDirectNotesComposerViewController *delegate;
+@end
+
 @interface IGDSBottomButtonsView : UIView
 - (void)setPrimaryButtonEnabled:(BOOL)enabled;
 - (void)setSecondaryButtonEnabled:(BOOL)enabled;

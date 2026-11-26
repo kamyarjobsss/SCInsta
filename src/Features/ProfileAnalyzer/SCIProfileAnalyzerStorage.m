@@ -4,7 +4,7 @@ NSNotificationName const SCIProfileAnalyzerDataDidChangeNotification = @"SCIProf
 
 @implementation SCIProfileAnalyzerStorage
 
-static NSString *const kSCIPAStorageDir = @"RyukGram/ProfileAnalyzer";
+static NSString *const kSCIPAStorageDir = @"InstagramX/ProfileAnalyzer";
 
 static void sciPostDataChanged(NSString *userPK) {
     dispatch_async(dispatch_get_main_queue(), ^{

@@ -16,7 +16,7 @@ static NSString *diskDir(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         NSString *base = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
-        dir = [base stringByAppendingPathComponent:@"RyukGramImages"];
+        dir = [base stringByAppendingPathComponent:@"InstagramXImages"];
         [[NSFileManager defaultManager] createDirectoryAtPath:dir withIntermediateDirectories:YES attributes:nil error:nil];
     });
     return dir;
